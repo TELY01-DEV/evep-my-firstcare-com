@@ -67,7 +67,7 @@ const Dashboard: React.FC = () => {
           Welcome to EVEP
         </Typography>
         <Typography variant="body1">
-          Early Vision Evaluation Platform is designed to provide comprehensive vision screening 
+          EYE Vision Evaluation Platform is designed to provide comprehensive vision screening 
           for children aged 6-12 years with AI-powered analysis and seamless communication 
           between healthcare providers, parents, and educational institutions.
         </Typography>

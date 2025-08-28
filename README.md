@@ -1,4 +1,4 @@
-# EVEP (Early Vision Evaluation Platform)
+# EVEP (EYE Vision Evaluation Platform)
 
 A comprehensive vision screening platform designed for children aged 6-12 years, featuring AI-powered analysis, multi-platform support, and seamless communication between healthcare providers, parents, and educational institutions.
 

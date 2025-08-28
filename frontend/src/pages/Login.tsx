@@ -1,19 +1,8 @@
 import React from 'react';
-import { Box, Typography, Paper } from '@mui/material';
+import MedicalLoginForm from '../components/Auth/MedicalLoginForm';
 
 const Login: React.FC = () => {
-  return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom>
-        Login
-      </Typography>
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="body1">
-          Login functionality will be implemented here.
-        </Typography>
-      </Paper>
-    </Box>
-  );
+  return <MedicalLoginForm />;
 };
 
 export default Login;

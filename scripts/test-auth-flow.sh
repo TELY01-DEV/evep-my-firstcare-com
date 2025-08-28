@@ -1,0 +1,51 @@
+#!/bin/bash
+
+echo "🔐 EVEP Authentication Flow Test"
+echo "================================"
+echo ""
+
+echo "📋 Testing Steps:"
+echo "1. Open your browser and go to: http://localhost:3013"
+echo "2. You should see the EVEP login page (not dashboard)"
+echo "3. If you see dashboard, clear localStorage:"
+echo "   - Press F12 → Console → Run: localStorage.clear()"
+echo "   - Refresh the page (F5)"
+echo ""
+
+echo "🎯 Expected Behavior:"
+echo "✅ Root path (/) should show login page"
+echo "✅ /login should show login page"
+echo "✅ /dashboard should redirect to login if not authenticated"
+echo "✅ After login, should redirect to /dashboard"
+echo ""
+
+echo "🔗 Test URLs:"
+echo "   Frontend: http://localhost:3013"
+echo "   Login: http://localhost:3013/login"
+echo "   Dashboard: http://localhost:3013/dashboard"
+echo "   API Docs: http://localhost:8013/docs"
+echo ""
+
+echo "👤 Demo Login Credentials:"
+echo "   Doctor: doctor@evep.com / demo123"
+echo "   Teacher: teacher@evep.com / demo123"
+echo "   Parent: parent@evep.com / demo123"
+echo "   Admin: admin@evep.com / demo123"
+echo ""
+
+echo "🔄 Authentication Flow:"
+echo "   1. Visit http://localhost:3013"
+echo "   2. Should see login page"
+echo "   3. Enter credentials or use demo login"
+echo "   4. Should redirect to dashboard"
+echo "   5. Logout should return to login page"
+echo ""
+
+echo "🐛 Troubleshooting:"
+echo "   If still seeing dashboard:"
+echo "   - Clear browser cache and cookies"
+echo "   - Use incognito/private browsing"
+echo "   - Run: localStorage.clear() in console"
+echo ""
+
+echo "✅ Test completed! Check your browser now."

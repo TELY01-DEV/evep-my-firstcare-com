@@ -3,20 +3,21 @@ import { Navigate } from 'react-router-dom';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
-interface ProtectedRouteProps {
+interface AdminRouteProps {
   children: React.ReactNode;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+const AdminRoute: React.FC<AdminRouteProps> = ({ children }) => {
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const theme = useTheme();
 
   useEffect(() => {
-    const checkAuth = () => {
+    const checkAdminAuth = () => {
       const token = localStorage.getItem('evep_token');
+      const userStr = localStorage.getItem('evep_user');
       
-      if (!token) {
-        setIsAuthenticated(false);
+      if (!token || !userStr) {
+        setIsAdmin(false);
         return;
       }
 
@@ -29,23 +30,30 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           // Token is expired
           localStorage.removeItem('evep_token');
           localStorage.removeItem('evep_user');
-          setIsAuthenticated(false);
+          setIsAdmin(false);
+          return;
+        }
+
+        // Check if user is admin
+        const user = JSON.parse(userStr);
+        if (user.role === 'admin') {
+          setIsAdmin(true);
         } else {
-          setIsAuthenticated(true);
+          setIsAdmin(false);
         }
       } catch (error) {
-        // Invalid token
+        // Invalid token or user data
         localStorage.removeItem('evep_token');
         localStorage.removeItem('evep_user');
-        setIsAuthenticated(false);
+        setIsAdmin(false);
       }
     };
 
-    checkAuth();
+    checkAdminAuth();
   }, []);
 
   // Show loading while checking authentication
-  if (isAuthenticated === null) {
+  if (isAdmin === null) {
     return (
       <Box
         display="flex"
@@ -54,25 +62,25 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         justifyContent="center"
         minHeight="100vh"
         sx={{ 
-          background: `linear-gradient(135deg, #F0F9FF 0%, ${theme.palette.background.default} 100%)`,
+          background: `linear-gradient(135deg, #E3F2FD 0%, ${theme.palette.background.default} 100%)`,
         }}
       >
         <CircularProgress size={60} sx={{ color: theme.palette.primary.main, mb: 2 }} />
         <Typography variant="h6" color={theme.palette.primary.main} fontWeight={600}>
-          Loading EVEP Medical Panel...
+          Loading EVEP Admin Panel...
         </Typography>
         <Typography variant="body2" color={theme.palette.text.secondary} sx={{ mt: 1 }}>
-          Verifying medical professional credentials
+          Verifying administrator credentials
         </Typography>
       </Box>
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAdmin) {
     return <Navigate to="/login" replace />;
   }
-  
+
   return <>{children}</>;
 };
 
-export default ProtectedRoute;
+export default AdminRoute;

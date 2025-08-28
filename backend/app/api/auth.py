@@ -11,7 +11,7 @@ from pydantic import BaseModel, EmailStr
 
 from app.core.config import settings
 from app.core.security import create_access_token, verify_token, hash_password, verify_password, generate_blockchain_hash
-from app.core.database import get_database
+from app.core.database import get_users_collection, get_audit_logs_collection
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -65,10 +65,11 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 async def register_user(user_data: UserRegister):
     """Register a new user"""
     
-    db = get_database()
+    users_collection = get_users_collection()
+    audit_logs_collection = get_audit_logs_collection()
     
     # Check if user already exists
-    existing_user = await db.users.find_one({"email": user_data.email})
+    existing_user = await users_collection.find_one({"email": user_data.email})
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -107,7 +108,7 @@ async def register_user(user_data: UserRegister):
     }
     
     # Insert user into database
-    result = await db.users.insert_one(user_doc)
+    result = await users_collection.insert_one(user_doc)
     user_doc["_id"] = result.inserted_id
     
     # Create access token
@@ -119,7 +120,7 @@ async def register_user(user_data: UserRegister):
     access_token = create_access_token(token_data)
     
     # Log successful registration
-    await db.audit_logs.insert_one({
+    await audit_logs_collection.insert_one({
         "action": "user_registration",
         "user_id": str(result.inserted_id),
         "email": user_data.email,
@@ -149,10 +150,11 @@ async def register_user(user_data: UserRegister):
 async def login_user(login_data: UserLogin):
     """Login user and return access token"""
     
-    db = get_database()
+    users_collection = get_users_collection()
+    audit_logs_collection = get_audit_logs_collection()
     
     # Find user by email
-    user = await db.users.find_one({"email": login_data.email})
+    user = await users_collection.find_one({"email": login_data.email})
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -169,7 +171,7 @@ async def login_user(login_data: UserLogin):
     # Verify password
     if not verify_password(login_data.password, user["password_hash"]):
         # Increment failed login attempts
-        await db.users.update_one(
+        await users_collection.update_one(
             {"_id": user["_id"]},
             {"$inc": {"login_attempts": 1}}
         )
@@ -177,7 +179,7 @@ async def login_user(login_data: UserLogin):
         # Lock account if too many failed attempts
         if user.get("login_attempts", 0) >= 4:  # 5th failed attempt
             lock_until = settings.get_utc_timestamp() + timedelta(minutes=30)
-            await db.users.update_one(
+            await users_collection.update_one(
                 {"_id": user["_id"]},
                 {"$set": {"locked_until": lock_until}}
             )
@@ -192,14 +194,14 @@ async def login_user(login_data: UserLogin):
         )
     
     # Reset login attempts on successful login
-    await db.users.update_one(
+    await users_collection.update_one(
         {"_id": user["_id"]},
         {
-                    "$set": {
-            "last_login": settings.get_utc_timestamp(),
-            "login_attempts": 0,
-            "locked_until": None
-        }
+            "$set": {
+                "last_login": settings.get_utc_timestamp(),
+                "login_attempts": 0,
+                "locked_until": None
+            }
         }
     )
     
@@ -215,7 +217,7 @@ async def login_user(login_data: UserLogin):
     audit_hash = generate_blockchain_hash(f"user_login:{user['email']}")
     
     # Log successful login
-    await db.audit_logs.insert_one({
+    await audit_logs_collection.insert_one({
         "action": "user_login",
         "user_id": str(user["_id"]),
         "email": user["email"],
@@ -245,8 +247,8 @@ async def login_user(login_data: UserLogin):
 async def get_current_user_profile(current_user: dict = Depends(get_current_user)):
     """Get current user profile"""
     
-    db = get_database()
-    user = await db.users.find_one({"_id": current_user["user_id"]})
+    users_collection = get_users_collection()
+    user = await users_collection.find_one({"_id": current_user["user_id"]})
     
     if not user:
         raise HTTPException(
@@ -271,8 +273,8 @@ async def get_current_user_profile(current_user: dict = Depends(get_current_user
 async def refresh_token(current_user: dict = Depends(get_current_user)):
     """Refresh access token"""
     
-    db = get_database()
-    user = await db.users.find_one({"_id": current_user["user_id"]})
+    users_collection = get_users_collection()
+    user = await users_collection.find_one({"_id": current_user["user_id"]})
     
     if not user or not user["is_active"]:
         raise HTTPException(
@@ -305,18 +307,16 @@ async def refresh_token(current_user: dict = Depends(get_current_user)):
 async def logout_user(current_user: dict = Depends(get_current_user)):
     """Logout user (client should discard token)"""
     
-    # Generate audit hash
-    audit_hash = generate_blockchain_hash(f"user_logout:{current_user['email']}")
+    audit_logs_collection = get_audit_logs_collection()
     
     # Log logout
-    db = get_database()
-    await db.audit_logs.insert_one({
+    await audit_logs_collection.insert_one({
         "action": "user_logout",
         "user_id": current_user["user_id"],
         "email": current_user["email"],
         "timestamp": settings.get_current_timestamp(),
         "ip_address": "127.0.0.1",  # TODO: Get from request
-        "audit_hash": audit_hash,
+        "audit_hash": generate_blockchain_hash(f"user_logout:{current_user['email']}"),
         "details": {
             "role": current_user["role"]
         }
@@ -332,9 +332,11 @@ async def change_password(
 ):
     """Change user password"""
     
-    db = get_database()
-    user = await db.users.find_one({"_id": current_user["user_id"]})
+    users_collection = get_users_collection()
+    audit_logs_collection = get_audit_logs_collection()
     
+    # Get current user data
+    user = await users_collection.find_one({"_id": current_user["user_id"]})
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -351,26 +353,113 @@ async def change_password(
     # Hash new password
     new_password_hash = hash_password(new_password)
     
-    # Generate audit hash
-    audit_hash = generate_blockchain_hash(f"password_change:{current_user['email']}")
-    
     # Update password
-    await db.users.update_one(
+    await users_collection.update_one(
         {"_id": user["_id"]},
         {"$set": {"password_hash": new_password_hash}}
     )
     
     # Log password change
-    await db.audit_logs.insert_one({
+    await audit_logs_collection.insert_one({
         "action": "password_change",
-        "user_id": current_user["user_id"],
-        "email": current_user["email"],
+        "user_id": str(user["_id"]),
+        "email": user["email"],
         "timestamp": settings.get_current_timestamp(),
         "ip_address": "127.0.0.1",  # TODO: Get from request
-        "audit_hash": audit_hash,
+        "audit_hash": generate_blockchain_hash(f"password_change:{user['email']}"),
         "details": {
-            "role": current_user["role"]
+            "role": user["role"]
         }
     })
     
     return {"message": "Password changed successfully"}
+
+@router.post("/reset-password-request")
+async def request_password_reset(email: EmailStr):
+    """Request password reset (send email)"""
+    
+    users_collection = get_users_collection()
+    audit_logs_collection = get_audit_logs_collection()
+    
+    # Check if user exists
+    user = await users_collection.find_one({"email": email})
+    if not user:
+        # Don't reveal if user exists or not
+        return {"message": "If the email exists, a reset link has been sent"}
+    
+    # Generate reset token (implement token generation logic)
+    reset_token = generate_blockchain_hash(f"password_reset:{email}")
+    
+    # Store reset token with expiration
+    await users_collection.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {
+                "reset_token": reset_token,
+                "reset_token_expires": settings.get_utc_timestamp() + timedelta(hours=1)
+            }
+        }
+    )
+    
+    # Log password reset request
+    await audit_logs_collection.insert_one({
+        "action": "password_reset_request",
+        "user_id": str(user["_id"]),
+        "email": user["email"],
+        "timestamp": settings.get_current_timestamp(),
+        "ip_address": "127.0.0.1",  # TODO: Get from request
+        "audit_hash": reset_token,
+        "details": {
+            "role": user["role"]
+        }
+    })
+    
+    # TODO: Send email with reset link
+    # For now, just return success
+    return {"message": "If the email exists, a reset link has been sent"}
+
+@router.post("/reset-password")
+async def reset_password(token: str, new_password: str):
+    """Reset password using token"""
+    
+    users_collection = get_users_collection()
+    audit_logs_collection = get_audit_logs_collection()
+    
+    # Find user with valid reset token
+    user = await users_collection.find_one({
+        "reset_token": token,
+        "reset_token_expires": {"$gt": settings.get_utc_timestamp()}
+    })
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+    
+    # Hash new password
+    new_password_hash = hash_password(new_password)
+    
+    # Update password and clear reset token
+    await users_collection.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {"password_hash": new_password_hash},
+            "$unset": {"reset_token": "", "reset_token_expires": ""}
+        }
+    )
+    
+    # Log password reset
+    await audit_logs_collection.insert_one({
+        "action": "password_reset",
+        "user_id": str(user["_id"]),
+        "email": user["email"],
+        "timestamp": settings.get_current_timestamp(),
+        "ip_address": "127.0.0.1",  # TODO: Get from request
+        "audit_hash": generate_blockchain_hash(f"password_reset_complete:{user['email']}"),
+        "details": {
+            "role": user["role"]
+        }
+    })
+    
+    return {"message": "Password reset successfully"}

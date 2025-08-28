@@ -9,11 +9,14 @@ import asyncio
 from app.core.config import settings
 from app.socketio_service import socketio_service, socket_app
 from app.api.auth import router as auth_router
+from app.api.screenings import router as screenings_router
+from app.api.patients import router as patients_router
+from app.api.admin import router as admin_router
 
 # Create FastAPI app
 app = FastAPI(
     title="EVEP API",
-    description="Early Vision Evaluation Platform API",
+    description="EYE Vision Evaluation Platform API",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
@@ -24,6 +27,9 @@ app.mount("/socket.io", socket_app)
 
 # Include API routers
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(screenings_router, prefix="/api/v1")
+app.include_router(patients_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
 
 # CORS middleware
 app.add_middleware(
@@ -50,7 +56,7 @@ async def shutdown_event():
 async def root():
     """Root endpoint"""
     return {
-        "message": "EVEP API - Early Vision Evaluation Platform",
+        "message": "EVEP API - EYE Vision Evaluation Platform",
         "version": "1.0.0",
         "status": "running",
         "timestamp": settings.get_current_timestamp()

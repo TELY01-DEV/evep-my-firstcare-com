@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     JWT_EXPIRATION_HOURS: int = 24
     
     # Database
-    DATABASE_URL: str = "mongodb://mongo-primary:27017,mongo-secondary-1:27017,mongo-secondary-2:27017/evep?replicaSet=rs0"
+    DATABASE_URL: str = "mongodb://mongo-primary:27017/evep"
     MONGO_ROOT_USERNAME: str = "admin"
     MONGO_ROOT_PASSWORD: str = "password"
     MONGO_DATABASE: str = "evep"

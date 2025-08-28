@@ -15,12 +15,15 @@ def get_database() -> AsyncIOMotorClient:
     """Get the database client instance"""
     global _database
     if _database is None:
-        _database = AsyncIOMotorClient(settings.DATABASE_URL)
+        # Use a simpler connection string without replica set
+        connection_string = "mongodb://mongo-primary:27017"
+        _database = AsyncIOMotorClient(connection_string, serverSelectionTimeoutMS=5000)
     return _database
 
 def get_sync_database() -> MongoClient:
     """Get a synchronous database client for operations that require it"""
-    return MongoClient(settings.DATABASE_URL)
+    connection_string = "mongodb://mongo-primary:27017"
+    return MongoClient(connection_string, serverSelectionTimeoutMS=5000)
 
 async def close_database():
     """Close the database connection"""

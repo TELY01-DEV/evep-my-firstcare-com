@@ -1,0 +1,52 @@
+#!/bin/bash
+
+echo "🔐 EVEP Authentication Redirect Test"
+echo "===================================="
+echo ""
+
+echo "📋 Testing Steps:"
+echo "1. Clear your browser's localStorage:"
+echo "   - Press F12 → Console → Run: localStorage.clear()"
+echo "   - Refresh the page (F5)"
+echo ""
+echo "2. Test these URLs in order:"
+echo "   - http://localhost:3013 (should redirect to login)"
+echo "   - http://localhost:3013/dashboard (should redirect to login)"
+echo "   - http://localhost:3013/login (should show login page)"
+echo ""
+
+echo "🎯 Expected Behavior:"
+echo "✅ / → Should redirect to /login if not authenticated"
+echo "✅ /dashboard → Should redirect to /login if not authenticated"
+echo "✅ /login → Should show medical professional login page"
+echo "✅ After login → Should redirect to /dashboard"
+echo ""
+
+echo "🔍 Debug Information:"
+echo "Current localStorage status:"
+echo "  - evep_token: $(echo 'localStorage.getItem("evep_token")' | node -e "console.log(require('readline').createInterface({input:process.stdin}).on('line', line => console.log(line)))" 2>/dev/null || echo 'Not set')"
+echo "  - evep_user: $(echo 'localStorage.getItem("evep_user")' | node -e "console.log(require('readline').createInterface({input:process.stdin}).on('line', line => console.log(line)))" 2>/dev/null || echo 'Not set')"
+echo ""
+
+echo "🐛 Troubleshooting:"
+echo "If /dashboard is not redirecting to login:"
+echo "1. Clear browser cache and cookies"
+echo "2. Use incognito/private browsing"
+echo "3. Run: localStorage.clear() in console"
+echo "4. Check browser console for errors"
+echo ""
+
+echo "🔗 Test URLs:"
+echo "   Root: http://localhost:3013"
+echo "   Dashboard: http://localhost:3013/dashboard"
+echo "   Login: http://localhost:3013/login"
+echo "   API Health: http://localhost:8013/health"
+echo ""
+
+echo "👤 Demo Login Credentials:"
+echo "   Doctor: doctor@evep.com / demo123"
+echo "   Nurse: nurse@evep.com / demo123"
+echo "   Admin: admin@evep.com / demo123"
+echo ""
+
+echo "✅ Test completed! Check your browser now."

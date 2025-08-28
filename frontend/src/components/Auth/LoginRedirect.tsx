@@ -3,11 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-}
-
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+const LoginRedirect: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const theme = useTheme();
 
@@ -62,17 +58,18 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           Loading EVEP Medical Panel...
         </Typography>
         <Typography variant="body2" color={theme.palette.text.secondary} sx={{ mt: 1 }}>
-          Verifying medical professional credentials
+          Initializing medical professional interface
         </Typography>
       </Box>
     );
   }
 
-  if (!isAuthenticated) {
+  // Redirect based on authentication status
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  } else {
     return <Navigate to="/login" replace />;
   }
-  
-  return <>{children}</>;
 };
 
-export default ProtectedRoute;
+export default LoginRedirect;

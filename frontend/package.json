@@ -1,7 +1,7 @@
 {
   "name": "evep-frontend",
   "version": "1.0.0",
-  "description": "EVEP Frontend - Early Vision Evaluation Platform",
+  "description": "EVEP Frontend - EYE Vision Evaluation Platform",
   "private": true,
   "dependencies": {
     "@testing-library/jest-dom": "^5.17.0",

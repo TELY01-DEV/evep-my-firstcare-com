@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
@@ -13,104 +13,20 @@ import Patients from './pages/Patients';
 import Screenings from './pages/Screenings';
 import Reports from './pages/Reports';
 
-// Components
-import Layout from './components/Layout/Layout';
-import ProtectedRoute from './components/Auth/ProtectedRoute';
+// Admin Pages
+import Admin from './pages/Admin';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminUsers from './pages/AdminUsers';
 
-// Create theme based on EVEP logo colors
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#9B7DCF', // Main accent purple from logo
-      light: '#A070D0', // Iris purple
-      dark: '#7B5DBF', // Darker purple
-      contrastText: '#FFFFFF',
-    },
-    secondary: {
-      main: '#E8BEE8', // Secondary accent pink from logo
-      light: '#F8EBF8', // Background pink
-      dark: '#D8A8D8', // Darker pink
-      contrastText: '#9B7DCF',
-    },
-    background: {
-      default: '#F8EBF8', // Very light pink/lavender background
-      paper: '#FFFFFF',
-    },
-    text: {
-      primary: '#9B7DCF', // Main purple for text
-      secondary: '#7B5DBF', // Darker purple for secondary text
-    },
-    // Custom colors can be accessed via theme.palette.primary, secondary, etc.
-  },
-  typography: {
-    fontFamily: '"Inter", "Noto Sans Thai", -apple-system, BlinkMacSystemFont, sans-serif',
-    h1: {
-      color: '#9B7DCF',
-      fontWeight: 600,
-    },
-    h2: {
-      color: '#9B7DCF',
-      fontWeight: 600,
-    },
-    h3: {
-      color: '#9B7DCF',
-      fontWeight: 600,
-    },
-    h4: {
-      color: '#9B7DCF',
-      fontWeight: 600,
-    },
-    h5: {
-      color: '#9B7DCF',
-      fontWeight: 600,
-    },
-    h6: {
-      color: '#9B7DCF',
-      fontWeight: 600,
-    },
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 8,
-          textTransform: 'none',
-          fontWeight: 500,
-        },
-        contained: {
-          backgroundColor: '#9B7DCF',
-          '&:hover': {
-            backgroundColor: '#7B5DBF',
-          },
-        },
-        outlined: {
-          borderColor: '#9B7DCF',
-          color: '#9B7DCF',
-          '&:hover': {
-            borderColor: '#7B5DBF',
-            backgroundColor: '#F8EBF8',
-          },
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: 12,
-          boxShadow: '0 4px 12px rgba(155, 125, 207, 0.1)',
-          border: '1px solid rgba(155, 125, 207, 0.1)',
-        },
-      },
-    },
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          backgroundColor: '#9B7DCF',
-        },
-      },
-    },
-  },
-});
+// Components
+import MedicalLayout from './components/Layout/MedicalLayout';
+import AdminLayout from './components/Layout/AdminLayout';
+import ProtectedRoute from './components/Auth/ProtectedRoute';
+import AdminRoute from './components/Auth/AdminRoute';
+import LoginRedirect from './components/Auth/LoginRedirect';
+
+// Medical Professional Theme
+import medicalTheme from './theme/medicalTheme';
 
 // Create query client
 const queryClient = new QueryClient({
@@ -125,7 +41,7 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={theme}>
+      <ThemeProvider theme={medicalTheme}>
         <CssBaseline />
         <Router>
           <div className="App">
@@ -134,16 +50,29 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               
+              {/* Root path - redirect to login or dashboard */}
+              <Route path="/" element={<LoginRedirect />} />
+              
               {/* Protected routes */}
-              <Route path="/" element={
+              <Route path="/dashboard" element={
                 <ProtectedRoute>
-                  <Layout />
+                  <MedicalLayout />
                 </ProtectedRoute>
               }>
                 <Route index element={<Dashboard />} />
                 <Route path="patients" element={<Patients />} />
                 <Route path="screenings" element={<Screenings />} />
                 <Route path="reports" element={<Reports />} />
+              </Route>
+
+              {/* Admin routes */}
+              <Route path="/admin" element={
+                <AdminRoute>
+                  <AdminLayout />
+                </AdminRoute>
+              }>
+                <Route index element={<AdminDashboard />} />
+                <Route path="users" element={<AdminUsers />} />
               </Route>
             </Routes>
             
