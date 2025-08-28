@@ -476,3 +476,126 @@ async def delete_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete user: {str(e)}"
         )
+
+# System Settings Models
+class SystemSettings(BaseModel):
+    general: dict
+    email: dict
+    security: dict
+    storage: dict
+    notifications: dict
+
+class SettingsUpdate(BaseModel):
+    settings: SystemSettings
+
+@router.get("/settings")
+async def get_system_settings(current_user: dict = Depends(get_current_user)):
+    """Get system settings"""
+    
+    # Check if user has admin permissions
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    try:
+        # In a real implementation, this would fetch from database
+        # For now, return default settings
+        default_settings = {
+            "general": {
+                "siteName": "EVEP Platform",
+                "siteDescription": "EYE Vision Evaluation Platform",
+                "timezone": "Asia/Bangkok",
+                "language": "en",
+                "maintenanceMode": False,
+            },
+            "email": {
+                "smtpHost": "smtp.gmail.com",
+                "smtpPort": 587,
+                "smtpUsername": "",
+                "smtpPassword": "",
+                "fromEmail": "noreply@evep.com",
+                "fromName": "EVEP System",
+                "enableEmailNotifications": True,
+            },
+            "security": {
+                "sessionTimeout": 30,
+                "maxLoginAttempts": 5,
+                "passwordMinLength": 8,
+                "requireTwoFactor": False,
+                "enableAuditLogging": True,
+                "ipWhitelist": [],
+            },
+            "storage": {
+                "maxFileSize": 10,
+                "allowedFileTypes": ["jpg", "jpeg", "png", "pdf", "doc", "docx"],
+                "enableCompression": True,
+                "backupFrequency": "daily",
+                "retentionDays": 30,
+            },
+            "notifications": {
+                "enableEmailAlerts": True,
+                "enableSMSAlerts": False,
+                "enablePushNotifications": True,
+                "alertLevels": ["critical", "warning", "info"],
+            },
+        }
+        
+        return {"settings": default_settings}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get system settings: {str(e)}"
+        )
+
+@router.put("/settings")
+async def update_system_settings(
+    settings_data: SettingsUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update system settings"""
+    
+    # Check if user has admin permissions
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    try:
+        audit_logs_collection = get_audit_logs_collection()
+        
+        # Generate blockchain hash for audit
+        audit_hash = generate_blockchain_hash(
+            f"settings_update:{current_user['user_id']}"
+        )
+        
+        # In a real implementation, this would save to database
+        # For now, just log the action
+        
+        # Log settings update
+        await audit_logs_collection.insert_one({
+            "action": "settings_updated",
+            "user_id": current_user["user_id"],
+            "timestamp": settings.get_current_timestamp(),
+            "audit_hash": audit_hash,
+            "details": {
+                "updated_by": current_user["email"],
+                "settings_sections": list(settings_data.settings.dict().keys()),
+                "maintenance_mode": settings_data.settings.general.get("maintenanceMode", False),
+            }
+        })
+        
+        return {
+            "message": "Settings updated successfully",
+            "updated_sections": list(settings_data.settings.dict().keys()),
+            "audit_hash": audit_hash
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update system settings: {str(e)}"
+        )

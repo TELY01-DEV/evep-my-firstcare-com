@@ -10,148 +10,88 @@ import {
   InputAdornment,
   IconButton,
   Link,
-  Divider
+  Divider,
 } from '@mui/material';
 import {
   Visibility,
   VisibilityOff,
   Email,
   Lock,
-  School
+  Login as LoginIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface LoginFormProps {
-  onLoginSuccess?: (token: string, user: any) => void;
+  onSwitchToRegister?: () => void;
+  onForgotPassword?: () => void;
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
+const LoginForm: React.FC<LoginFormProps> = ({
+  onSwitchToRegister,
+  onForgotPassword,
+}) => {
   const navigate = useNavigate();
+  const { login } = useAuth();
+  
   const [formData, setFormData] = useState({
     email: '',
-    password: ''
+    password: '',
   });
+  
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
-  const validateForm = () => {
-    const newErrors: { [key: string]: string } = {};
-
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const [error, setError] = useState<string | null>(null);
+  
+  const handleInputChange = (field: string) => (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: event.target.value,
+    }));
     // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
+    if (error) setError(null);
   };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     
-    if (!validateForm()) {
+    // Basic validation
+    if (!formData.email || !formData.password) {
+      setError('Please fill in all fields');
       return;
     }
-
-    setLoading(true);
-
-    try {
-      const response = await fetch('http://localhost:8013/api/v1/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || 'Login failed');
-      }
-
-      // Store token in localStorage
-      localStorage.setItem('evep_token', data.access_token);
-      localStorage.setItem('evep_user', JSON.stringify(data.user));
-
-      toast.success('Login successful! Welcome to EVEP');
-      
-      if (onLoginSuccess) {
-        onLoginSuccess(data.access_token, data.user);
-      }
-
-      // Redirect to dashboard
-      navigate('/');
-
-    } catch (error: any) {
-      console.error('Login error:', error);
-      toast.error(error.message || 'Login failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDemoLogin = async (role: string) => {
-    setLoading(true);
     
-    const demoCredentials = {
-      doctor: { email: 'doctor@evep.com', password: 'demo123' },
-      teacher: { email: 'teacher@evep.com', password: 'demo123' },
-      parent: { email: 'parent@evep.com', password: 'demo123' },
-      admin: { email: 'admin@evep.com', password: 'demo123' }
-    };
-
+    if (!formData.email.includes('@')) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    
     try {
-      const response = await fetch('http://localhost:8013/api/v1/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(demoCredentials[role as keyof typeof demoCredentials]),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || 'Demo login failed');
-      }
-
-      localStorage.setItem('evep_token', data.access_token);
-      localStorage.setItem('evep_user', JSON.stringify(data.user));
-
-      toast.success(`Demo login successful! Welcome ${data.user.first_name}`);
+      const success = await login(formData.email, formData.password);
       
-      if (onLoginSuccess) {
-        onLoginSuccess(data.access_token, data.user);
+      if (success) {
+        // Redirect based on user role
+        navigate('/dashboard');
+      } else {
+        setError('Invalid email or password');
       }
-
-      navigate('/');
-
-    } catch (error: any) {
-      console.error('Demo login error:', error);
-      toast.error('Demo login failed. Please try the regular login.');
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('An error occurred during login. Please try again.');
     } finally {
       setLoading(false);
     }
   };
-
+  
+  const handleTogglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+  
   return (
     <Box
       sx={{
@@ -159,32 +99,60 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #9B7DCF 0%, #E8BEE8 100%)',
-        padding: 2
+        background: 'linear-gradient(135deg, #1E3A8A 0%, #0F766E 100%)',
+        padding: 2,
       }}
     >
       <Paper
         elevation={8}
         sx={{
-          p: 4,
+          padding: 4,
           width: '100%',
-          maxWidth: 450,
+          maxWidth: 400,
           borderRadius: 3,
           background: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(10px)'
+          backdropFilter: 'blur(10px)',
         }}
       >
         {/* Logo and Title */}
         <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <School sx={{ fontSize: 48, color: '#9B7DCF', mb: 2 }} />
-          <Typography variant="h4" component="h1" gutterBottom sx={{ color: '#9B7DCF', fontWeight: 600 }}>
-            EVEP Platform
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              fontWeight: 700,
+              color: 'primary.main',
+              mb: 1,
+            }}
+          >
+            EVEP
           </Typography>
-          <Typography variant="body1" color="text.secondary">
-            EYE Vision Evaluation Platform
+          <Typography
+            variant="body1"
+            color="text.secondary"
+            sx={{ mb: 2 }}
+          >
+            Early Vision Evaluation Platform
+          </Typography>
+          <Typography
+            variant="h6"
+            component="h2"
+            sx={{
+              fontWeight: 600,
+              color: 'text.primary',
+            }}
+          >
+            Welcome Back
           </Typography>
         </Box>
-
+        
+        {/* Error Alert */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+        
         {/* Login Form */}
         <Box component="form" onSubmit={handleSubmit} sx={{ mb: 3 }}>
           <TextField
@@ -192,49 +160,43 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
             label="Email Address"
             type="email"
             value={formData.email}
-            onChange={(e) => handleInputChange('email', e.target.value)}
-            error={!!errors.email}
-            helperText={errors.email}
+            onChange={handleInputChange('email')}
             margin="normal"
+            required
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <Email sx={{ color: '#9B7DCF' }} />
+                  <Email color="action" />
                 </InputAdornment>
               ),
             }}
             sx={{
               '& .MuiOutlinedInput-root': {
-                '&:hover fieldset': {
-                  borderColor: '#9B7DCF',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: '#9B7DCF',
-                },
+                borderRadius: 2,
               },
             }}
           />
-
+          
           <TextField
             fullWidth
             label="Password"
             type={showPassword ? 'text' : 'password'}
             value={formData.password}
-            onChange={(e) => handleInputChange('password', e.target.value)}
-            error={!!errors.password}
-            helperText={errors.password}
+            onChange={handleInputChange('password')}
             margin="normal"
+            required
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <Lock sx={{ color: '#9B7DCF' }} />
+                  <Lock color="action" />
                 </InputAdornment>
               ),
               endAdornment: (
                 <InputAdornment position="end">
                   <IconButton
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={handleTogglePasswordVisibility}
                     edge="end"
+                    size="small"
                   >
                     {showPassword ? <VisibilityOff /> : <Visibility />}
                   </IconButton>
@@ -243,145 +205,92 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess }) => {
             }}
             sx={{
               '& .MuiOutlinedInput-root': {
-                '&:hover fieldset': {
-                  borderColor: '#9B7DCF',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: '#9B7DCF',
-                },
+                borderRadius: 2,
               },
             }}
           />
-
+          
           <Button
             type="submit"
             fullWidth
             variant="contained"
+            size="large"
             disabled={loading}
+            startIcon={loading ? <CircularProgress size={20} /> : <LoginIcon />}
             sx={{
               mt: 3,
               mb: 2,
+              borderRadius: 2,
               py: 1.5,
               fontSize: '1.1rem',
               fontWeight: 600,
-              background: 'linear-gradient(45deg, #9B7DCF 30%, #7B5DBF 90%)',
+              background: 'linear-gradient(45deg, #1E3A8A 30%, #0F766E 90%)',
               '&:hover': {
-                background: 'linear-gradient(45deg, #7B5DBF 30%, #5B3D9F 90%)',
+                background: 'linear-gradient(45deg, #1E40AF 30%, #0D5A52 90%)',
               },
             }}
           >
-            {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
+            {loading ? 'Signing In...' : 'Sign In'}
           </Button>
         </Box>
-
-        {/* Demo Login Section */}
-        <Divider sx={{ my: 3 }}>
+        
+        {/* Forgot Password Link */}
+        {onForgotPassword && (
+          <Box sx={{ textAlign: 'center', mb: 2 }}>
+            <Link
+              component="button"
+              variant="body2"
+              onClick={onForgotPassword}
+              sx={{
+                color: 'primary.main',
+                textDecoration: 'none',
+                '&:hover': {
+                  textDecoration: 'underline',
+                },
+              }}
+            >
+              Forgot your password?
+            </Link>
+          </Box>
+        )}
+        
+        {/* Divider */}
+        <Divider sx={{ my: 2 }}>
           <Typography variant="body2" color="text.secondary">
-            Demo Accounts
+            or
           </Typography>
         </Divider>
-
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, mb: 3 }}>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => handleDemoLogin('doctor')}
-            disabled={loading}
-            sx={{
-              borderColor: '#9B7DCF',
-              color: '#9B7DCF',
-              '&:hover': {
-                borderColor: '#7B5DBF',
-                backgroundColor: '#F8EBF8',
-              },
-            }}
-          >
-            Doctor
-          </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => handleDemoLogin('teacher')}
-            disabled={loading}
-            sx={{
-              borderColor: '#9B7DCF',
-              color: '#9B7DCF',
-              '&:hover': {
-                borderColor: '#7B5DBF',
-                backgroundColor: '#F8EBF8',
-              },
-            }}
-          >
-            Teacher
-          </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => handleDemoLogin('parent')}
-            disabled={loading}
-            sx={{
-              borderColor: '#9B7DCF',
-              color: '#9B7DCF',
-              '&:hover': {
-                borderColor: '#7B5DBF',
-                backgroundColor: '#F8EBF8',
-              },
-            }}
-          >
-            Parent
-          </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => handleDemoLogin('admin')}
-            disabled={loading}
-            sx={{
-              borderColor: '#9B7DCF',
-              color: '#9B7DCF',
-              '&:hover': {
-                borderColor: '#7B5DBF',
-                backgroundColor: '#F8EBF8',
-              },
-            }}
-          >
-            Admin
-          </Button>
-        </Box>
-
-        {/* Links */}
-        <Box sx={{ textAlign: 'center' }}>
-          <Link
-            href="#"
-            variant="body2"
-            sx={{
-              color: '#9B7DCF',
-              textDecoration: 'none',
-              '&:hover': {
-                textDecoration: 'underline',
-              },
-            }}
-          >
-            Forgot password?
-          </Link>
-          <Box sx={{ mt: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              Don't have an account?{' '}
-              <Link
-                component="button"
-                variant="body2"
-                onClick={() => navigate('/register')}
-                sx={{
-                  color: '#9B7DCF',
-                  textDecoration: 'none',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  },
-                }}
-              >
-                Sign up
-              </Link>
+        
+        {/* Register Link */}
+        {onSwitchToRegister && (
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Don't have an account?
             </Typography>
+            <Button
+              variant="outlined"
+              onClick={onSwitchToRegister}
+              sx={{
+                borderRadius: 2,
+                borderColor: 'primary.main',
+                color: 'primary.main',
+                '&:hover': {
+                  borderColor: 'primary.dark',
+                  backgroundColor: 'primary.main',
+                  color: 'white',
+                },
+              }}
+            >
+              Create Account
+            </Button>
           </Box>
+        )}
+        
+        {/* Footer */}
+        <Box sx={{ mt: 4, textAlign: 'center' }}>
+          <Typography variant="caption" color="text.secondary">
+            © 2024 EVEP Platform. All rights reserved.
+          </Typography>
         </Box>
       </Paper>
     </Box>
