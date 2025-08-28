@@ -717,3 +717,47 @@ async def get_security_stats(current_user: dict = Depends(get_current_user)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get security stats: {str(e)}"
         )
+
+# User Statistics Models
+class UserStats(BaseModel):
+    totalUsers: int
+    activeUsers: int
+    adminUsers: int
+    medicalUsers: int
+    teacherUsers: int
+    parentUsers: int
+    verifiedUsers: int
+    newUsersThisMonth: int
+
+@router.get("/users/stats")
+async def get_user_stats(current_user: dict = Depends(get_current_user)):
+    """Get user statistics"""
+    
+    # Check if user has admin permissions
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    try:
+        # In a real implementation, this would calculate from database
+        # For now, return mock data
+        mock_stats = {
+            "totalUsers": 156,
+            "activeUsers": 142,
+            "adminUsers": 3,
+            "medicalUsers": 45,
+            "teacherUsers": 78,
+            "parentUsers": 30,
+            "verifiedUsers": 134,
+            "newUsersThisMonth": 12,
+        }
+        
+        return {"stats": mock_stats}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get user stats: {str(e)}"
+        )

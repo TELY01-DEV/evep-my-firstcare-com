@@ -14,6 +14,7 @@ import Auth from './pages/Auth';
 import Patients from './pages/Patients';
 import Screenings from './pages/Screenings';
 import Reports from './pages/Reports';
+import AIInsights from './pages/AIInsights';
 
 // Admin Pages
 import Admin from './pages/Admin';
@@ -73,6 +74,7 @@ function App() {
                     }>
                       <Route index element={<AdminDashboard />} />
                       <Route path="users" element={<AdminUsers />} />
+                      <Route path="user-management" element={<AdminUserManagement />} />
                       <Route path="settings" element={<AdminSettings />} />
                       <Route path="security" element={<AdminSecurity />} />
                     </Route>
@@ -99,6 +101,7 @@ function App() {
                       <Route path="patients" element={<Patients />} />
                       <Route path="screenings" element={<Screenings />} />
                       <Route path="reports" element={<Reports />} />
+                      <Route path="ai-insights" element={<AIInsights />} />
                     </Route>
 
                     {/* Admin routes */}

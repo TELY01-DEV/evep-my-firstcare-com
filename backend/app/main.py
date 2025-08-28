@@ -13,6 +13,8 @@ from app.api.screenings import router as screenings_router
 from app.api.patients import router as patients_router
 from app.api.admin import router as admin_router
 from app.api.dashboard import router as dashboard_router
+from app.api.ai_insights import router as ai_insights_router
+from app.api.analytics import router as analytics_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -32,6 +34,8 @@ app.include_router(screenings_router, prefix="/api/v1")
 app.include_router(patients_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
+app.include_router(ai_insights_router, prefix="/api/v1")
+app.include_router(analytics_router, prefix="/api/v1")
 
 # CORS middleware
 app.add_middleware(
