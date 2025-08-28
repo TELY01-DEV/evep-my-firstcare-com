@@ -96,7 +96,7 @@ const Logo: React.FC<LogoProps> = ({ size = 'medium', showText = true }) => {
           <Typography
             variant="caption"
             sx={{
-              fontSize: sizeConfig.fontSize * 0.6,
+              fontSize: `${parseFloat(sizeConfig.fontSize) * 0.6}rem`,
               color: '#7B5DBF',
               lineHeight: 1,
               textTransform: 'uppercase',

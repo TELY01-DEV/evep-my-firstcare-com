@@ -10,19 +10,29 @@ services:
     ports:
       - "8013:8000"
     environment:
-      - DATABASE_URL=mongodb://mongo:27017/evep
-      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
       - SECRET_KEY=${SECRET_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
       - LINE_CHANNEL_ACCESS_TOKEN=${LINE_CHANNEL_ACCESS_TOKEN}
       - LINE_CHANNEL_SECRET=${LINE_CHANNEL_SECRET}
+      - MONGO_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_DATABASE=${MONGO_DATABASE}
+      - MONGO_REPLICA_SET_NAME=${MONGO_REPLICA_SET_NAME}
+      - REDIS_CLUSTER_ENABLED=${REDIS_CLUSTER_ENABLED}
     volumes:
       - ./backend:/app
       - backend_data:/app/data
     depends_on:
-      - mongo
-      - redis
+      - mongo-primary
+      - mongo-secondary-1
+      - mongo-secondary-2
+      - redis-master-1
+      - redis-master-2
+      - redis-master-3
     networks:
       - evep-network
     restart: unless-stopped
@@ -36,8 +46,8 @@ services:
     ports:
       - "3013:3000"
     environment:
-      - REACT_APP_API_URL=http://localhost:8013
-      - REACT_APP_ENVIRONMENT=development
+      - REACT_APP_API_URL=https://admin.evep.my-firstcare.com
+      - REACT_APP_ENVIRONMENT=production
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -47,50 +57,219 @@ services:
       - evep-network
     restart: unless-stopped
 
-  # MongoDB Database
-  mongo:
+  # MongoDB Replica Set (Primary)
+  mongo-primary:
     image: mongo:6.0
-    container_name: evep-mongo
+    container_name: evep-mongo-primary
     ports:
-      - "27017:27017"
+      - "27030:27017"
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
-      - MONGO_INITDB_DATABASE=evep
+      - MONGO_INITDB_DATABASE=${MONGO_DATABASE}
     volumes:
-      - mongo_data:/data/db
+      - mongo_primary_data:/data/db
       - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     networks:
       - evep-network
     restart: unless-stopped
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
 
-  # Redis Cache
-  redis:
+  # MongoDB Replica Set (Secondary 1)
+  mongo-secondary-1:
+    image: mongo:6.0
+    container_name: evep-mongo-secondary-1
+    ports:
+      - "27031:27017"
+    volumes:
+      - mongo_secondary1_data:/data/db
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    depends_on:
+      - mongo-primary
+
+  # MongoDB Replica Set (Secondary 2)
+  mongo-secondary-2:
+    image: mongo:6.0
+    container_name: evep-mongo-secondary-2
+    ports:
+      - "27032:27017"
+    volumes:
+      - mongo_secondary2_data:/data/db
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    depends_on:
+      - mongo-primary
+
+  # MongoDB Arbiter
+  mongo-arbiter:
+    image: mongo:6.0
+    container_name: evep-mongo-arbiter
+    ports:
+      - "27033:27017"
+    volumes:
+      - mongo_arbiter_data:/data/db
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    depends_on:
+      - mongo-primary
+
+  # Redis Cluster (Master 1)
+  redis-master-1:
     image: redis:7-alpine
-    container_name: evep-redis
+    container_name: evep-redis-master-1
     ports:
-      - "6379:6379"
+      - "6395:6379"
     volumes:
-      - redis_data:/data
+      - redis_master1_data:/data
     networks:
       - evep-network
     restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf", "--cluster-node-timeout", "5000"]
 
-  # Traefik Reverse Proxy
-  traefik:
-    image: traefik:v2.10
-    container_name: evep-traefik
+  # Redis Cluster (Master 2)
+  redis-master-2:
+    image: redis:7-alpine
+    container_name: evep-redis-master-2
     ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"  # Traefik dashboard
+      - "6396:6379"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - redis_master2_data:/data
     networks:
       - evep-network
     restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf", "--cluster-node-timeout", "5000"]
+
+  # Redis Cluster (Master 3)
+  redis-master-3:
+    image: redis:7-alpine
+    container_name: evep-redis-master-3
+    ports:
+      - "6397:6379"
+    volumes:
+      - redis_master3_data:/data
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf", "--cluster-node-timeout", "5000"]
+
+  # Redis Cluster (Replica 1)
+  redis-replica-1:
+    image: redis:7-alpine
+    container_name: evep-redis-replica-1
+    ports:
+      - "6398:6379"
+    volumes:
+      - redis_replica1_data:/data
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf", "--cluster-node-timeout", "5000"]
+
+  # Redis Cluster (Replica 2)
+  redis-replica-2:
+    image: redis:7-alpine
+    container_name: evep-redis-replica-2
+    ports:
+      - "6399:6379"
+    volumes:
+      - redis_replica2_data:/data
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf", "--cluster-node-timeout", "5000"]
+
+  # Redis Cluster (Replica 3)
+  redis-replica-3:
+    image: redis:7-alpine
+    container_name: evep-redis-replica-3
+    ports:
+      - "6400:6379"
+    volumes:
+      - redis_replica3_data:/data
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf", "--cluster-node-timeout", "5000"]
+
+  # FastAPI/Swagger Documentation Service
+  stardust:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: evep-stardust
+    ports:
+      - "3014:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - LINE_CHANNEL_ACCESS_TOKEN=${LINE_CHANNEL_ACCESS_TOKEN}
+      - LINE_CHANNEL_SECRET=${LINE_CHANNEL_SECRET}
+      - MONGO_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_DATABASE=${MONGO_DATABASE}
+      - MONGO_REPLICA_SET_NAME=${MONGO_REPLICA_SET_NAME}
+      - REDIS_CLUSTER_ENABLED=${REDIS_CLUSTER_ENABLED}
+      - SWAGGER_UI_ENABLED=true
+      - DOCS_URL=/docs
+      - REDOC_URL=/redoc
+    volumes:
+      - ./backend:/app
+      - stardust_data:/app/data
+    depends_on:
+      - mongo-primary
+      - mongo-secondary-1
+      - mongo-secondary-2
+      - redis-master-1
+      - redis-master-2
+      - redis-master-3
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  # CDN External Secure File Access Service
+  cdn:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: evep-cdn
+    ports:
+      - "8014:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - MONGO_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_DATABASE=${MONGO_DATABASE}
+      - MONGO_REPLICA_SET_NAME=${MONGO_REPLICA_SET_NAME}
+      - REDIS_CLUSTER_ENABLED=${REDIS_CLUSTER_ENABLED}
+      - FILE_STORAGE_PATH=/app/storage
+      - CDN_ENABLED=true
+      - SECURE_FILE_ACCESS=true
+    volumes:
+      - ./backend:/app
+      - cdn_storage:/app/storage
+    depends_on:
+      - mongo-primary
+      - mongo-secondary-1
+      - mongo-secondary-2
+      - redis-master-1
+      - redis-master-2
+      - redis-master-3
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["uvicorn", "app.cdn:app", "--host", "0.0.0.0", "--port", "8000"]
 
   # Prometheus Monitoring
   prometheus:
@@ -166,12 +345,39 @@ services:
     restart: unless-stopped
 
 volumes:
-  mongo_data:
+  # MongoDB Replica Set Volumes
+  mongo_primary_data:
     driver: local
-  redis_data:
+  mongo_secondary1_data:
     driver: local
+  mongo_secondary2_data:
+    driver: local
+  mongo_arbiter_data:
+    driver: local
+  
+  # Redis Cluster Volumes
+  redis_master1_data:
+    driver: local
+  redis_master2_data:
+    driver: local
+  redis_master3_data:
+    driver: local
+  redis_replica1_data:
+    driver: local
+  redis_replica2_data:
+    driver: local
+  redis_replica3_data:
+    driver: local
+  
+  # Application Volumes
   backend_data:
     driver: local
+  stardust_data:
+    driver: local
+  cdn_storage:
+    driver: local
+  
+  # Monitoring Volumes
   prometheus_data:
     driver: local
   grafana_data:
@@ -184,4 +390,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 192.168.90.0/24

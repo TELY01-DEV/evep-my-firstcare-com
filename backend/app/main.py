@@ -4,6 +4,10 @@ from fastapi.responses import JSONResponse
 import uvicorn
 from datetime import datetime
 import os
+import asyncio
+
+from app.core.config import settings
+from app.socketio_service import socketio_service, socket_app
 
 # Create FastAPI app
 app = FastAPI(
@@ -14,14 +18,29 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# Mount Socket.IO app
+app.mount("/socket.io", socket_app)
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3013"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup"""
+    # Initialize Socket.IO service
+    await socketio_service.initialize()
+    print("Socket.IO service initialized")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown"""
+    print("Shutting down EVEP API...")
 
 @app.get("/")
 async def root():

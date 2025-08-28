@@ -14,6 +14,7 @@ RUN apt-get update \
         build-essential \
         curl \
         git \
+        libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies

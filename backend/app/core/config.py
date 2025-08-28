@@ -16,14 +16,16 @@ class Settings(BaseSettings):
     JWT_EXPIRATION_HOURS: int = 24
     
     # Database
-    DATABASE_URL: str = "mongodb://mongo:27017/evep"
+    DATABASE_URL: str = "mongodb://mongo-primary:27017,mongo-secondary-1:27017,mongo-secondary-2:27017/evep?replicaSet=rs0"
     MONGO_ROOT_USERNAME: str = "admin"
     MONGO_ROOT_PASSWORD: str = "password"
     MONGO_DATABASE: str = "evep"
+    MONGO_REPLICA_SET_NAME: str = "rs0"
     
-    # Redis
-    REDIS_URL: str = "redis://redis:6379"
+    # Redis Cluster
+    REDIS_URL: str = "redis://redis-master-1:6379,redis-master-2:6379,redis-master-3:6379"
     REDIS_PASSWORD: Optional[str] = None
+    REDIS_CLUSTER_ENABLED: bool = True
     
     # AI/ML Services
     OPENAI_API_KEY: Optional[str] = None
@@ -49,6 +51,9 @@ class Settings(BaseSettings):
     STORAGE_TYPE: str = "local"
     UPLOAD_DIR: str = "uploads"
     MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
+    FILE_STORAGE_PATH: str = "/app/storage"
+    SECURE_FILE_ACCESS: bool = True
+    CDN_ENABLED: bool = True
     
     # Logging
     LOG_LEVEL: str = "INFO"
@@ -67,5 +72,9 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Create upload directory if it doesn't exist
-os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-os.makedirs("logs", exist_ok=True)
+try:
+    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    os.makedirs("logs", exist_ok=True)
+except PermissionError:
+    # If we can't create directories, continue without them
+    pass

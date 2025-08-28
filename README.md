@@ -38,13 +38,33 @@ docker-compose down
 ```
 
 ### 4. Access Services
+
+#### Core Services
 - **Frontend**: http://localhost:3013
 - **Backend API**: http://localhost:8013
 - **API Documentation**: http://localhost:8013/docs
+- **Socket.IO Real-time**: http://localhost:8013/socket.io
+
+#### Documentation & File Services
+- **FastAPI/Swagger Docs**: http://localhost:3014
+- **CDN File Access**: http://localhost:8014
+
+#### Database Services
+- **MongoDB Primary**: localhost:27019
+- **MongoDB Secondary 1**: localhost:27020
+- **MongoDB Secondary 2**: localhost:27021
+- **MongoDB Arbiter**: localhost:27022
+- **Redis Master 1**: localhost:6389
+- **Redis Master 2**: localhost:6390
+- **Redis Master 3**: localhost:6391
+- **Redis Replica 1**: localhost:6392
+- **Redis Replica 2**: localhost:6393
+- **Redis Replica 3**: localhost:6394
+
+#### Monitoring Services
 - **Grafana Dashboard**: http://localhost:3001 (admin/admin)
 - **Prometheus**: http://localhost:9090
 - **Kibana**: http://localhost:5601
-- **Traefik Dashboard**: http://localhost:8080
 
 ## 🏗️ Project Structure
 
@@ -180,6 +200,38 @@ docker-compose -f docker-compose.staging.yml up -d
 - Error rates
 - User activity
 - System resource usage
+
+## 🔄 Real-time Features
+
+### Socket.IO Integration
+The EVEP platform includes real-time communication capabilities:
+
+- **Real-time Updates**: Live dashboard updates for all user roles
+- **Instant Notifications**: Push notifications for important events
+- **Live Messaging**: Direct messaging between users
+- **Room-based Communication**: Role-specific and screening-specific rooms
+- **Health Monitoring**: Connection health checks and automatic reconnection
+
+### Real-time Events
+- Screening status updates
+- New patient registrations
+- AI analysis completions
+- System alerts and notifications
+- User activity tracking
+
+## 🗄️ Database Clustering
+
+### MongoDB Replica Set
+- **Primary Node**: Handles write operations
+- **Secondary Nodes**: Handle read operations and provide redundancy
+- **Arbiter Node**: Participates in elections but doesn't hold data
+- **Automatic Failover**: Seamless failover in case of primary node failure
+
+### Redis Cluster
+- **3 Master Nodes**: Handle data distribution
+- **3 Replica Nodes**: Provide redundancy and read scaling
+- **Automatic Sharding**: Data automatically distributed across masters
+- **High Availability**: Automatic failover and recovery
 
 ## 🔒 Security
 

@@ -40,10 +40,7 @@ const theme = createTheme({
       primary: '#9B7DCF', // Main purple for text
       secondary: '#7B5DBF', // Darker purple for secondary text
     },
-    accent: {
-      blue: '#D0E0F0', // Light blue accent from logo
-      purple: '#A070D0', // Iris purple
-    },
+    // Custom colors can be accessed via theme.palette.primary, secondary, etc.
   },
   typography: {
     fontFamily: '"Inter", "Noto Sans Thai", -apple-system, BlinkMacSystemFont, sans-serif',
