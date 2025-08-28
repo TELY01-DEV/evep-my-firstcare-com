@@ -38,9 +38,9 @@ docker-compose down
 ```
 
 ### 4. Access Services
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-- **API Documentation**: http://localhost:8000/docs
+- **Frontend**: http://localhost:3013
+- **Backend API**: http://localhost:8013
+- **API Documentation**: http://localhost:8013/docs
 - **Grafana Dashboard**: http://localhost:3001 (admin/admin)
 - **Prometheus**: http://localhost:9090
 - **Kibana**: http://localhost:5601

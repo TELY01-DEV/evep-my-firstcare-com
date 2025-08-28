@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
     container_name: evep-backend
     ports:
-      - "8000:8000"
+      - "8013:8000"
     environment:
       - DATABASE_URL=mongodb://mongo:27017/evep
       - REDIS_URL=redis://redis:6379
@@ -34,9 +34,9 @@ services:
       dockerfile: Dockerfile
     container_name: evep-frontend
     ports:
-      - "3000:3000"
+      - "3013:3000"
     environment:
-      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_API_URL=http://localhost:8013
       - REACT_APP_ENVIRONMENT=development
     volumes:
       - ./frontend:/app
