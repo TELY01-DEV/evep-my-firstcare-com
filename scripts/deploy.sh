@@ -1,17 +1,17 @@
 #!/bin/bash
 
-# EVEP Platform Deployment Script
-# This script deploys the updated code to the production server
+# EVEP Production Deployment Script
+# This script handles deployment to production environment
 
 set -e  # Exit on any error
 
 # Configuration
-SERVER_HOST="103.22.182.146"
-SERVER_PORT="2222"
-SERVER_USER="root"
-SSH_KEY="~/.ssh/id_ed25519"
-REMOTE_PATH="/www/dk_project/evep-my-firstcare-com"
-LOCAL_PATH="."
+PROJECT_NAME="evep-my-firstcare-com"
+DOCKER_COMPOSE_FILE="docker-compose.yml"
+BACKUP_DIR="/backup/evep"
+LOG_FILE="/var/log/evep/deploy.log"
+HEALTH_CHECK_URL="http://localhost:8013/health"
+ROLLBACK_TIMEOUT=300  # 5 minutes
 
 # Colors for output
 RED='\033[0;31m'
@@ -20,206 +20,363 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+# Logging function
+log() {
+    echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1" | tee -a "$LOG_FILE"
 }
 
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+error() {
+    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_FILE"
 }
 
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1" | tee -a "$LOG_FILE"
 }
 
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1" | tee -a "$LOG_FILE"
 }
 
-# Function to check if SSH connection is working
-check_ssh_connection() {
-    print_status "Checking SSH connection to server..."
-    if ssh -i $SSH_KEY -p $SERVER_PORT -o ConnectTimeout=10 -o BatchMode=yes $SERVER_USER@$SERVER_HOST "echo 'SSH connection successful'" 2>/dev/null; then
-        print_success "SSH connection established"
+# Check if running as root
+check_root() {
+    if [[ $EUID -ne 0 ]]; then
+        error "This script must be run as root"
+        exit 1
+    fi
+}
+
+# Create necessary directories
+setup_directories() {
+    log "Setting up directories..."
+    mkdir -p "$BACKUP_DIR"
+    mkdir -p "$(dirname "$LOG_FILE")"
+    mkdir -p "/var/log/evep"
+}
+
+# Backup current deployment
+backup_current() {
+    log "Creating backup of current deployment..."
+    local backup_name="backup_$(date +%Y%m%d_%H%M%S)"
+    local backup_path="$BACKUP_DIR/$backup_name"
+    
+    mkdir -p "$backup_path"
+    
+    # Backup docker-compose file
+    if [[ -f "$DOCKER_COMPOSE_FILE" ]]; then
+        cp "$DOCKER_COMPOSE_FILE" "$backup_path/"
+    fi
+    
+    # Backup environment file
+    if [[ -f ".env" ]]; then
+        cp ".env" "$backup_path/"
+    fi
+    
+    # Backup logs
+    if [[ -d "/var/log/evep" ]]; then
+        cp -r /var/log/evep "$backup_path/"
+    fi
+    
+    # Create backup marker
+    echo "$backup_name" > "$BACKUP_DIR/latest_backup"
+    
+    success "Backup created: $backup_name"
+}
+
+# Health check function
+health_check() {
+    local service=$1
+    local max_attempts=30
+    local attempt=1
+    
+    log "Performing health check for $service..."
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        if curl -f -s "$HEALTH_CHECK_URL" > /dev/null; then
+            success "$service is healthy"
+            return 0
+        fi
+        
+        warning "Health check attempt $attempt/$max_attempts failed for $service"
+        sleep 10
+        ((attempt++))
+    done
+    
+    error "$service health check failed after $max_attempts attempts"
+    return 1
+}
+
+# Stop services gracefully
+stop_services() {
+    log "Stopping services gracefully..."
+    
+    # Stop services with timeout
+    timeout 60 docker-compose -f "$DOCKER_COMPOSE_FILE" down --timeout 30 || {
+        warning "Graceful shutdown failed, forcing stop..."
+        docker-compose -f "$DOCKER_COMPOSE_FILE" down --timeout 10 --remove-orphans
+    }
+    
+    success "Services stopped"
+}
+
+# Start services
+start_services() {
+    log "Starting services..."
+    
+    # Pull latest images
+    log "Pulling latest Docker images..."
+    docker-compose -f "$DOCKER_COMPOSE_FILE" pull
+    
+    # Start services
+    docker-compose -f "$DOCKER_COMPOSE_FILE" up -d
+    
+    success "Services started"
+}
+
+# Perform health checks
+perform_health_checks() {
+    log "Performing comprehensive health checks..."
+    
+    # Wait for services to be ready
+    sleep 30
+    
+    # Check backend health
+    if ! health_check "backend"; then
+        error "Backend health check failed"
+        return 1
+    fi
+    
+    # Check frontend health
+    if ! curl -f -s "http://localhost:3013" > /dev/null; then
+        error "Frontend health check failed"
+        return 1
+    fi
+    
+    # Check database connectivity
+    if ! docker-compose -f "$DOCKER_COMPOSE_FILE" exec -T backend python -c "
+import asyncio
+from app.core.database import get_database
+async def test_db():
+    try:
+        db = await get_database()
+        await db.command('ping')
+        print('Database connection successful')
+    except Exception as e:
+        print(f'Database connection failed: {e}')
+        exit(1)
+asyncio.run(test_db())
+"; then
+        error "Database health check failed"
+        return 1
+    fi
+    
+    # Check Redis connectivity
+    if ! docker-compose -f "$DOCKER_COMPOSE_FILE" exec -T redis redis-cli ping | grep -q "PONG"; then
+        error "Redis health check failed"
+        return 1
+    fi
+    
+    success "All health checks passed"
+    return 0
+}
+
+# Rollback function
+rollback() {
+    error "Deployment failed, initiating rollback..."
+    
+    local latest_backup=$(cat "$BACKUP_DIR/latest_backup" 2>/dev/null || echo "")
+    
+    if [[ -z "$latest_backup" ]]; then
+        error "No backup found for rollback"
+        return 1
+    fi
+    
+    log "Rolling back to backup: $latest_backup"
+    
+    # Stop current services
+    stop_services
+    
+    # Restore from backup
+    local backup_path="$BACKUP_DIR/$latest_backup"
+    if [[ -f "$backup_path/docker-compose.yml" ]]; then
+        cp "$backup_path/docker-compose.yml" "$DOCKER_COMPOSE_FILE"
+    fi
+    
+    if [[ -f "$backup_path/.env" ]]; then
+        cp "$backup_path/.env" ".env"
+    fi
+    
+    # Start services with backup configuration
+    start_services
+    
+    # Health check rollback
+    if perform_health_checks; then
+        success "Rollback completed successfully"
         return 0
     else
-        print_error "Failed to establish SSH connection"
+        error "Rollback health checks failed"
         return 1
     fi
 }
 
-# Function to backup current deployment
-backup_current_deployment() {
-    print_status "Creating backup of current deployment..."
-    ssh -i $SSH_KEY -p $SERVER_PORT $SERVER_USER@$SERVER_HOST << EOF
-        cd $REMOTE_PATH
-        if [ -d "backup" ]; then
-            rm -rf backup
-        fi
-        mkdir -p backup
-        cp -r backend backup/ 2>/dev/null || true
-        cp -r frontend backup/ 2>/dev/null || true
-        cp docker-compose.yml backup/ 2>/dev/null || true
-        cp .env backup/ 2>/dev/null || true
-        echo "Backup created at \$(date)" > backup/backup_info.txt
-EOF
-    print_success "Backup created successfully"
-}
-
-# Function to stop running containers
-stop_containers() {
-    print_status "Stopping running containers..."
-    ssh -i $SSH_KEY -p $SERVER_PORT $SERVER_USER@$SERVER_HOST << EOF
-        cd $REMOTE_PATH
-        if [ -f "docker-compose.yml" ]; then
-            docker-compose down --remove-orphans || true
-        fi
-EOF
-    print_success "Containers stopped"
-}
-
-# Function to copy updated code
-copy_code() {
-    print_status "Copying updated code to server..."
+# Cleanup old backups
+cleanup_backups() {
+    log "Cleaning up old backups..."
     
-    # Create a temporary directory for the deployment
-    TEMP_DIR=$(mktemp -d)
+    # Keep only last 5 backups
+    local backup_count=$(ls -1 "$BACKUP_DIR" | grep "^backup_" | wc -l)
     
-    # Copy backend files
-    print_status "Copying backend files..."
-    rsync -avz --progress \
-        -e "ssh -i $SSH_KEY -p $SERVER_PORT" \
-        --exclude='__pycache__' \
-        --exclude='*.pyc' \
-        --exclude='.pytest_cache' \
-        --exclude='.coverage' \
-        --exclude='htmlcov' \
-        backend/ $SERVER_USER@$SERVER_HOST:$REMOTE_PATH/backend/
-    
-    # Copy frontend files
-    print_status "Copying frontend files..."
-    rsync -avz --progress \
-        -e "ssh -i $SSH_KEY -p $SERVER_PORT" \
-        --exclude='node_modules' \
-        --exclude='build' \
-        --exclude='.next' \
-        --exclude='.cache' \
-        frontend/ $SERVER_USER@$SERVER_HOST:$REMOTE_PATH/frontend/
-    
-    # Copy configuration files
-    print_status "Copying configuration files..."
-    scp -i $SSH_KEY -P $SERVER_PORT \
-        docker-compose.yml \
-        .env \
-        $SERVER_USER@$SERVER_HOST:$REMOTE_PATH/
-    
-    print_success "Code copied successfully"
-}
-
-# Function to build and start containers
-build_and_start() {
-    print_status "Building and starting containers..."
-    ssh -i $SSH_KEY -p $SERVER_PORT $SERVER_USER@$SERVER_HOST << EOF
-        cd $REMOTE_PATH
-        
-        # Build frontend
-        print_status "Building frontend..."
-        cd frontend
-        npm install
-        npm run build
-        cd ..
-        
-        # Build and start all services
-        print_status "Building and starting all services..."
-        docker-compose build --no-cache
-        docker-compose up -d
-        
-        # Wait for services to be ready
-        print_status "Waiting for services to be ready..."
-        sleep 30
-        
-        # Check service status
-        docker-compose ps
-EOF
-    print_success "Containers built and started"
-}
-
-# Function to check service health
-check_health() {
-    print_status "Checking service health..."
-    ssh -i $SSH_KEY -p $SERVER_PORT $SERVER_USER@$SERVER_HOST << EOF
-        cd $REMOTE_PATH
-        
-        # Check if containers are running
-        echo "Container Status:"
-        docker-compose ps
-        
-        # Check API health
-        echo "API Health Check:"
-        curl -f http://localhost:8013/health || echo "API health check failed"
-        
-        # Check frontend
-        echo "Frontend Status:"
-        curl -f http://localhost:3013/ || echo "Frontend check failed"
-EOF
-    print_success "Health check completed"
-}
-
-# Function to show deployment info
-show_deployment_info() {
-    print_status "Deployment completed successfully!"
-    echo ""
-    echo "🌐 Available Endpoints:"
-    echo "   Health Check: http://103.22.182.146:8013/health"
-    echo "   API Status: http://103.22.182.146:8013/api/v1/status"
-    echo "   API Documentation: http://103.22.182.146:8013/docs"
-    echo "   Frontend: http://103.22.182.146:3013"
-    echo ""
-    echo "🔐 Authentication: http://103.22.182.146:8013/api/v1/auth/*"
-    echo "👥 Patient Management: http://103.22.182.146:8013/api/v1/patients/*"
-    echo ""
-    echo "📋 New Features Deployed:"
-    echo "   ✅ Patient Management API (CRUD operations)"
-    echo "   ✅ Enhanced Authentication UI"
-    echo "   ✅ Document Upload System"
-    echo "   ✅ Role-based Access Control"
-    echo "   ✅ Blockchain Audit Trail"
-    echo ""
+    if [[ $backup_count -gt 5 ]]; then
+        local to_delete=$((backup_count - 5))
+        ls -1t "$BACKUP_DIR" | grep "^backup_" | tail -n "$to_delete" | xargs -I {} rm -rf "$BACKUP_DIR/{}"
+        log "Removed $to_delete old backups"
+    fi
 }
 
 # Main deployment function
-main() {
-    echo "🚀 Starting EVEP Platform Deployment"
-    echo "====================================="
-    echo ""
+deploy() {
+    log "Starting EVEP production deployment..."
     
-    # Check SSH connection
-    if ! check_ssh_connection; then
-        print_error "Cannot proceed without SSH connection"
+    # Pre-deployment checks
+    check_root
+    setup_directories
+    
+    # Check if docker-compose file exists
+    if [[ ! -f "$DOCKER_COMPOSE_FILE" ]]; then
+        error "Docker Compose file not found: $DOCKER_COMPOSE_FILE"
         exit 1
     fi
     
-    # Backup current deployment
-    backup_current_deployment
+    # Check if .env file exists
+    if [[ ! -f ".env" ]]; then
+        error "Environment file not found: .env"
+        exit 1
+    fi
     
-    # Stop running containers
-    stop_containers
+    # Create backup
+    backup_current
     
-    # Copy updated code
-    copy_code
+    # Stop current services
+    stop_services
     
-    # Build and start containers
-    build_and_start
+    # Start services with new configuration
+    start_services
     
-    # Check service health
-    check_health
-    
-    # Show deployment info
-    show_deployment_info
-    
-    print_success "Deployment completed successfully! 🎉"
+    # Perform health checks
+    if perform_health_checks; then
+        success "Deployment completed successfully"
+        cleanup_backups
+        log "Deployment finished at $(date)"
+        exit 0
+    else
+        error "Health checks failed, rolling back..."
+        if rollback; then
+            error "Deployment failed but rollback was successful"
+            exit 1
+        else
+            error "Deployment failed and rollback also failed"
+            exit 1
+        fi
+    fi
 }
 
-# Run main function
-main "$@"
+# Show deployment status
+status() {
+    log "Checking deployment status..."
+    
+    echo "=== EVEP Deployment Status ==="
+    echo "Timestamp: $(date)"
+    echo ""
+    
+    # Docker services status
+    echo "=== Docker Services ==="
+    docker-compose -f "$DOCKER_COMPOSE_FILE" ps
+    
+    echo ""
+    echo "=== Health Checks ==="
+    
+    # Backend health
+    if curl -f -s "$HEALTH_CHECK_URL" > /dev/null; then
+        echo -e "${GREEN}✓ Backend: Healthy${NC}"
+    else
+        echo -e "${RED}✗ Backend: Unhealthy${NC}"
+    fi
+    
+    # Frontend health
+    if curl -f -s "http://localhost:3013" > /dev/null; then
+        echo -e "${GREEN}✓ Frontend: Healthy${NC}"
+    else
+        echo -e "${RED}✗ Frontend: Unhealthy${NC}"
+    fi
+    
+    # Database health
+    if docker-compose -f "$DOCKER_COMPOSE_FILE" exec -T backend python -c "
+import asyncio
+from app.core.database import get_database
+async def test_db():
+    try:
+        db = await get_database()
+        await db.command('ping')
+        print('OK')
+    except:
+        print('FAIL')
+        exit(1)
+asyncio.run(test_db())
+" 2>/dev/null | grep -q "OK"; then
+        echo -e "${GREEN}✓ Database: Healthy${NC}"
+    else
+        echo -e "${RED}✗ Database: Unhealthy${NC}"
+    fi
+    
+    # Redis health
+    if docker-compose -f "$DOCKER_COMPOSE_FILE" exec -T redis redis-cli ping 2>/dev/null | grep -q "PONG"; then
+        echo -e "${GREEN}✓ Redis: Healthy${NC}"
+    else
+        echo -e "${RED}✗ Redis: Unhealthy${NC}"
+    fi
+    
+    echo ""
+    echo "=== Recent Backups ==="
+    ls -1t "$BACKUP_DIR" | grep "^backup_" | head -5 | while read backup; do
+        echo "- $backup"
+    done
+}
+
+# Show usage
+usage() {
+    echo "EVEP Production Deployment Script"
+    echo ""
+    echo "Usage: $0 [COMMAND]"
+    echo ""
+    echo "Commands:"
+    echo "  deploy    Deploy the application to production"
+    echo "  status    Show current deployment status"
+    echo "  rollback  Rollback to previous deployment"
+    echo "  help      Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0 deploy"
+    echo "  $0 status"
+    echo "  $0 rollback"
+}
+
+# Main script logic
+case "${1:-}" in
+    deploy)
+        deploy
+        ;;
+    status)
+        status
+        ;;
+    rollback)
+        check_root
+        setup_directories
+        rollback
+        ;;
+    help|--help|-h)
+        usage
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+esac
