@@ -68,6 +68,27 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = True
 
+    class Config:
+        env_file = ".env"
+        case_sensitive = True
+    
+    @staticmethod
+    def get_current_timestamp():
+        """Get current timestamp in GMT+7 (Thailand timezone)"""
+        from datetime import datetime
+        import pytz
+        
+        # Get Thailand timezone (GMT+7)
+        thailand_tz = pytz.timezone('Asia/Bangkok')
+        thailand_time = datetime.now(thailand_tz)
+        return thailand_time.isoformat()
+    
+    @staticmethod
+    def get_utc_timestamp():
+        """Get current timestamp in UTC"""
+        from datetime import datetime
+        return datetime.utcnow().isoformat()
+
 # Create settings instance
 settings = Settings()
 

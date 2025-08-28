@@ -8,6 +8,7 @@ import asyncio
 
 from app.core.config import settings
 from app.socketio_service import socketio_service, socket_app
+from app.api.auth import router as auth_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -20,6 +21,9 @@ app = FastAPI(
 
 # Mount Socket.IO app
 app.mount("/socket.io", socket_app)
+
+# Include API routers
+app.include_router(auth_router, prefix="/api/v1")
 
 # CORS middleware
 app.add_middleware(
@@ -49,7 +53,7 @@ async def root():
         "message": "EVEP API - Early Vision Evaluation Platform",
         "version": "1.0.0",
         "status": "running",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": settings.get_current_timestamp()
     }
 
 @app.get("/health")
@@ -57,7 +61,7 @@ async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": settings.get_current_timestamp(),
         "environment": os.getenv("ENVIRONMENT", "development")
     }
 
@@ -72,7 +76,7 @@ async def api_status():
             "redis": "connected",
             "ai_services": "available"
         },
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": settings.get_current_timestamp()
     }
 
 @app.exception_handler(404)
@@ -95,7 +99,7 @@ async def internal_error_handler(request, exc):
         content={
             "error": "Internal Server Error",
             "message": "An internal server error occurred",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": settings.get_current_timestamp()
         }
     )
 
