@@ -38,6 +38,27 @@ const MEDICAL_PORTAL_CONFIG: PortalConfig = {
   allowedRoles: ['doctor', 'teacher', 'parent', 'admin']
 };
 
+// Check if current environment is admin portal
+export const isAdminPortal = (): boolean => {
+  // Check environment variable
+  if (process.env.REACT_APP_PORTAL_TYPE === 'admin') {
+    return true;
+  }
+  
+  // Check URL for admin subdomain
+  if (typeof window !== 'undefined' && window.location.hostname.includes('admin.')) {
+    return true;
+  }
+  
+  // Check URL path
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
+    return true;
+  }
+  
+  // Default to medical portal
+  return false;
+};
+
 // Determine portal type based on environment or configuration
 export const getPortalConfig = (): PortalConfig => {
   // Check if we're in admin portal mode
@@ -50,27 +71,6 @@ export const getPortalConfig = (): PortalConfig => {
   const isAdmin = isAdminPortal();
   
   return isAdmin ? ADMIN_PORTAL_CONFIG : MEDICAL_PORTAL_CONFIG;
-};
-
-// Check if current environment is admin portal
-export const isAdminPortal = (): boolean => {
-  // Check environment variable
-  if (process.env.REACT_APP_PORTAL_TYPE === 'admin') {
-    return true;
-  }
-  
-  // Check URL for admin subdomain
-  if (window.location.hostname.includes('admin.')) {
-    return true;
-  }
-  
-  // Check URL path
-  if (window.location.pathname.startsWith('/admin')) {
-    return true;
-  }
-  
-  // Default to medical portal
-  return false;
 };
 
 // Get portal-specific navigation items

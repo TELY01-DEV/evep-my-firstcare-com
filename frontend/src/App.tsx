@@ -19,6 +19,7 @@ import Reports from './pages/Reports';
 import Admin from './pages/Admin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
+import AdminUserManagement from './pages/AdminUserManagement';
 import AdminSettings from './pages/AdminSettings';
 import AdminSecurity from './pages/AdminSecurity';
 
