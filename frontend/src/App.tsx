@@ -17,21 +17,101 @@ import Reports from './pages/Reports';
 import Layout from './components/Layout/Layout';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 
-// Create theme
+// Create theme based on EVEP logo colors
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#2563eb', // Blue
+      main: '#9B7DCF', // Main accent purple from logo
+      light: '#A070D0', // Iris purple
+      dark: '#7B5DBF', // Darker purple
+      contrastText: '#FFFFFF',
     },
     secondary: {
-      main: '#10b981', // Green
+      main: '#E8BEE8', // Secondary accent pink from logo
+      light: '#F8EBF8', // Background pink
+      dark: '#D8A8D8', // Darker pink
+      contrastText: '#9B7DCF',
     },
     background: {
-      default: '#f9fafb',
+      default: '#F8EBF8', // Very light pink/lavender background
+      paper: '#FFFFFF',
+    },
+    text: {
+      primary: '#9B7DCF', // Main purple for text
+      secondary: '#7B5DBF', // Darker purple for secondary text
+    },
+    accent: {
+      blue: '#D0E0F0', // Light blue accent from logo
+      purple: '#A070D0', // Iris purple
     },
   },
   typography: {
     fontFamily: '"Inter", "Noto Sans Thai", -apple-system, BlinkMacSystemFont, sans-serif',
+    h1: {
+      color: '#9B7DCF',
+      fontWeight: 600,
+    },
+    h2: {
+      color: '#9B7DCF',
+      fontWeight: 600,
+    },
+    h3: {
+      color: '#9B7DCF',
+      fontWeight: 600,
+    },
+    h4: {
+      color: '#9B7DCF',
+      fontWeight: 600,
+    },
+    h5: {
+      color: '#9B7DCF',
+      fontWeight: 600,
+    },
+    h6: {
+      color: '#9B7DCF',
+      fontWeight: 600,
+    },
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          textTransform: 'none',
+          fontWeight: 500,
+        },
+        contained: {
+          backgroundColor: '#9B7DCF',
+          '&:hover': {
+            backgroundColor: '#7B5DBF',
+          },
+        },
+        outlined: {
+          borderColor: '#9B7DCF',
+          color: '#9B7DCF',
+          '&:hover': {
+            borderColor: '#7B5DBF',
+            backgroundColor: '#F8EBF8',
+          },
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
+          boxShadow: '0 4px 12px rgba(155, 125, 207, 0.1)',
+          border: '1px solid rgba(155, 125, 207, 0.1)',
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#9B7DCF',
+        },
+      },
+    },
   },
 });
 

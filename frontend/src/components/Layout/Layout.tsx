@@ -1,15 +1,15 @@
 import React from 'react';
 import { Box, AppBar, Toolbar, Typography, Button } from '@mui/material';
 import { Outlet } from 'react-router-dom';
+import Logo from '../Logo/Logo';
 
 const Layout: React.FC = () => {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <AppBar position="static">
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            EVEP Platform
-          </Typography>
+          <Logo size="medium" />
+          <Box sx={{ flexGrow: 1 }} />
           <Button color="inherit">Dashboard</Button>
           <Button color="inherit">Patients</Button>
           <Button color="inherit">Screenings</Button>

@@ -12,7 +12,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} md={6} lg={3}>
           <Card>
             <CardContent>
-              <Typography variant="h6" color="primary">
+              <Typography variant="h6" sx={{ color: '#9B7DCF' }}>
                 Total Patients
               </Typography>
               <Typography variant="h4">
@@ -25,7 +25,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} md={6} lg={3}>
           <Card>
             <CardContent>
-              <Typography variant="h6" color="primary">
+              <Typography variant="h6" sx={{ color: '#9B7DCF' }}>
                 Screenings Today
               </Typography>
               <Typography variant="h4">
@@ -38,7 +38,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} md={6} lg={3}>
           <Card>
             <CardContent>
-              <Typography variant="h6" color="primary">
+              <Typography variant="h6" sx={{ color: '#9B7DCF' }}>
                 Pending Results
               </Typography>
               <Typography variant="h4">
@@ -51,7 +51,7 @@ const Dashboard: React.FC = () => {
         <Grid item xs={12} md={6} lg={3}>
           <Card>
             <CardContent>
-              <Typography variant="h6" color="primary">
+              <Typography variant="h6" sx={{ color: '#9B7DCF' }}>
                 System Status
               </Typography>
               <Typography variant="h4" color="success.main">

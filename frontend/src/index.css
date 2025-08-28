@@ -1,23 +1,28 @@
 /* EVEP Frontend - Global Styles */
 
 :root {
-  /* Color Palette */
-  --primary-blue: #2563eb;
-  --primary-green: #10b981;
-  --accent-orange: #f59e0b;
+  /* EVEP Logo Color Palette */
+  --primary-purple: #9B7DCF;      /* Main accent purple from logo */
+  --primary-purple-light: #A070D0; /* Iris purple */
+  --primary-purple-dark: #7B5DBF;  /* Darker purple */
+  --secondary-pink: #E8BEE8;       /* Secondary accent pink */
+  --secondary-pink-light: #F8EBF8; /* Background pink */
+  --secondary-pink-dark: #D8A8D8;  /* Darker pink */
+  --accent-blue: #D0E0F0;          /* Light blue accent */
+  --accent-orange: #f59e0b;        /* Keep orange for warnings */
   --neutral-gray: #6b7280;
   
   /* Semantic Colors */
   --success: #059669;
   --warning: #d97706;
   --error: #dc2626;
-  --info: #2563eb;
+  --info: #9B7DCF;                 /* Use purple for info */
   
   /* Background Colors */
   --bg-primary: #ffffff;
-  --bg-secondary: #f9fafb;
-  --bg-tertiary: #f3f4f6;
-  --bg-dark: #111827;
+  --bg-secondary: #F8EBF8;         /* Very light pink/lavender */
+  --bg-tertiary: #E8BEE8;          /* Soft light pink */
+  --bg-dark: #7B5DBF;              /* Darker purple */
   
   /* Typography */
   --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -95,13 +100,13 @@ p {
 
 /* Links */
 a {
-  color: var(--primary-blue);
+  color: var(--primary-purple);
   text-decoration: none;
   transition: color var(--transition-fast);
 }
 
 a:hover {
-  color: #1d4ed8;
+  color: var(--primary-purple-dark);
 }
 
 /* Buttons */
@@ -125,8 +130,8 @@ input, textarea, select {
 
 input:focus, textarea:focus, select:focus {
   outline: none;
-  border-color: var(--primary-blue);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border-color: var(--primary-purple);
+  box-shadow: 0 0 0 3px rgba(155, 125, 207, 0.1);
 }
 
 /* Utility Classes */
@@ -184,6 +189,6 @@ input:focus, textarea:focus, select:focus {
 
 /* Focus styles for keyboard navigation */
 *:focus-visible {
-  outline: 2px solid var(--primary-blue);
+  outline: 2px solid var(--primary-purple);
   outline-offset: 2px;
 }
