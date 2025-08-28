@@ -19,6 +19,8 @@ import Reports from './pages/Reports';
 import Admin from './pages/Admin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
+import AdminSettings from './pages/AdminSettings';
+import AdminSecurity from './pages/AdminSecurity';
 
 // Components
 import MedicalLayout from './components/Layout/MedicalLayout';
@@ -29,6 +31,7 @@ import LoginRedirect from './components/Auth/LoginRedirect';
 
 // EVEP Theme
 import evepTheme from './theme/medicalTheme';
+import { getPortalConfig, isAdminPortal, getPortalNavigation } from './utils/portalConfig';
 
 // Create query client
 const queryClient = new QueryClient({
@@ -41,6 +44,9 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  const portalConfig = getPortalConfig();
+  const isAdmin = isAdminPortal();
+
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
@@ -55,27 +61,58 @@ function App() {
                 {/* Root path - redirect to login or dashboard */}
                 <Route path="/" element={<LoginRedirect />} />
                 
-                {/* Protected routes */}
-                <Route path="/dashboard" element={
-                  <ProtectedRoute>
-                    <MedicalLayout />
-                  </ProtectedRoute>
-                }>
-                  <Route index element={<Dashboard />} />
-                  <Route path="patients" element={<Patients />} />
-                  <Route path="screenings" element={<Screenings />} />
-                  <Route path="reports" element={<Reports />} />
-                </Route>
+                {isAdmin ? (
+                  // Admin Portal Routes - Only show admin interface
+                  <>
+                    {/* Admin routes */}
+                    <Route path="/admin" element={
+                      <AdminRoute>
+                        <AdminLayout />
+                      </AdminRoute>
+                    }>
+                      <Route index element={<AdminDashboard />} />
+                      <Route path="users" element={<AdminUsers />} />
+                      <Route path="settings" element={<AdminSettings />} />
+                      <Route path="security" element={<AdminSecurity />} />
+                    </Route>
+                    
+                    {/* Redirect root to admin dashboard for admin portal */}
+                    <Route path="/dashboard" element={
+                      <AdminRoute>
+                        <AdminLayout />
+                      </AdminRoute>
+                    }>
+                      <Route index element={<AdminDashboard />} />
+                    </Route>
+                  </>
+                ) : (
+                  // Medical Portal Routes - Show medical interface with admin access
+                  <>
+                    {/* Protected routes */}
+                    <Route path="/dashboard" element={
+                      <ProtectedRoute>
+                        <MedicalLayout />
+                      </ProtectedRoute>
+                    }>
+                      <Route index element={<Dashboard />} />
+                      <Route path="patients" element={<Patients />} />
+                      <Route path="screenings" element={<Screenings />} />
+                      <Route path="reports" element={<Reports />} />
+                    </Route>
 
-                {/* Admin routes */}
-                <Route path="/admin" element={
-                  <AdminRoute>
-                    <AdminLayout />
-                  </AdminRoute>
-                }>
-                  <Route index element={<AdminDashboard />} />
-                  <Route path="users" element={<AdminUsers />} />
-                </Route>
+                    {/* Admin routes */}
+                    <Route path="/admin" element={
+                      <AdminRoute>
+                        <AdminLayout />
+                      </AdminRoute>
+                    }>
+                      <Route index element={<AdminDashboard />} />
+                      <Route path="users" element={<AdminUsers />} />
+                      <Route path="settings" element={<AdminSettings />} />
+                      <Route path="security" element={<AdminSecurity />} />
+                    </Route>
+                  </>
+                )}
               </Routes>
               
               {/* Toast notifications */}

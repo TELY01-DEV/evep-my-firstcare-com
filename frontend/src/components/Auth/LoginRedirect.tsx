@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { isAdminPortal, getPortalConfig, hasPortalAccess } from '../../utils/portalConfig';
 
 const LoginRedirect: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -42,6 +43,7 @@ const LoginRedirect: React.FC = () => {
 
   // Show loading while checking authentication
   if (isAuthenticated === null) {
+    const portalConfig = getPortalConfig();
     return (
       <Box
         display="flex"
@@ -55,18 +57,22 @@ const LoginRedirect: React.FC = () => {
       >
         <CircularProgress size={60} sx={{ color: theme.palette.primary.main, mb: 2 }} />
         <Typography variant="h6" color={theme.palette.primary.main} fontWeight={600}>
-          Loading EVEP Medical Panel...
+          Loading {portalConfig.title}...
         </Typography>
         <Typography variant="body2" color={theme.palette.text.secondary} sx={{ mt: 1 }}>
-          Initializing medical professional interface
+          {portalConfig.description}
         </Typography>
       </Box>
     );
   }
 
-  // Redirect based on authentication status
+  // Redirect based on authentication status and portal type
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    if (isAdminPortal()) {
+      return <Navigate to="/admin" replace />;
+    } else {
+      return <Navigate to="/dashboard" replace />;
+    }
   } else {
     return <Navigate to="/login" replace />;
   }

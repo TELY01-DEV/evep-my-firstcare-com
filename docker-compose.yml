@@ -37,7 +37,7 @@ services:
       - evep-network
     restart: unless-stopped
 
-  # Frontend Web Application
+  # Frontend Web Application (Medical Professional Portal)
   frontend:
     build:
       context: ./frontend
@@ -48,6 +48,29 @@ services:
     environment:
       - REACT_APP_API_URL=https://admin.evep.my-firstcare.com
       - REACT_APP_ENVIRONMENT=production
+      - REACT_APP_PORTAL_TYPE=medical
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - evep-network
+    restart: unless-stopped
+
+  # Admin Panel Web Application
+  admin-panel:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: evep-admin-panel
+    ports:
+      - "3015:3000"
+    environment:
+      - REACT_APP_API_URL=https://admin.evep.my-firstcare.com
+      - REACT_APP_ENVIRONMENT=production
+      - REACT_APP_PORTAL_TYPE=admin
+      - REACT_APP_ADMIN_ONLY=true
     volumes:
       - ./frontend:/app
       - /app/node_modules

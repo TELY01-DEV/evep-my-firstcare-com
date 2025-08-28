@@ -599,3 +599,121 @@ async def update_system_settings(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update system settings: {str(e)}"
         )
+
+# Security Models
+class SecurityEvent(BaseModel):
+    id: str
+    timestamp: str
+    event_type: str
+    severity: str
+    user_id: Optional[str] = None
+    user_email: Optional[str] = None
+    ip_address: str
+    user_agent: str
+    location: Optional[str] = None
+    details: str
+    status: str
+
+class SecurityStats(BaseModel):
+    totalEvents: int
+    criticalEvents: int
+    highPriorityEvents: int
+    failedLogins: int
+    suspiciousActivities: int
+    blockedIPs: int
+    last24Hours: int
+
+@router.get("/security/events")
+async def get_security_events(current_user: dict = Depends(get_current_user)):
+    """Get security events"""
+    
+    # Check if user has admin permissions
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    try:
+        # In a real implementation, this would fetch from database
+        # For now, return mock data
+        mock_events = [
+            {
+                "id": "1",
+                "timestamp": "2025-08-28T10:30:00Z",
+                "event_type": "failed_login",
+                "severity": "high",
+                "user_email": "unknown@example.com",
+                "ip_address": "192.168.1.100",
+                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                "location": "Bangkok, Thailand",
+                "details": "Multiple failed login attempts detected",
+                "status": "pending",
+            },
+            {
+                "id": "2",
+                "timestamp": "2025-08-28T10:25:00Z",
+                "event_type": "suspicious_activity",
+                "severity": "critical",
+                "user_id": "68b0209bc6a9ef729bb33c9c",
+                "user_email": "doctor@evep.com",
+                "ip_address": "203.113.45.67",
+                "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1)",
+                "location": "Chiang Mai, Thailand",
+                "details": "Unusual access pattern detected",
+                "status": "investigated",
+            },
+            {
+                "id": "3",
+                "timestamp": "2025-08-28T10:20:00Z",
+                "event_type": "admin_action",
+                "severity": "medium",
+                "user_id": "68b0209bc6a9ef729bb33c9e",
+                "user_email": "admin@evep.com",
+                "ip_address": "192.168.1.50",
+                "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+                "location": "Bangkok, Thailand",
+                "details": "User management action performed",
+                "status": "resolved",
+            },
+        ]
+        
+        return {"events": mock_events}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get security events: {str(e)}"
+        )
+
+@router.get("/security/stats")
+async def get_security_stats(current_user: dict = Depends(get_current_user)):
+    """Get security statistics"""
+    
+    # Check if user has admin permissions
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    try:
+        # In a real implementation, this would calculate from database
+        # For now, return mock data
+        mock_stats = {
+            "totalEvents": 156,
+            "criticalEvents": 3,
+            "highPriorityEvents": 12,
+            "failedLogins": 8,
+            "suspiciousActivities": 2,
+            "blockedIPs": 1,
+            "last24Hours": 45,
+        }
+        
+        return {"stats": mock_stats}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get security stats: {str(e)}"
+        )
