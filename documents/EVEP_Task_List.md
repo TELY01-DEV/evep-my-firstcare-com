@@ -627,7 +627,7 @@ Subtasks:
 - 🚀 DS-001: Design System Creation (In Progress)
 - 🚀 FE-001: Frontend Setup (In Progress)
 
-### **✅ COMPLETED: Week 3-4: Core Features & Dashboard**
+### **✅ COMPLETED: Week 3-6: Core Features & Patient Management**
   - ✅ BE-004: User Management API (Completed)
   - ✅ BE-004.1: Admin Panel API (Completed)
   - ✅ BE-005: Patient Management API (Completed)
@@ -635,7 +635,8 @@ Subtasks:
   - ✅ FE-002: Authentication UI (Completed)
   - ✅ FE-003: Dashboard Implementation (Completed)
   - ✅ FE-004.1: Admin Panel UI (Completed)
-- 🚀 FE-005: Screening Interface (Ready to Start)
+  - ✅ FE-004: Patient Management UI (Completed)
+  - ✅ FE-005: Screening Interface (Completed)
 
 ### **📋 UPCOMING: Week 5-6: Frontend Development**
 - FE-004: Patient Management UI
@@ -671,31 +672,31 @@ Subtasks:
 
 ## 🎯 **Current Sprint Status**
 
-### **Sprint 4: Dashboard & Admin System (Week 7-8)**
+### **Sprint 5: Patient Management & Screening (Week 9-10)**
 ```yaml
 Sprint Goals:
-  - ✅ Complete dashboard implementation
-  - ✅ Create role-based dashboard views
-  - ✅ Implement dashboard API with statistics
-  - ✅ Add admin settings and security pages
-  - ✅ Create portal configuration system
-  - 🚀 Begin patient management development
+  - ✅ Complete patient management system
+  - ✅ Implement comprehensive screening interface
+  - ✅ Create screening workflow with 5-step process
+  - ✅ Add patient search and filtering capabilities
+  - ✅ Implement screening results recording
+  - 🚀 Begin AI integration and analytics
 
 Sprint Achievements:
-  - ✅ Complete dashboard system
-  - ✅ Role-based dashboard with statistics
-  - ✅ Dashboard API with role filtering
-  - ✅ AdminSettings page for configuration
-  - ✅ AdminSecurity page for security management
-  - ✅ Portal configuration system
-  - ✅ Blockchain audit utility
-  - ✅ Quick actions and recent activity
-  - ✅ Responsive dashboard design
+  - ✅ Complete patient management UI
+  - ✅ Patient CRUD operations with validation
+  - ✅ Patient search, filtering, and detailed views
+  - ✅ Comprehensive screening interface
+  - ✅ 5-step screening workflow (Select Patient → Setup → Conduct → Record → Complete)
+  - ✅ Screening session management
+  - ✅ Detailed results recording (distance, near, color vision, depth perception)
+  - ✅ Responsive design for all components
   - ✅ Backend API integration
+  - ✅ Form validation and error handling
 
 Sprint Velocity:
-  - Completed Tasks: 6/6 (100%)
-  - Story Points: 24/24 (100%)
+  - Completed Tasks: 8/8 (100%)
+  - Story Points: 32/32 (100%)
   - On Track: ✅ Yes
 ```
 
@@ -709,12 +710,12 @@ Completion Tracking:
   - Low Priority: 0
 
 Progress Indicators:
-  - Backend Development: 65% ✅
-  - Frontend Development: 55% 🚀
-  - Design: 50% 🚀
+  - Backend Development: 70% ✅
+  - Frontend Development: 70% ✅
+  - Design: 60% 🚀
   - Testing: 0% 📋
   - Deployment: 0% 📋
-  - Documentation: 50% 🚀
+  - Documentation: 55% 🚀
 ```
 
 ### **Risk Management**
