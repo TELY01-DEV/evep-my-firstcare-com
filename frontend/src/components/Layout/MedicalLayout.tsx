@@ -31,6 +31,7 @@ import {
   Settings as SettingsIcon,
   MedicalServices as MedicalServicesIcon,
   HealthAndSafety as HealthIcon,
+  Security as SecurityIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
@@ -95,6 +96,12 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
       text: 'Health Analytics',
       icon: <HealthIcon />,
       path: '/dashboard/analytics',
+      badge: null,
+    },
+    {
+      text: 'Security Audit',
+      icon: <SecurityIcon />,
+      path: '/dashboard/security',
       badge: null,
     },
   ];

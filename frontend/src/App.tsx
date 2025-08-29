@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { QueryClient, QueryClientProvider } from 'react-query';
@@ -15,12 +15,14 @@ import Patients from './pages/Patients';
 import Screenings from './pages/Screenings';
 import Reports from './pages/Reports';
 import AIInsights from './pages/AIInsights';
+import SecurityAudit from './components/SecurityAudit';
 
 // Admin Pages
 import Admin from './pages/Admin';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import AdminUserManagement from './pages/AdminUserManagement';
+import AdminPanelUserManagement from './pages/AdminPanelUserManagement';
 import AdminSettings from './pages/AdminSettings';
 import AdminSecurity from './pages/AdminSecurity';
 
@@ -59,6 +61,7 @@ function App() {
               <Routes>
                 {/* Public routes */}
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/login" element={<Auth />} />
                 
                 {/* Root path - redirect to login or dashboard */}
                 <Route path="/" element={<LoginRedirect />} />
@@ -75,17 +78,22 @@ function App() {
                       <Route index element={<AdminDashboard />} />
                       <Route path="users" element={<AdminUsers />} />
                       <Route path="user-management" element={<AdminUserManagement />} />
+                      <Route path="admin-users" element={<AdminPanelUserManagement />} />
                       <Route path="settings" element={<AdminSettings />} />
                       <Route path="security" element={<AdminSecurity />} />
                     </Route>
                     
-                    {/* Redirect root to admin dashboard for admin portal */}
+                    {/* Dashboard route for admin portal - redirect to admin dashboard */}
                     <Route path="/dashboard" element={
                       <AdminRoute>
                         <AdminLayout />
                       </AdminRoute>
                     }>
                       <Route index element={<AdminDashboard />} />
+                      <Route path="patients" element={<Navigate to="/admin" replace />} />
+                      <Route path="screenings" element={<Navigate to="/admin" replace />} />
+                      <Route path="reports" element={<Navigate to="/admin" replace />} />
+                      <Route path="ai-insights" element={<Navigate to="/admin" replace />} />
                     </Route>
                   </>
                 ) : (
@@ -102,6 +110,7 @@ function App() {
                       <Route path="screenings" element={<Screenings />} />
                       <Route path="reports" element={<Reports />} />
                       <Route path="ai-insights" element={<AIInsights />} />
+                      <Route path="security" element={<SecurityAudit />} />
                     </Route>
 
                     {/* Admin routes */}
@@ -112,6 +121,8 @@ function App() {
                     }>
                       <Route index element={<AdminDashboard />} />
                       <Route path="users" element={<AdminUsers />} />
+                      <Route path="user-management" element={<AdminUserManagement />} />
+                      <Route path="admin-users" element={<AdminPanelUserManagement />} />
                       <Route path="settings" element={<AdminSettings />} />
                       <Route path="security" element={<AdminSecurity />} />
                     </Route>

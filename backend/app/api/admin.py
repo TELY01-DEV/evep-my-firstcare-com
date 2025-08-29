@@ -5,7 +5,7 @@ Handles system administration, user management, and system statistics
 
 from datetime import datetime, timedelta
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 from pydantic import BaseModel, EmailStr
 from bson import ObjectId
 
@@ -15,6 +15,70 @@ from app.core.database import get_users_collection, get_patients_collection, get
 from app.api.auth import get_current_user
 
 router = APIRouter(prefix="/admin", tags=["Admin Management"])
+
+def get_client_ip(request: Request) -> str:
+    """Get the real client IP address"""
+    # Check for forwarded headers (when behind proxy/load balancer)
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        # X-Forwarded-For can contain multiple IPs, take the first one
+        return forwarded_for.split(",")[0].strip()
+    
+    # Check for real IP header
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip
+    
+    # Fallback to direct connection IP
+    return request.client.host if request.client else "unknown"
+
+async def log_security_event(
+    request: Request,
+    current_user: dict,
+    event_type: str,
+    action: str,
+    resource: str,
+    status: str = "success",
+    details: str = "",
+    severity: str = "low"
+):
+    """Log a security event to the audit database"""
+    try:
+        audit_logs_collection = get_audit_logs_collection()
+        
+        # Get client information
+        client_ip = get_client_ip(request)
+        user_agent = request.headers.get("User-Agent", "Unknown")
+        
+        # Create security event
+        security_event = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "event_type": event_type,
+            "portal": "admin",  # Distinguish from medical portal
+            "user_id": current_user.get("id", "unknown"),
+            "user_email": current_user.get("email", "unknown@example.com"),
+            "user_role": current_user.get("role", "unknown"),
+            "ip_address": client_ip,
+            "user_agent": user_agent,
+            "resource": resource,
+            "action": action,
+            "status": status,
+            "details": details,
+            "severity": severity,
+            "audit_hash": f"admin_{event_type}_{current_user.get('id', 'unknown')}_{client_ip}_{int(datetime.utcnow().timestamp())}"
+        }
+        
+        # Save to database - REAL IMPLEMENTATION
+        await audit_logs_collection.insert_one(security_event)
+        
+        # Log to console for debugging
+        print(f"🔒 SECURITY EVENT: {event_type} - {action} from {client_ip} by {current_user.get('email', 'unknown')}")
+        
+        return security_event
+        
+    except Exception as e:
+        print(f"Error logging security event: {str(e)}")
+        return None
 
 # Models
 class UserCreate(BaseModel):
@@ -47,7 +111,10 @@ class SystemStats(BaseModel):
     lastBackup: str
 
 @router.get("/stats", response_model=SystemStats)
-async def get_system_stats(current_user: dict = Depends(get_current_user)):
+async def get_system_stats(
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
     """Get system statistics"""
     
     # Check if user has admin permissions
@@ -58,6 +125,16 @@ async def get_system_stats(current_user: dict = Depends(get_current_user)):
         )
     
     try:
+        # Log this system stats access
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="access",
+            action="System stats accessed",
+            resource="/api/v1/admin/stats",
+            details="Admin accessed system statistics"
+        )
+        
         users_collection = get_users_collection()
         patients_collection = get_patients_collection()
         screenings_collection = get_screenings_collection()
@@ -95,7 +172,10 @@ async def get_system_stats(current_user: dict = Depends(get_current_user)):
         )
 
 @router.get("/users")
-async def get_users(current_user: dict = Depends(get_current_user)):
+async def get_users(
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
     """Get all users"""
     
     # Check if user has admin permissions
@@ -106,6 +186,16 @@ async def get_users(current_user: dict = Depends(get_current_user)):
         )
     
     try:
+        # Log this users access
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="access",
+            action="Users list accessed",
+            resource="/api/v1/admin/users",
+            details="Admin accessed user management"
+        )
+        
         users_collection = get_users_collection()
         users = await users_collection.find({}).to_list(length=None)
         
@@ -600,164 +690,181 @@ async def update_system_settings(
             detail=f"Failed to update system settings: {str(e)}"
         )
 
-# Security Models
-class SecurityEvent(BaseModel):
-    id: str
-    timestamp: str
-    event_type: str
-    severity: str
-    user_id: Optional[str] = None
-    user_email: Optional[str] = None
-    ip_address: str
-    user_agent: str
-    location: Optional[str] = None
-    details: str
-    status: str
-
-class SecurityStats(BaseModel):
-    totalEvents: int
-    criticalEvents: int
-    highPriorityEvents: int
-    failedLogins: int
-    suspiciousActivities: int
-    blockedIPs: int
-    last24Hours: int
-
+# Security & Audit Endpoints
 @router.get("/security/events")
-async def get_security_events(current_user: dict = Depends(get_current_user)):
+async def get_security_events(
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
     """Get security events"""
     
-    # Check if user has admin permissions
-    if current_user["role"] != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
+    if current_user["role"] not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Admin access required")
     
     try:
-        # In a real implementation, this would fetch from database
-        # For now, return mock data
-        mock_events = [
-            {
-                "id": "1",
-                "timestamp": "2025-08-28T10:30:00Z",
-                "event_type": "failed_login",
-                "severity": "high",
-                "user_email": "unknown@example.com",
-                "ip_address": "192.168.1.100",
-                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                "location": "Bangkok, Thailand",
-                "details": "Multiple failed login attempts detected",
-                "status": "pending",
-            },
-            {
-                "id": "2",
-                "timestamp": "2025-08-28T10:25:00Z",
-                "event_type": "suspicious_activity",
-                "severity": "critical",
-                "user_id": "68b0209bc6a9ef729bb33c9c",
-                "user_email": "doctor@evep.com",
-                "ip_address": "203.113.45.67",
-                "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1)",
-                "location": "Chiang Mai, Thailand",
-                "details": "Unusual access pattern detected",
-                "status": "investigated",
-            },
-            {
-                "id": "3",
-                "timestamp": "2025-08-28T10:20:00Z",
-                "event_type": "admin_action",
-                "severity": "medium",
-                "user_id": "68b0209bc6a9ef729bb33c9e",
-                "user_email": "admin@evep.com",
-                "ip_address": "192.168.1.50",
-                "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-                "location": "Bangkok, Thailand",
-                "details": "User management action performed",
-                "status": "resolved",
-            },
-        ]
+        # Log this security events access
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="access",
+            action="Security events accessed",
+            resource="/api/v1/admin/security/events",
+            details="Admin accessed security audit logs"
+        )
         
-        return {"events": mock_events}
+        # Get real security events from database
+        audit_logs_collection = get_audit_logs_collection()
+        
+        # Fetch real events from database (admin portal only, last 50 events)
+        cursor = audit_logs_collection.find({"portal": "admin"}).sort("timestamp", -1).limit(50)
+        db_events = await cursor.to_list(length=50)
+        
+        # Convert database events to response format
+        events = []
+        for i, event in enumerate(db_events):
+            events.append({
+                "id": str(event.get("_id", i + 1)),
+                "timestamp": event.get("timestamp", ""),
+                "event_type": event.get("event_type", ""),
+                "portal": event.get("portal", "admin"),  # Include portal field
+                "user_id": event.get("user_id", ""),
+                "user_email": event.get("user_email", ""),
+                "user_role": event.get("user_role", ""),
+                "ip_address": event.get("ip_address", ""),
+                "user_agent": event.get("user_agent", ""),
+                "resource": event.get("resource", ""),
+                "action": event.get("action", ""),
+                "status": event.get("status", ""),
+                "details": event.get("details", ""),
+                "severity": event.get("severity", "low")
+            })
+        
+        # If no events in database, create a default login event for current user
+        if not events:
+            current_ip = get_client_ip(request)
+            current_user_agent = request.headers.get("User-Agent", "Unknown")
+            events.append({
+                "id": "1",
+                "timestamp": datetime.utcnow().isoformat(),
+                "event_type": "login",
+                "user_id": current_user.get("id", "unknown"),
+                "user_email": current_user.get("email", "unknown@example.com"),
+                "user_role": current_user.get("role", "unknown"),
+                "ip_address": current_ip,
+                "user_agent": current_user_agent,
+                "resource": "/api/v1/auth/login",
+                "action": "User login",
+                "status": "success",
+                "details": f"Successful login from {current_ip}",
+                "severity": "low"
+            })
+        
+        return {"events": events}
         
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get security events: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get security events: {str(e)}")
 
 @router.get("/security/stats")
-async def get_security_stats(current_user: dict = Depends(get_current_user)):
+async def get_security_stats(
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
     """Get security statistics"""
     
-    # Check if user has admin permissions
-    if current_user["role"] != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
+    if current_user["role"] not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Admin access required")
     
     try:
-        # In a real implementation, this would calculate from database
-        # For now, return mock data
-        mock_stats = {
-            "totalEvents": 156,
-            "criticalEvents": 3,
-            "highPriorityEvents": 12,
-            "failedLogins": 8,
-            "suspiciousActivities": 2,
-            "blockedIPs": 1,
-            "last24Hours": 45,
+        # Log this security stats access
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="access",
+            action="Security stats accessed",
+            resource="/api/v1/admin/security/stats",
+            details="Admin accessed security statistics"
+        )
+        
+        # Get current client IP
+        current_ip = get_client_ip(request)
+        
+        # Get real security stats from database
+        audit_logs_collection = get_audit_logs_collection()
+        
+        # Calculate real statistics from database
+        now = datetime.utcnow()
+        yesterday = now - timedelta(days=1)
+        week_ago = now - timedelta(days=7)
+        month_ago = now - timedelta(days=30)
+        
+        # Admin portal specific queries
+        admin_query = {"portal": "admin"}
+        
+        # Total events
+        total_events = await audit_logs_collection.count_documents(admin_query)
+        
+        # Failed logins
+        failed_logins = await audit_logs_collection.count_documents({
+            **admin_query,
+            "event_type": "login",
+            "status": "failed"
+        })
+        
+        # Suspicious activities (access_denied events)
+        suspicious_activities = await audit_logs_collection.count_documents({
+            **admin_query,
+            "event_type": "access_denied"
+        })
+        
+        # Security alerts
+        security_alerts = await audit_logs_collection.count_documents({
+            **admin_query,
+            "event_type": "security_alert"
+        })
+        
+        # Last 24h events
+        last_24h_events = await audit_logs_collection.count_documents({
+            **admin_query,
+            "timestamp": {"$gte": yesterday.isoformat()}
+        })
+        
+        # Last 7 days events
+        last_7d_events = await audit_logs_collection.count_documents({
+            **admin_query,
+            "timestamp": {"$gte": week_ago.isoformat()}
+        })
+        
+        # Last 30 days events
+        last_30d_events = await audit_logs_collection.count_documents({
+            **admin_query,
+            "timestamp": {"$gte": month_ago.isoformat()}
+        })
+        
+        # Get unique IPs that had access denied
+        blocked_ips_cursor = audit_logs_collection.aggregate([
+            {"$match": {**admin_query, "event_type": "access_denied"}},
+            {"$group": {"_id": "$ip_address"}},
+            {"$count": "count"}
+        ])
+        blocked_ips_result = await blocked_ips_cursor.to_list(length=1)
+        blocked_ips = blocked_ips_result[0]["count"] if blocked_ips_result else 0
+        
+        # Real security stats
+        stats = {
+            "total_events": total_events,
+            "failed_logins": failed_logins,
+            "suspicious_activities": suspicious_activities,
+            "blocked_ips": blocked_ips,
+            "security_alerts": security_alerts,
+            "last_24h_events": last_24h_events,
+            "last_7d_events": last_7d_events,
+            "last_30d_events": last_30d_events,
+            "current_client_ip": current_ip,
+            "current_user_agent": request.headers.get("User-Agent", "Unknown"),
+            "last_activity": datetime.utcnow().isoformat()
         }
         
-        return {"stats": mock_stats}
+        return stats
         
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get security stats: {str(e)}"
-        )
-
-# User Statistics Models
-class UserStats(BaseModel):
-    totalUsers: int
-    activeUsers: int
-    adminUsers: int
-    medicalUsers: int
-    teacherUsers: int
-    parentUsers: int
-    verifiedUsers: int
-    newUsersThisMonth: int
-
-@router.get("/users/stats")
-async def get_user_stats(current_user: dict = Depends(get_current_user)):
-    """Get user statistics"""
-    
-    # Check if user has admin permissions
-    if current_user["role"] != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
-        )
-    
-    try:
-        # In a real implementation, this would calculate from database
-        # For now, return mock data
-        mock_stats = {
-            "totalUsers": 156,
-            "activeUsers": 142,
-            "adminUsers": 3,
-            "medicalUsers": 45,
-            "teacherUsers": 78,
-            "parentUsers": 30,
-            "verifiedUsers": 134,
-            "newUsersThisMonth": 12,
-        }
-        
-        return {"stats": mock_stats}
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get user stats: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get security stats: {str(e)}")
