@@ -3,7 +3,7 @@ Authentication API endpoints for EVEP Platform
 Handles user registration, login, and token management
 """
 
-from datetime import timedelta
+from datetime import timedelta, datetime
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -11,7 +11,8 @@ from pydantic import BaseModel, EmailStr
 
 from app.core.config import settings
 from app.core.security import create_access_token, verify_token, hash_password, verify_password, generate_blockchain_hash
-from app.core.database import get_users_collection, get_audit_logs_collection
+from app.core.database import get_users_collection, get_admin_users_collection, get_audit_logs_collection
+from bson import ObjectId
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -151,15 +152,23 @@ async def login_user(login_data: UserLogin):
     """Login user and return access token"""
     
     users_collection = get_users_collection()
+    admin_users_collection = get_admin_users_collection()
     audit_logs_collection = get_audit_logs_collection()
     
-    # Find user by email
+    # Find user by email in both collections
     user = await users_collection.find_one({"email": login_data.email})
+    user_collection = "users"
+    
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
-        )
+        # Check admin users collection
+        user = await admin_users_collection.find_one({"email": login_data.email})
+        user_collection = "admin_users"
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
     
     # Check if account is locked
     if user.get("locked_until") and settings.get_utc_timestamp() < user["locked_until"]:
@@ -168,10 +177,12 @@ async def login_user(login_data: UserLogin):
             detail="Account is temporarily locked due to too many failed login attempts"
         )
     
-    # Verify password
-    if not verify_password(login_data.password, user["password_hash"]):
+    # Verify password (handle both password_hash and password fields)
+    password_field = "password_hash" if "password_hash" in user else "password"
+    if not verify_password(login_data.password, user[password_field]):
         # Increment failed login attempts
-        await users_collection.update_one(
+        collection = users_collection if user_collection == "users" else admin_users_collection
+        await collection.update_one(
             {"_id": user["_id"]},
             {"$inc": {"login_attempts": 1}}
         )
@@ -179,7 +190,8 @@ async def login_user(login_data: UserLogin):
         # Lock account if too many failed attempts
         if user.get("login_attempts", 0) >= 4:  # 5th failed attempt
             lock_until = settings.get_utc_timestamp() + timedelta(minutes=30)
-            await users_collection.update_one(
+            collection = users_collection if user_collection == "users" else admin_users_collection
+            await collection.update_one(
                 {"_id": user["_id"]},
                 {"$set": {"locked_until": lock_until}}
             )
@@ -194,7 +206,8 @@ async def login_user(login_data: UserLogin):
         )
     
     # Reset login attempts on successful login
-    await users_collection.update_one(
+    collection = users_collection if user_collection == "users" else admin_users_collection
+    await collection.update_one(
         {"_id": user["_id"]},
         {
             "$set": {
@@ -364,7 +377,7 @@ async def change_password(
         "action": "password_change",
         "user_id": str(user["_id"]),
         "email": user["email"],
-        "timestamp": settings.get_current_timestamp(),
+        "timestamp": datetime.utcnow().isoformat(),
         "ip_address": "127.0.0.1",  # TODO: Get from request
         "audit_hash": generate_blockchain_hash(f"password_change:{user['email']}"),
         "details": {
@@ -463,3 +476,180 @@ async def reset_password(token: str, new_password: str):
     })
     
     return {"message": "Password reset successfully"}
+
+@router.get("/profile")
+async def get_user_profile(current_user: dict = Depends(get_current_user)):
+    """Get current user's profile"""
+    
+    users_collection = get_users_collection()
+    audit_logs_collection = get_audit_logs_collection()
+    
+    # Get user data - check both collections
+    user = await users_collection.find_one({"_id": ObjectId(current_user["user_id"])})
+    if not user:
+        # Check admin_users collection
+        admin_users_collection = get_admin_users_collection()
+        user = await admin_users_collection.find_one({"_id": ObjectId(current_user["user_id"])})
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+    
+    # Log profile access
+    await audit_logs_collection.insert_one({
+        "action": "profile_accessed",
+        "user_id": str(user["_id"]),
+        "email": user["email"],
+        "timestamp": datetime.utcnow().isoformat(),
+        "ip_address": "127.0.0.1",  # TODO: Get from request
+        "audit_hash": generate_blockchain_hash(f"profile_access:{user['email']}"),
+        "details": {
+            "role": user.get("role", "admin"),
+            "portal": "admin"
+        }
+    })
+    
+    # Return profile data
+    return {
+        "id": str(user["_id"]),
+        "email": user["email"],
+        "first_name": user.get("first_name", ""),
+        "last_name": user.get("last_name", ""),
+        "role": user["role"],
+        "avatar": user.get("avatar"),
+        "preferences": user.get("preferences", {
+            "theme": "light",
+            "language": "en",
+            "timezone": "Asia/Bangkok",
+            "notifications": {
+                "email": True,
+                "push": True,
+                "sms": False
+            },
+            "privacy": {
+                "profile_visible": True,
+                "activity_visible": False
+            }
+        }),
+        "created_at": user.get("created_at", ""),
+        "updated_at": user.get("updated_at", "")
+    }
+
+@router.put("/profile")
+async def update_user_profile(
+    profile_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update current user's profile"""
+    
+    users_collection = get_users_collection()
+    audit_logs_collection = get_audit_logs_collection()
+    
+    # Get user data - check both collections
+    user = await users_collection.find_one({"_id": ObjectId(current_user["user_id"])})
+    if not user:
+        # Check admin_users collection
+        admin_users_collection = get_admin_users_collection()
+        user = await admin_users_collection.find_one({"_id": ObjectId(current_user["user_id"])})
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+    
+    # Prepare update data
+    update_data = {}
+    
+    if "first_name" in profile_data:
+        update_data["first_name"] = profile_data["first_name"]
+    
+    if "last_name" in profile_data:
+        update_data["last_name"] = profile_data["last_name"]
+    
+    if "preferences" in profile_data:
+        update_data["preferences"] = profile_data["preferences"]
+    
+    update_data["updated_at"] = datetime.utcnow().isoformat()
+    
+    # Update user profile
+    await users_collection.update_one(
+        {"_id": user["_id"]},
+        {"$set": update_data}
+    )
+    
+    # Log profile update
+    await audit_logs_collection.insert_one({
+        "action": "profile_updated",
+        "user_id": str(user["_id"]),
+        "email": user["email"],
+        "timestamp": datetime.utcnow().isoformat(),
+        "ip_address": "127.0.0.1",  # TODO: Get from request
+        "audit_hash": generate_blockchain_hash(f"profile_update:{user['email']}"),
+        "details": {
+            "role": user["role"],
+            "portal": "admin",
+            "updated_fields": list(update_data.keys())
+        }
+    })
+    
+    return {"message": "Profile updated successfully"}
+
+@router.put("/change-password")
+async def change_user_password(
+    password_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Change current user's password"""
+    
+    users_collection = get_users_collection()
+    audit_logs_collection = get_audit_logs_collection()
+    
+    # Get user data - check both collections
+    user = await users_collection.find_one({"_id": ObjectId(current_user["user_id"])})
+    if not user:
+        # Check admin_users collection
+        admin_users_collection = get_admin_users_collection()
+        user = await admin_users_collection.find_one({"_id": ObjectId(current_user["user_id"])})
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+    
+    # Verify current password
+    if not verify_password(password_data["current_password"], user["password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+    
+    # Hash new password
+    new_password_hash = hash_password(password_data["new_password"])
+    
+    # Update password
+    await users_collection.update_one(
+        {"_id": user["_id"]},
+        {
+            "$set": {
+                "password_hash": new_password_hash,
+                "updated_at": datetime.utcnow().isoformat()
+            }
+        }
+    )
+    
+    # Log password change
+    await audit_logs_collection.insert_one({
+        "action": "password_changed",
+        "user_id": str(user["_id"]),
+        "email": user["email"],
+        "timestamp": settings.get_current_timestamp(),
+        "ip_address": "127.0.0.1",  # TODO: Get from request
+        "audit_hash": generate_blockchain_hash(f"password_change:{user['email']}"),
+        "details": {
+            "role": user["role"],
+            "portal": "admin"
+        }
+    })
+    
+    return {"message": "Password changed successfully"}

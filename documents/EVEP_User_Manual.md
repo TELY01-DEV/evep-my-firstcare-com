@@ -40,9 +40,15 @@ The EVEP (EYE Vision Evaluation Platform) is a comprehensive digital platform de
 
 ### Accessing the Platform
 
+#### For Medical Professionals and General Users
 1. **Open your web browser**
 2. **Navigate to**: `https://portal.evep.my-firstcare.com`
 3. **Click "Login"** or "Register" if you're a new user
+
+#### For Administrators
+1. **Open your web browser**
+2. **Navigate to**: `https://admin.evep.my-firstcare.com`
+3. **Click "Login"** with your admin credentials
 
 ### First-Time Setup
 

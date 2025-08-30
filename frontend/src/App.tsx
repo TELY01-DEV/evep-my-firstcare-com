@@ -26,6 +26,19 @@ import AdminPanelUserManagement from './pages/AdminPanelUserManagement';
 import AdminSettings from './pages/AdminSettings';
 import AdminSecurity from './pages/AdminSecurity';
 
+// EVEP Management Pages
+import EvepParents from './pages/EvepParents';
+import EvepStudents from './pages/EvepStudents';
+import EvepTeachers from './pages/EvepTeachers';
+import EvepSchools from './pages/EvepSchools';
+import EvepSchoolScreenings from './pages/EvepSchoolScreenings';
+import StudentToPatientRegistration from './components/StudentToPatientRegistration';
+import VAScreeningInterface from './components/VAScreeningInterface';
+import AppointmentScheduler from './components/AppointmentScheduler';
+import LineNotificationManager from './components/LineNotificationManager';
+// import MedicalStaff from './pages/MedicalStaff';
+// import EnhancedInventoryManager from './components/EnhancedInventoryManager';
+
 // Components
 import MedicalLayout from './components/Layout/MedicalLayout';
 import AdminLayout from './components/Layout/AdminLayout';
@@ -110,7 +123,32 @@ function App() {
                       <Route path="screenings" element={<Screenings />} />
                       <Route path="reports" element={<Reports />} />
                       <Route path="ai-insights" element={<AIInsights />} />
+                      <Route path="analytics" element={<AIInsights />} />
                       <Route path="security" element={<SecurityAudit />} />
+                      
+                      {/* EVEP Management Routes */}
+                      <Route path="evep/parents" element={<EvepParents />} />
+                      <Route path="evep/students" element={<EvepStudents />} />
+                      <Route path="evep/teachers" element={<EvepTeachers />} />
+                      <Route path="evep/schools" element={<EvepSchools />} />
+                      <Route path="evep/school-screenings" element={<EvepSchoolScreenings />} />
+                      <Route path="evep/appointments" element={<AppointmentScheduler />} />
+                      
+                      {/* Medical Screening Routes */}
+                      <Route path="medical-screening/patient-registration" element={<StudentToPatientRegistration />} />
+                      <Route path="medical-screening/va-screening" element={<VAScreeningInterface />} />
+                      <Route path="medical-screening/diagnosis" element={<div>Diagnosis & Treatment</div>} />
+                      
+                      {/* Glasses Management Routes */}
+                      {/* <Route path="glasses-management/inventory" element={<EnhancedInventoryManager />} />
+                      <Route path="glasses-management/delivery" element={<EnhancedInventoryManager />} /> */}
+                      
+                      {/* Medical Staff Management Routes */}
+                      {/* <Route path="medical-staff" element={<MedicalStaff />} />
+                      <Route path="medical-staff/management" element={<MedicalStaff />} /> */}
+                      
+                      {/* LINE Bot Management Routes */}
+                      <Route path="line-notifications" element={<LineNotificationManager />} />
                     </Route>
 
                     {/* Admin routes */}
@@ -125,6 +163,13 @@ function App() {
                       <Route path="admin-users" element={<AdminPanelUserManagement />} />
                       <Route path="settings" element={<AdminSettings />} />
                       <Route path="security" element={<AdminSecurity />} />
+                      
+                      {/* EVEP Management Routes */}
+                      <Route path="evep/parents" element={<EvepParents />} />
+                      <Route path="evep/students" element={<EvepStudents />} />
+                      <Route path="evep/teachers" element={<EvepTeachers />} />
+                      <Route path="evep/schools" element={<EvepSchools />} />
+                      <Route path="evep/school-screenings" element={<EvepSchoolScreenings />} />
                     </Route>
                   </>
                 )}

@@ -6,7 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import MongoClient
 from typing import Optional
 
-from app.core.config import settings
+from app.core.config import Config
 
 # Global database client
 _database: Optional[AsyncIOMotorClient] = None
@@ -36,6 +36,10 @@ async def close_database():
 def get_users_collection():
     """Get the users collection"""
     return get_database().evep.users
+
+def get_admin_users_collection():
+    """Get the admin users collection"""
+    return get_database().evep.admin_users
 
 def get_patients_collection():
     """Get the patients collection"""

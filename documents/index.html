@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVEP Documentation - Content Index</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        
+        .header {
+            text-align: center;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 32px;
+            font-weight: bold;
+        }
+        
+        .header h2 {
+            color: #7f8c8d;
+            margin: 10px 0 0 0;
+            font-size: 18px;
+        }
+        
+        .header p {
+            color: #555;
+            margin: 15px 0 0 0;
+            font-size: 16px;
+        }
+        
+        .content-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .section-title {
+            color: #2c3e50;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .document-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .document-card {
+            background: linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%);
+            border: 2px solid #3498db;
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .document-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .document-title {
+            color: #2c3e50;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .document-description {
+            color: #555;
+            font-size: 14px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        
+        .document-link {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+        
+        .document-link:hover {
+            background: #2980b9;
+        }
+        
+        .document-meta {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 10px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .status-complete {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .status-print {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .footer p {
+            color: #7f8c8d;
+            margin: 5px 0;
+        }
+        
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #e8f5e8 0%, #d5f4e6 100%);
+            border: 2px solid #27ae60;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #27ae60;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #555;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>EVEP Documentation Center</h1>
+        <h2>Eye Vision Enhancement Platform - Mobile Reflection Unit System</h2>
+        <p>Comprehensive documentation for system architecture, workflows, and implementation guides</p>
+        <p><strong>Last Updated: August 30, 2024 | Version: 2.1 | Status: 🟢 LIVE</strong></p>
+        <p><strong>Production Server: 103.22.182.146 | All Services Running</strong></p>
+    </div>
+
+    <div class="quick-stats">
+        <div class="stat-card">
+            <div class="stat-number">12</div>
+            <div class="stat-label">Total Documents</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">5</div>
+            <div class="stat-label">HTML Print Versions</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">7</div>
+            <div class="stat-label">Markdown Files</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">100%</div>
+            <div class="stat-label">Documentation Complete</div>
+        </div>
+    </div>
+
+    <!-- EVEP Mobile Reflection Unit -->
+    <div class="content-section">
+        <div class="section-title">🏥 EVEP Mobile Reflection Unit - LIVE SYSTEM</div>
+        <div class="document-grid">
+            <div class="document-card">
+                <div class="document-title">
+                    Mobile Reflection Unit Frontend
+                    <span class="status-badge status-complete">🟢 LIVE</span>
+                </div>
+                <div class="document-description">
+                    Main EVEP Mobile Reflection Unit application for medical staff to conduct vision screening, manage patients, and process screening workflows.
+                </div>
+                <a href="http://103.22.182.146:3013/" target="_blank" class="document-link">Access Mobile Unit</a>
+                <div class="document-meta">
+                    <strong>Port:</strong> 3013 | <strong>Status:</strong> 🟢 Healthy | <strong>Container:</strong> evep-frontend
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    Mobile Unit API Backend
+                    <span class="status-badge status-complete">🟢 LIVE</span>
+                </div>
+                <div class="document-description">
+                    Backend API for the Mobile Reflection Unit with patient registration, screening workflows, medical staff management, and data processing.
+                </div>
+                <a href="http://103.22.182.146:8013/" target="_blank" class="document-link">Access API</a>
+                <div class="document-meta">
+                    <strong>Port:</strong> 8013 | <strong>Status:</strong> 🟢 Healthy | <strong>Container:</strong> evep-backend
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    System Health Monitor
+                    <span class="status-badge status-complete">🟢 LIVE</span>
+                </div>
+                <div class="document-description">
+                    Real-time health monitoring for the Mobile Reflection Unit system including database connections, API status, and service health.
+                </div>
+                <a href="http://103.22.182.146:8013/health" target="_blank" class="document-link">Check System Health</a>
+                <div class="document-meta">
+                    <strong>Endpoint:</strong> /health | <strong>Response:</strong> 200 OK | <strong>Monitoring:</strong> Active
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Infrastructure -->
+    <div class="content-section">
+        <div class="section-title">⚙️ System Infrastructure Status</div>
+        <div class="document-grid">
+            <div class="document-card">
+                <div class="document-title">
+                    Database Cluster
+                    <span class="status-badge status-complete">🟢 LIVE</span>
+                </div>
+                <div class="document-description">
+                    MongoDB replica set with primary and secondary nodes for high availability and data redundancy.
+                </div>
+                <div class="document-meta">
+                    <strong>Primary:</strong> evep-mongo-primary (27030) | <strong>Secondaries:</strong> evep-mongo-secondary-1 (27031), evep-mongo-secondary-2 (27032) | <strong>Arbiter:</strong> evep-mongo-arbiter (27033)
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    Cache Cluster
+                    <span class="status-badge status-complete">🟢 LIVE</span>
+                </div>
+                <div class="document-description">
+                    Redis cluster with master and replica nodes for session management and data caching.
+                </div>
+                <div class="document-meta">
+                    <strong>Masters:</strong> evep-redis-master-1 (6395), evep-redis-master-2 (6396), evep-redis-master-3 (6397) | <strong>Replicas:</strong> evep-redis-replica-1 (6398), evep-redis-replica-2 (6399), evep-redis-replica-3 (6400)
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    Documentation Server
+                    <span class="status-badge status-complete">🟢 LIVE</span>
+                </div>
+                <div class="document-description">
+                    Nginx server hosting all EVEP documentation, workflow diagrams, and technical specifications.
+                </div>
+                <a href="http://103.22.182.146:8084/" target="_blank" class="document-link">Access Documentation</a>
+                <div class="document-meta">
+                    <strong>Port:</strong> 8084 | <strong>Status:</strong> 🟢 Running | <strong>Container:</strong> evep-docs-nginx
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Documentation -->
+    <div class="content-section">
+        <div class="section-title">📋 Core Documentation</div>
+        <div class="document-grid">
+            <div class="document-card">
+                <div class="document-title">
+                    EVEP Workflow Diagrams & Documentation
+                    <span class="status-badge status-complete">Complete</span>
+                </div>
+                <div class="document-description">
+                    Comprehensive overview of all workflow diagrams, screening component analysis, and entity-relationship diagrams for the EVEP Mobile Reflection Unit system.
+                </div>
+                <a href="EVEP_Workflow_Diagrams_Documentation.html" class="document-link">View HTML Version</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> HTML Print-Friendly | <strong>Size:</strong> Comprehensive
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    EVEP Updated ER Diagram
+                    <span class="status-badge status-complete">Complete</span>
+                </div>
+                <div class="document-description">
+                    Complete database schema with all entities, relationships, and enhanced access control matrix for the Mobile Reflection Unit.
+                </div>
+                <a href="EVEP_Updated_ER_Diagram.md" class="document-link">View Markdown</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> Markdown | <strong>Type:</strong> Database Schema
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    EVEP Medical Staff ER Diagram
+                    <span class="status-badge status-complete">Complete</span>
+                </div>
+                <div class="document-description">
+                    Comprehensive ER diagram specifically for medical staff entities, roles, responsibilities, and access control within the EVEP system.
+                </div>
+                <a href="EVEP_Medical_Staff_ER_Diagram.md" class="document-link">View Markdown</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> Markdown | <strong>Type:</strong> Staff Management
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Print-Friendly HTML Documents -->
+    <div class="content-section">
+        <div class="section-title">🖨️ Print-Friendly HTML Documents</div>
+        <div class="document-grid">
+            <div class="document-card">
+                <div class="document-title">
+                    EVEP Mobile Reflection Unit Workflow
+                    <span class="status-badge status-print">Print-Ready</span>
+                </div>
+                <div class="document-description">
+                    Complete Mobile Reflection Unit workflow diagram with clinical pathways, API endpoints, and implementation status for medical staff.
+                </div>
+                <a href="EVEP_ER_FLOWCHART_PRINT.html" class="document-link">View Mobile Unit Workflow</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> HTML Print-Optimized | <strong>Pages:</strong> Multi-page | <strong>Type:</strong> Clinical Workflow
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    EVEP Medical Staff ER Diagram Print
+                    <span class="status-badge status-print">Print-Ready</span>
+                </div>
+                <div class="document-description">
+                    Human-readable print version of the Medical Staff ER Diagram with roles, responsibilities, and access control matrices for the Mobile Unit.
+                </div>
+                <a href="EVEP_Medical_Staff_ER_Diagram_Print.html" class="document-link">View Print Version</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> HTML Print-Optimized | <strong>Type:</strong> Staff Documentation
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    EVEP Workflow Diagrams Documentation
+                    <span class="status-badge status-print">Print-Ready</span>
+                </div>
+                <div class="document-description">
+                    Comprehensive workflow documentation for the Mobile Reflection Unit including all phases, API endpoints, and system architecture.
+                </div>
+                <a href="EVEP_Workflow_Diagrams_Documentation.html" class="document-link">View Complete Documentation</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> HTML Print-Optimized | <strong>Type:</strong> Complete System Documentation
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    EVEP Screening Component Comparison
+                    <span class="status-badge status-print">Print-Ready</span>
+                </div>
+                <div class="document-description">
+                    Detailed comparison of screening components and workflows for the Mobile Reflection Unit system.
+                </div>
+                <a href="EVEP_SCREENING_COMPONENT_COMPARISON.html" class="document-link">View Comparison</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> HTML Print-Optimized | <strong>Type:</strong> Component Analysis
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    EVEP System Architecture Diagram
+                    <span class="status-badge status-print">Print-Ready</span>
+                </div>
+                <div class="document-description">
+                    Comprehensive system architecture diagram showing complete EVEP Mobile Reflection Unit components, data flow, technology stack, and deployment structure.
+                </div>
+                <a href="EVEP_System_Diagram.html" class="document-link">View System Architecture</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> HTML Print-Optimized | <strong>Type:</strong> System Architecture | <strong>Pages:</strong> Multi-page
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    EVEP Complete ER Diagram
+                    <span class="status-badge status-print">Print-Ready</span>
+                </div>
+                <div class="document-description">
+                    Comprehensive Entity-Relationship Diagram showing all database entities, attributes, relationships, and clinical workflow for the Mobile Reflection Unit.
+                </div>
+                <a href="EVEP_ER_Diagram_Complete.html" class="document-link">View Complete ER Diagram</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> HTML Print-Optimized | <strong>Type:</strong> Database Schema | <strong>Pages:</strong> Multi-page
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    EVEP Clinical Pathway Flowchart
+                    <span class="status-badge status-print">Print-Ready</span>
+                </div>
+                <div class="document-description">
+                    Complete clinical pathway flowchart showing step-by-step workflow, decision points, quality checks, and API endpoints for vision screening and glasses prescription.
+                </div>
+                <a href="EVEP_Clinical_Pathway_Flowchart.html" class="document-link">View Clinical Flowchart</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> HTML Print-Optimized | <strong>Type:</strong> Clinical Workflow | <strong>Pages:</strong> Multi-page
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    EVEP Data Flow Diagram
+                    <span class="status-badge status-print">Print-Ready</span>
+                </div>
+                <div class="document-description">
+                    Comprehensive data flow diagram showing medical data processing workflow from vision screening devices through services to final output, similar to BLT P1 system architecture.
+                </div>
+                <a href="EVEP_Data_Flow_Diagram.html" class="document-link">View Data Flow Diagram</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> HTML Print-Optimized | <strong>Type:</strong> Data Processing | <strong>Pages:</strong> Multi-page
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workflow Documentation -->
+    <div class="content-section">
+        <div class="section-title">🔄 Workflow Documentation</div>
+        <div class="document-grid">
+            <div class="document-card">
+                <div class="document-title">
+                    Mobile Vision Screening Workflow
+                    <span class="status-badge status-complete">Complete</span>
+                </div>
+                <div class="document-description">
+                    Detailed clinical pathway documentation with step-by-step workflow for mobile vision screening and glasses prescription.
+                </div>
+                <a href="MOBILE_VISION_SCREENING_WORKFLOW.md" class="document-link">View Markdown</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> Markdown | <strong>Type:</strong> Clinical Workflow
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    Mobile Reflection Unit Workflow PDF
+                    <span class="status-badge status-complete">Complete</span>
+                </div>
+                <div class="document-description">
+                    Human-readable clinical workflow guide formatted for PDF generation with detailed process descriptions and quality checks.
+                </div>
+                <a href="Mobile_Reflection_Unit_Workflow_PDF.md" class="document-link">View Markdown</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> Markdown | <strong>Type:</strong> PDF-Ready
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    Mobile Reflection Unit Implementation Summary
+                    <span class="status-badge status-complete">Complete</span>
+                </div>
+                <div class="document-description">
+                    Comprehensive implementation summary covering all aspects of the Mobile Reflection Unit system development and deployment.
+                </div>
+                <a href="Mobile_Reflection_Unit_Implementation_Summary.md" class="document-link">View Markdown</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> Markdown | <strong>Type:</strong> Implementation Guide
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analysis & Planning -->
+    <div class="content-section">
+        <div class="section-title">📊 Analysis & Planning</div>
+        <div class="document-grid">
+            <div class="document-card">
+                <div class="document-title">
+                    Mobile Reflection Unit Missing Flows
+                    <span class="status-badge status-complete">Complete</span>
+                </div>
+                <div class="document-description">
+                    Detailed analysis of missing flows in the Mobile Reflection Unit screening workflow with implementation priorities and impact assessment.
+                </div>
+                <a href="MOBILE_REFLECTION_UNIT_MISSING_FLOWS.md" class="document-link">View Markdown</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> Markdown | <strong>Type:</strong> Gap Analysis
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    EVEP Database Collections Structure
+                    <span class="status-badge status-complete">Complete</span>
+                </div>
+                <div class="document-description">
+                    Detailed database collections structure with document schemas, relationships, and data management strategies.
+                </div>
+                <a href="EVEP_Database_Collections_Structure.md" class="document-link">View Markdown</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> Markdown | <strong>Type:</strong> Database Design
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    EVEP Implementation Status Report
+                    <span class="status-badge status-complete">Complete</span>
+                </div>
+                <div class="document-description">
+                    Comprehensive implementation status report covering all completed features, production deployment status, and system verification.
+                </div>
+                <a href="EVEP_Implementation_Status_Report.md" class="document-link">View Report</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> Markdown | <strong>Type:</strong> Status Report
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Overview -->
+    <div class="content-section">
+        <div class="section-title">🏥 System Overview</div>
+        <div class="document-grid">
+            <div class="document-card">
+                <div class="document-title">
+                    EVEP System Architecture
+                    <span class="status-badge status-complete">Complete</span>
+                </div>
+                <div class="document-description">
+                    Complete system architecture overview including school-based screening, hospital mobile unit integration, and end-to-end workflow.
+                </div>
+                <a href="EVEP_Workflow_Diagrams_Documentation.html#overview" class="document-link">View Overview</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> HTML | <strong>Type:</strong> System Architecture
+                </div>
+            </div>
+
+            <div class="document-card">
+                <div class="document-title">
+                    API Endpoints Reference
+                    <span class="status-badge status-complete">Complete</span>
+                </div>
+                <div class="document-description">
+                    Complete API endpoint reference for all workflow phases including authentication, data management, and reporting.
+                </div>
+                <a href="EVEP_Workflow_Diagrams_Documentation.html#api-endpoints" class="document-link">View API Reference</a>
+                <div class="document-meta">
+                    <strong>Format:</strong> HTML | <strong>Type:</strong> API Documentation
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p><strong>EVEP Documentation Center</strong></p>
+        <p>Eye Vision Enhancement Platform - Mobile Reflection Unit System</p>
+        <p>Document Version: 2.1 | Last Updated: August 30, 2024 | Next Review: November 2024</p>
+        <p><strong>Status: 🟢 LIVE - All Services Running on Production Server</strong></p>
+        <p>Production Server: 103.22.182.146 | Frontend: Port 3013 | Backend: Port 8013 | Docs: Port 8084</p>
+    </div>
+</body>
+</html>

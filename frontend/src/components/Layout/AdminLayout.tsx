@@ -65,7 +65,7 @@ const AdminLayout: React.FC = () => {
 
   const menuItems = [
     {
-      text: 'Admin Dashboard',
+      text: 'System Overview',
       icon: <DashboardIcon />,
       path: '/admin',
       badge: null,
@@ -77,31 +77,43 @@ const AdminLayout: React.FC = () => {
       badge: null,
     },
     {
-      text: 'System Settings',
+      text: 'Admin Panel Users',
+      icon: <AdminIcon />,
+      path: '/admin/admin-users',
+      badge: null,
+    },
+    {
+      text: 'Medical Portal Users',
+      icon: <PeopleIcon />,
+      path: '/admin/user-management',
+      badge: null,
+    },
+    {
+      text: 'System Configuration',
       icon: <SettingsIcon />,
       path: '/admin/settings',
       badge: null,
     },
     {
-      text: 'Security Audit',
+      text: 'Security & Audit',
       icon: <SecurityIcon />,
       path: '/admin/security',
       badge: 'New',
     },
     {
-      text: 'Data Management',
+      text: 'Database Management',
       icon: <StorageIcon />,
-      path: '/admin/data',
+      path: '/admin/database',
       badge: null,
     },
     {
-      text: 'System Reports',
+      text: 'System Monitoring',
       icon: <AssessmentIcon />,
-      path: '/admin/reports',
+      path: '/admin/monitoring',
       badge: null,
     },
     {
-      text: 'Backup & Restore',
+      text: 'Backup & Recovery',
       icon: <BackupIcon />,
       path: '/admin/backup',
       badge: null,
@@ -118,7 +130,8 @@ const AdminLayout: React.FC = () => {
           justifyContent: 'center',
           padding: theme.spacing(3, 2),
           borderBottom: `1px solid ${theme.palette.grey[200]}`,
-          backgroundColor: '#E3F2FD',
+          background: 'linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%)',
+          color: 'white',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -141,11 +154,11 @@ const AdminLayout: React.FC = () => {
             />
           </Avatar>
           <Box>
-            <Typography variant="h6" fontWeight={600} color="primary">
-              EVEP Admin
+            <Typography variant="h6" fontWeight={600} color="white">
+              EVEP Admin Panel
             </Typography>
-            <Typography variant="caption" color="text.secondary">
-              System Administration Panel
+            <Typography variant="caption" color="rgba(255, 255, 255, 0.8)">
+              System Administration & Control Center
             </Typography>
           </Box>
         </Box>
@@ -212,7 +225,7 @@ const AdminLayout: React.FC = () => {
       {/* Quick Admin Actions */}
       <Box sx={{ padding: theme.spacing(2) }}>
         <Typography variant="overline" color="text.secondary" fontWeight={600}>
-          Quick Actions
+          System Actions
         </Typography>
         <List sx={{ padding: 0 }}>
           <ListItem disablePadding>
@@ -228,6 +241,17 @@ const AdminLayout: React.FC = () => {
           </ListItem>
           <ListItem disablePadding>
             <ListItemButton
+              onClick={() => navigate('/admin/settings')}
+              sx={{ borderRadius: 2 }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>
+                <SettingsIcon />
+              </ListItemIcon>
+              <ListItemText primary="System Settings" />
+            </ListItemButton>
+          </ListItem>
+          <ListItem disablePadding>
+            <ListItemButton
               onClick={() => navigate('/admin/backup')}
               sx={{ borderRadius: 2 }}
             >
@@ -235,6 +259,17 @@ const AdminLayout: React.FC = () => {
                 <BackupIcon />
               </ListItemIcon>
               <ListItemText primary="Create Backup" />
+            </ListItemButton>
+          </ListItem>
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={() => navigate('/admin/security')}
+              sx={{ borderRadius: 2 }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>
+                <SecurityIcon />
+              </ListItemIcon>
+              <ListItemText primary="Security Audit" />
             </ListItemButton>
           </ListItem>
         </List>
@@ -270,9 +305,15 @@ const AdminLayout: React.FC = () => {
           
           <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
             <AdminIcon sx={{ mr: 1, color: theme.palette.primary.main }} />
-            <Typography variant="h6" noWrap component="div">
+            <Typography variant="h6" noWrap component="div" fontWeight={600}>
               {menuItems.find(item => item.path === location.pathname)?.text || 'EVEP Admin Panel'}
             </Typography>
+            <Chip 
+              label="ADMIN" 
+              size="small" 
+              color="primary" 
+              sx={{ ml: 2, fontSize: '0.7rem', fontWeight: 600 }}
+            />
           </Box>
 
           {/* Notifications */}

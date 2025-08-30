@@ -1,0 +1,203 @@
+from fastapi import FastAPI, Request, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import logging
+import time
+from typing import Dict, Any
+from datetime import datetime
+
+# Import API routers
+from app.api.auth import router as auth_router
+from app.api.patients import router as patients_router
+from app.api.screenings import router as screenings_router
+from app.api.ai_insights import router as ai_insights_router
+from app.api.appointments import router as appointments_router
+from app.api.line_notifications import router as line_notifications_router
+from app.api.patient_registration import router as patient_registration_router
+from app.api.va_screening import router as va_screening_router
+from app.api.glasses_inventory import router as glasses_inventory_router
+from app.api.delivery_management import router as delivery_management_router
+from app.api.insights import router as insights_router
+from app.api.mobile_screening import router as mobile_screening_router
+from app.api.medical_staff import router as medical_staff_router
+
+# Import medical security API
+from app.api.medical_security import get_medical_security_events, get_medical_security_stats
+from app.api.auth import get_current_user
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Create FastAPI app
+app = FastAPI(
+    title="EVEP Platform API",
+    description="EVEP Platform API with Medical Staff Management",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure this properly for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Request timing middleware
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+
+# Global exception handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global exception: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"}
+    )
+
+@app.on_event("startup")
+async def startup_event():
+    """Application startup event"""
+    logger.info("Starting EVEP Platform API...")
+    
+    # Include auth API router
+    app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
+    logger.info("Auth API router included successfully!")
+    
+    # Include patient registration API router (must be before patients router to avoid route conflicts)
+    app.include_router(patient_registration_router, prefix="/api/v1", tags=["patient_registration"])
+    logger.info("Patient Registration API router included successfully!")
+    
+    # Include patients API router
+    app.include_router(patients_router, prefix="/api/v1", tags=["patients"])
+    logger.info("Patients API router included successfully!")
+    
+    # Include screenings API router
+    app.include_router(screenings_router, prefix="/api/v1", tags=["screenings"])
+    logger.info("Screenings API router included successfully!")
+    
+    # Include AI insights API router
+    app.include_router(ai_insights_router, prefix="/api/v1", tags=["ai_insights"])
+    logger.info("AI Insights API router included successfully!")
+    
+    # Include insights API router (for /insights endpoints)
+    app.include_router(insights_router, prefix="/api/v1", tags=["insights"])
+    logger.info("Insights API router included successfully!")
+    
+    # Include appointments API router
+    app.include_router(appointments_router, prefix="/api/v1", tags=["appointments"])
+    logger.info("Appointments API router included successfully!")
+    
+    # Include LINE notifications API router
+    app.include_router(line_notifications_router, prefix="/api/v1", tags=["line_notifications"])
+    logger.info("LINE Notifications API router included successfully!")
+    
+    # Include VA screening API router
+    app.include_router(va_screening_router, prefix="/api/v1", tags=["va_screening"])
+    logger.info("VA Screening API router included successfully!")
+    
+    # Include glasses inventory API router
+    app.include_router(glasses_inventory_router, prefix="/api/v1", tags=["glasses_inventory"])
+    logger.info("Glasses Inventory API router included successfully!")
+    
+    # Include delivery management API router
+    app.include_router(delivery_management_router, prefix="/api/v1", tags=["delivery_management"])
+    logger.info("Delivery Management API router included successfully!")
+    
+    # Include mobile screening API router
+    app.include_router(mobile_screening_router, prefix="/api/v1", tags=["mobile_screening"])
+    logger.info("Mobile Screening API router included successfully!")
+    
+    # Include medical staff management API router
+    app.include_router(medical_staff_router, prefix="/api/v1", tags=["medical_staff"])
+    logger.info("Medical Staff Management API router included successfully!")
+    
+    # Add medical portal security endpoints
+    @app.get("/api/v1/medical/security/events", tags=["medical-security"])
+    async def medical_security_events(request: Request, current_user: dict = Depends(get_current_user)):
+        return await get_medical_security_events(request, current_user)
+    
+    @app.get("/api/v1/medical/security/stats", tags=["medical-security"])
+    async def medical_security_stats(request: Request, current_user: dict = Depends(get_current_user)):
+        return await get_medical_security_stats(request, current_user)
+    
+    logger.info("Medical Portal security endpoints included successfully!")
+    
+    logger.info("EVEP Platform API started successfully!")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Application shutdown event"""
+    logger.info("Shutting down EVEP Platform API...")
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "version": "1.0.0",
+        "environment": "development",
+        "timestamp": datetime.utcnow().isoformat(),
+        "services": {
+            "auth": "active",
+            "patients": "active",
+            "screenings": "active",
+            "medical_staff": "active",
+            "inventory": "active",
+            "delivery": "active"
+        }
+    }
+
+# Module information endpoint
+@app.get("/modules")
+async def get_modules():
+    """Get all modules information"""
+    return {
+        "modules": {
+            "auth": {"status": "active", "version": "1.0.0"},
+            "patients": {"status": "active", "version": "1.0.0"},
+            "screenings": {"status": "active", "version": "1.0.0"},
+            "medical_staff": {"status": "active", "version": "1.0.0"},
+            "inventory": {"status": "active", "version": "1.0.0"},
+            "delivery": {"status": "active", "version": "1.0.0"}
+        },
+        "total_modules": 6,
+        "enabled_modules": ["auth", "patients", "screenings", "medical_staff", "inventory", "delivery"]
+    }
+
+# Feature flags endpoint
+@app.get("/features")
+async def get_features():
+    """Get feature flags"""
+    return {
+        "features": {
+            "medical_staff_management": True,
+            "enhanced_inventory": True,
+            "mobile_screening": True,
+            "delivery_tracking": True,
+            "ai_insights": True,
+            "line_notifications": True
+        }
+    }
+
+# Root endpoint
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "message": "EVEP Platform API",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/health"
+    }

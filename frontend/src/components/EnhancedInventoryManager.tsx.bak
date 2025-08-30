@@ -1,0 +1,893 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Chip,
+  Grid,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert,
+  CircularProgress,
+  IconButton,
+  Tooltip,
+  Badge,
+  LinearProgress,
+  Divider
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Visibility as ViewIcon,
+  Inventory as InventoryIcon,
+  LocalShipping as ShippingIcon,
+  CheckCircle as CheckIcon,
+  Warning as WarningIcon,
+  Refresh as RefreshIcon,
+  Search as SearchIcon,
+  FilterList as FilterIcon
+} from '@mui/icons-material';
+
+interface InventoryItem {
+  id: string;
+  frame_style: string;
+  lens_type: string;
+  prescription_range: {
+    min_sphere: number;
+    max_sphere: number;
+    min_cylinder: number;
+    max_cylinder: number;
+  };
+  quantity: number;
+  available_quantity: number;
+  reserved_quantity: number;
+  unit_cost: number;
+  supplier: string;
+  location: 'warehouse' | 'mobile_unit' | 'school_storage';
+  status: 'active' | 'low_stock' | 'out_of_stock' | 'discontinued';
+  last_updated: string;
+  expiry_date?: string;
+  barcode?: string;
+  notes?: string;
+}
+
+interface DeliveryOrder {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  inventory_item_id: string;
+  frame_style: string;
+  prescription: {
+    left_eye_sphere: string;
+    right_eye_sphere: string;
+    left_eye_cylinder: string;
+    right_eye_cylinder: string;
+    left_eye_axis: string;
+    right_eye_axis: string;
+    pupillary_distance: string;
+  };
+  delivery_method: 'immediate' | 'school_delivery' | 'home_delivery';
+  delivery_address?: string;
+  delivery_date: string;
+  status: 'pending' | 'processing' | 'in_transit' | 'delivered' | 'failed';
+  tracking_number?: string;
+  delivery_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface MobileUnitInventory {
+  unit_id: string;
+  unit_name: string;
+  current_location: string;
+  inventory_items: InventoryItem[];
+  total_items: number;
+  low_stock_items: number;
+  out_of_stock_items: number;
+  last_sync: string;
+  status: 'online' | 'offline' | 'maintenance';
+}
+
+const EnhancedInventoryManager: React.FC = () => {
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [deliveries, setDeliveries] = useState<DeliveryOrder[]>([]);
+  const [mobileUnits, setMobileUnits] = useState<MobileUnitInventory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Dialog states
+  const [openInventoryDialog, setOpenInventoryDialog] = useState(false);
+  const [openDeliveryDialog, setOpenDeliveryDialog] = useState(false);
+  const [openMobileUnitDialog, setOpenMobileUnitDialog] = useState(false);
+  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [editingDelivery, setEditingDelivery] = useState<DeliveryOrder | null>(null);
+  
+  // Form states
+  const [inventoryForm, setInventoryForm] = useState({
+    frame_style: '',
+    lens_type: '',
+    min_sphere: '',
+    max_sphere: '',
+    min_cylinder: '',
+    max_cylinder: '',
+    quantity: '',
+    unit_cost: '',
+    supplier: '',
+    location: 'warehouse' as const,
+    notes: ''
+  });
+
+  const [deliveryForm, setDeliveryForm] = useState({
+    patient_id: '',
+    patient_name: '',
+    inventory_item_id: '',
+    frame_style: '',
+    left_eye_sphere: '',
+    right_eye_sphere: '',
+    left_eye_cylinder: '',
+    right_eye_cylinder: '',
+    left_eye_axis: '',
+    right_eye_axis: '',
+    pupillary_distance: '',
+    delivery_method: 'immediate' as const,
+    delivery_address: '',
+    delivery_date: '',
+    delivery_notes: ''
+  });
+
+  // Filter states
+  const [filterLocation, setFilterLocation] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    fetchInventoryData();
+  }, []);
+
+  const fetchInventoryData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch inventory items
+      const inventoryResponse = await fetch('/api/v1/glasses-inventory/', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (inventoryResponse.ok) {
+        const inventoryData = await inventoryResponse.json();
+        setInventory(inventoryData);
+      }
+      
+      // Fetch delivery orders
+      const deliveryResponse = await fetch('/api/v1/delivery-management/', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (deliveryResponse.ok) {
+        const deliveryData = await deliveryResponse.json();
+        setDeliveries(deliveryData);
+      }
+      
+      // Mock mobile unit data
+      setMobileUnits([
+        {
+          unit_id: 'MU001',
+          unit_name: 'Mobile Unit Alpha',
+          current_location: 'Bangkok School District',
+          inventory_items: [],
+          total_items: 150,
+          low_stock_items: 5,
+          out_of_stock_items: 2,
+          last_sync: new Date().toISOString(),
+          status: 'online'
+        },
+        {
+          unit_id: 'MU002',
+          unit_name: 'Mobile Unit Beta',
+          current_location: 'Chiang Mai Rural Area',
+          inventory_items: [],
+          total_items: 120,
+          low_stock_items: 8,
+          out_of_stock_items: 3,
+          last_sync: new Date().toISOString(),
+          status: 'online'
+        }
+      ]);
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch inventory data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddInventory = async () => {
+    try {
+      const response = await fetch('/api/v1/glasses-inventory/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          ...inventoryForm,
+          prescription_range: {
+            min_sphere: parseFloat(inventoryForm.min_sphere),
+            max_sphere: parseFloat(inventoryForm.max_sphere),
+            min_cylinder: parseFloat(inventoryForm.min_cylinder),
+            max_cylinder: parseFloat(inventoryForm.max_cylinder)
+          },
+          quantity: parseInt(inventoryForm.quantity),
+          unit_cost: parseFloat(inventoryForm.unit_cost)
+        })
+      });
+
+      if (response.ok) {
+        await fetchInventoryData();
+        setOpenInventoryDialog(false);
+        resetInventoryForm();
+      } else {
+        throw new Error('Failed to add inventory item');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    }
+  };
+
+  const handleAddDelivery = async () => {
+    try {
+      const response = await fetch('/api/v1/delivery-management/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          ...deliveryForm,
+          prescription: {
+            left_eye_sphere: deliveryForm.left_eye_sphere,
+            right_eye_sphere: deliveryForm.right_eye_sphere,
+            left_eye_cylinder: deliveryForm.left_eye_cylinder,
+            right_eye_cylinder: deliveryForm.right_eye_cylinder,
+            left_eye_axis: deliveryForm.left_eye_axis,
+            right_eye_axis: deliveryForm.right_eye_axis,
+            pupillary_distance: deliveryForm.pupillary_distance
+          }
+        })
+      });
+
+      if (response.ok) {
+        await fetchInventoryData();
+        setOpenDeliveryDialog(false);
+        resetDeliveryForm();
+      } else {
+        throw new Error('Failed to create delivery order');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    }
+  };
+
+  const resetInventoryForm = () => {
+    setInventoryForm({
+      frame_style: '',
+      lens_type: '',
+      min_sphere: '',
+      max_sphere: '',
+      min_cylinder: '',
+      max_cylinder: '',
+      quantity: '',
+      unit_cost: '',
+      supplier: '',
+      location: 'warehouse',
+      notes: ''
+    });
+  };
+
+  const resetDeliveryForm = () => {
+    setDeliveryForm({
+      patient_id: '',
+      patient_name: '',
+      inventory_item_id: '',
+      frame_style: '',
+      left_eye_sphere: '',
+      right_eye_sphere: '',
+      left_eye_cylinder: '',
+      right_eye_cylinder: '',
+      left_eye_axis: '',
+      right_eye_axis: '',
+      pupillary_distance: '',
+      delivery_method: 'immediate',
+      delivery_address: '',
+      delivery_date: '',
+      delivery_notes: ''
+    });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'success';
+      case 'low_stock': return 'warning';
+      case 'out_of_stock': return 'error';
+      case 'discontinued': return 'default';
+      default: return 'default';
+    }
+  };
+
+  const getDeliveryStatusColor = (status: string) => {
+    switch (status) {
+      case 'delivered': return 'success';
+      case 'in_transit': return 'info';
+      case 'processing': return 'warning';
+      case 'failed': return 'error';
+      default: return 'default';
+    }
+  };
+
+  const filteredInventory = inventory.filter(item => {
+    if (filterLocation && item.location !== filterLocation) return false;
+    if (filterStatus && item.status !== filterStatus) return false;
+    if (searchTerm && !item.frame_style.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    return true;
+  });
+
+  const filteredDeliveries = deliveries.filter(delivery => {
+    if (searchTerm && !delivery.patient_name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    return true;
+  });
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Box p={3}>
+      <Typography variant="h4" gutterBottom>
+        Enhanced Inventory Management
+      </Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Mobile Units Overview */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        {mobileUnits.map((unit) => (
+          <Grid item xs={12} md={6} key={unit.unit_id}>
+            <Card>
+              <CardContent>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Typography variant="h6">{unit.unit_name}</Typography>
+                  <Chip
+                    label={unit.status}
+                    color={unit.status === 'online' ? 'success' : 'error'}
+                    size="small"
+                  />
+                </Box>
+                <Typography variant="body2" color="textSecondary" gutterBottom>
+                  Location: {unit.current_location}
+                </Typography>
+                <Typography variant="body2" color="textSecondary" gutterBottom>
+                  Total Items: {unit.total_items}
+                </Typography>
+                <Box display="flex" gap={1} mb={1}>
+                  <Chip label={`Low Stock: ${unit.low_stock_items}`} color="warning" size="small" />
+                  <Chip label={`Out of Stock: ${unit.out_of_stock_items}`} color="error" size="small" />
+                </Box>
+                <Typography variant="caption" color="textSecondary">
+                  Last Sync: {new Date(unit.last_sync).toLocaleString()}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Action Buttons */}
+      <Box mb={3}>
+        <Grid container spacing={2}>
+          <Grid item>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => {
+                setEditingItem(null);
+                resetInventoryForm();
+                setOpenInventoryDialog(true);
+              }}
+            >
+              Add Inventory Item
+            </Button>
+          </Grid>
+          <Grid item>
+            <Button
+              variant="outlined"
+              startIcon={<AddIcon />}
+              onClick={() => {
+                setEditingDelivery(null);
+                resetDeliveryForm();
+                setOpenDeliveryDialog(true);
+              }}
+            >
+              Create Delivery Order
+            </Button>
+          </Grid>
+          <Grid item>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={fetchInventoryData}
+            >
+              Refresh Data
+            </Button>
+          </Grid>
+        </Grid>
+      </Box>
+
+      {/* Filters */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={3}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Location</InputLabel>
+              <Select
+                value={filterLocation}
+                onChange={(e) => setFilterLocation(e.target.value)}
+                label="Location"
+              >
+                <MenuItem value="">All Locations</MenuItem>
+                <MenuItem value="warehouse">Warehouse</MenuItem>
+                <MenuItem value="mobile_unit">Mobile Unit</MenuItem>
+                <MenuItem value="school_storage">School Storage</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                label="Status"
+              >
+                <MenuItem value="">All Status</MenuItem>
+                <MenuItem value="active">Active</MenuItem>
+                <MenuItem value="low_stock">Low Stock</MenuItem>
+                <MenuItem value="out_of_stock">Out of Stock</MenuItem>
+                <MenuItem value="discontinued">Discontinued</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      {/* Inventory Table */}
+      <Typography variant="h6" gutterBottom>
+        Inventory Items
+      </Typography>
+      <TableContainer component={Paper} sx={{ mb: 3 }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Frame Style</TableCell>
+              <TableCell>Lens Type</TableCell>
+              <TableCell>Prescription Range</TableCell>
+              <TableCell>Quantity</TableCell>
+              <TableCell>Location</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Unit Cost</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredInventory.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell>{item.frame_style}</TableCell>
+                <TableCell>{item.lens_type}</TableCell>
+                <TableCell>
+                  Sphere: {item.prescription_range.min_sphere} to {item.prescription_range.max_sphere}
+                  <br />
+                  Cylinder: {item.prescription_range.min_cylinder} to {item.prescription_range.max_cylinder}
+                </TableCell>
+                <TableCell>
+                  <Box>
+                    <Typography variant="body2">
+                      {item.available_quantity} / {item.quantity}
+                    </Typography>
+                    <LinearProgress
+                      variant="determinate"
+                      value={(item.available_quantity / item.quantity) * 100}
+                      sx={{ mt: 0.5 }}
+                    />
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Chip label={item.location.replace('_', ' ')} size="small" />
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    label={item.status.replace('_', ' ')}
+                    color={getStatusColor(item.status) as any}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>฿{item.unit_cost}</TableCell>
+                <TableCell>
+                  <IconButton size="small">
+                    <ViewIcon />
+                  </IconButton>
+                  <IconButton size="small">
+                    <EditIcon />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* Delivery Orders Table */}
+      <Typography variant="h6" gutterBottom>
+        Delivery Orders
+      </Typography>
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Patient Name</TableCell>
+              <TableCell>Frame Style</TableCell>
+              <TableCell>Delivery Method</TableCell>
+              <TableCell>Delivery Date</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Tracking</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredDeliveries.map((delivery) => (
+              <TableRow key={delivery.id}>
+                <TableCell>{delivery.patient_name}</TableCell>
+                <TableCell>{delivery.frame_style}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={delivery.delivery_method.replace('_', ' ')}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>{new Date(delivery.delivery_date).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={delivery.status.replace('_', ' ')}
+                    color={getDeliveryStatusColor(delivery.status) as any}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>
+                  {delivery.tracking_number ? (
+                    <Typography variant="body2">{delivery.tracking_number}</Typography>
+                  ) : (
+                    <Typography variant="body2" color="textSecondary">-</Typography>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <IconButton size="small">
+                    <ViewIcon />
+                  </IconButton>
+                  <IconButton size="small">
+                    <EditIcon />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* Add/Edit Inventory Dialog */}
+      <Dialog open={openInventoryDialog} onClose={() => setOpenInventoryDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {editingItem ? 'Edit Inventory Item' : 'Add New Inventory Item'}
+        </DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Frame Style"
+                value={inventoryForm.frame_style}
+                onChange={(e) => setInventoryForm({ ...inventoryForm, frame_style: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Lens Type"
+                value={inventoryForm.lens_type}
+                onChange={(e) => setInventoryForm({ ...inventoryForm, lens_type: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="Min Sphere"
+                type="number"
+                value={inventoryForm.min_sphere}
+                onChange={(e) => setInventoryForm({ ...inventoryForm, min_sphere: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="Max Sphere"
+                type="number"
+                value={inventoryForm.max_sphere}
+                onChange={(e) => setInventoryForm({ ...inventoryForm, max_sphere: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="Min Cylinder"
+                type="number"
+                value={inventoryForm.min_cylinder}
+                onChange={(e) => setInventoryForm({ ...inventoryForm, min_cylinder: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={3}>
+              <TextField
+                fullWidth
+                label="Max Cylinder"
+                type="number"
+                value={inventoryForm.max_cylinder}
+                onChange={(e) => setInventoryForm({ ...inventoryForm, max_cylinder: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                label="Quantity"
+                type="number"
+                value={inventoryForm.quantity}
+                onChange={(e) => setInventoryForm({ ...inventoryForm, quantity: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                label="Unit Cost"
+                type="number"
+                value={inventoryForm.unit_cost}
+                onChange={(e) => setInventoryForm({ ...inventoryForm, unit_cost: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={4}>
+              <FormControl fullWidth>
+                <InputLabel>Location</InputLabel>
+                <Select
+                  value={inventoryForm.location}
+                  onChange={(e) => setInventoryForm({ ...inventoryForm, location: e.target.value as any })}
+                  label="Location"
+                >
+                  <MenuItem value="warehouse">Warehouse</MenuItem>
+                  <MenuItem value="mobile_unit">Mobile Unit</MenuItem>
+                  <MenuItem value="school_storage">School Storage</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Supplier"
+                value={inventoryForm.supplier}
+                onChange={(e) => setInventoryForm({ ...inventoryForm, supplier: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Notes"
+                multiline
+                rows={3}
+                value={inventoryForm.notes}
+                onChange={(e) => setInventoryForm({ ...inventoryForm, notes: e.target.value })}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenInventoryDialog(false)}>Cancel</Button>
+          <Button onClick={handleAddInventory} variant="contained">
+            {editingItem ? 'Update' : 'Add'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add/Edit Delivery Dialog */}
+      <Dialog open={openDeliveryDialog} onClose={() => setOpenDeliveryDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {editingDelivery ? 'Edit Delivery Order' : 'Create New Delivery Order'}
+        </DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Patient ID"
+                value={deliveryForm.patient_id}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, patient_id: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Patient Name"
+                value={deliveryForm.patient_name}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, patient_name: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Frame Style"
+                value={deliveryForm.frame_style}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, frame_style: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <FormControl fullWidth>
+                <InputLabel>Delivery Method</InputLabel>
+                <Select
+                  value={deliveryForm.delivery_method}
+                  onChange={(e) => setDeliveryForm({ ...deliveryForm, delivery_method: e.target.value as any })}
+                  label="Delivery Method"
+                >
+                  <MenuItem value="immediate">Immediate</MenuItem>
+                  <MenuItem value="school_delivery">School Delivery</MenuItem>
+                  <MenuItem value="home_delivery">Home Delivery</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Left Eye Sphere"
+                type="number"
+                value={deliveryForm.left_eye_sphere}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, left_eye_sphere: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Right Eye Sphere"
+                type="number"
+                value={deliveryForm.right_eye_sphere}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, right_eye_sphere: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Left Eye Cylinder"
+                type="number"
+                value={deliveryForm.left_eye_cylinder}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, left_eye_cylinder: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Right Eye Cylinder"
+                type="number"
+                value={deliveryForm.right_eye_cylinder}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, right_eye_cylinder: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Left Eye Axis"
+                type="number"
+                value={deliveryForm.left_eye_axis}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, left_eye_axis: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Right Eye Axis"
+                type="number"
+                value={deliveryForm.right_eye_axis}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, right_eye_axis: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Pupillary Distance"
+                type="number"
+                value={deliveryForm.pupillary_distance}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, pupillary_distance: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Delivery Date"
+                type="date"
+                value={deliveryForm.delivery_date}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, delivery_date: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Delivery Address"
+                value={deliveryForm.delivery_address}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, delivery_address: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Delivery Notes"
+                multiline
+                rows={3}
+                value={deliveryForm.delivery_notes}
+                onChange={(e) => setDeliveryForm({ ...deliveryForm, delivery_notes: e.target.value })}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDeliveryDialog(false)}>Cancel</Button>
+          <Button onClick={handleAddDelivery} variant="contained">
+            {editingDelivery ? 'Update' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default EnhancedInventoryManager;

@@ -13,7 +13,7 @@ import socketio
 from fastapi import FastAPI
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from app.core.config import settings
+from app.core.config import Config
 from app.core.database import get_database
 
 # Initialize Socket.IO server

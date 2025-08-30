@@ -6,7 +6,7 @@ Handles JWT token verification and other security functions
 import jwt
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Request
 
 from app.core.config import settings
 
@@ -64,5 +64,37 @@ def generate_blockchain_hash(data: str) -> str:
     """Generate a blockchain-style hash for audit purposes"""
     import hashlib
     timestamp = datetime.utcnow().isoformat()
-    content = f"{data}:{timestamp}:{settings.SECRET_KEY}"
+    content = f"{data}:{timestamp}:{settings.JWT_SECRET_KEY}"
     return hashlib.sha256(content.encode()).hexdigest()
+
+def log_security_event(request: Request, event_type: str, description: str, portal: str = "admin"):
+    """Log security events for audit purposes"""
+    try:
+        from app.core.database import get_database
+        from app.core.config import settings
+        
+        db = get_database()
+        
+        # Get client IP
+        client_ip = request.client.host if request.client else "unknown"
+        
+        # Get user agent
+        user_agent = request.headers.get("user-agent", "unknown")
+        
+        # Create audit log entry
+        audit_log = {
+            "timestamp": datetime.utcnow(),
+            "event_type": event_type,
+            "description": description,
+            "portal": portal,
+            "client_ip": client_ip,
+            "user_agent": user_agent,
+            "audit_hash": generate_blockchain_hash(f"{event_type}:{description}:{client_ip}")
+        }
+        
+        # Insert into audit_logs collection
+        db.evep.audit_logs.insert_one(audit_log)
+        
+    except Exception as e:
+        # Log error but don't fail the main operation
+        print(f"Error logging security event: {e}")

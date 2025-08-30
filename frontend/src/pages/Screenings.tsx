@@ -32,6 +32,9 @@ import {
   Tooltip,
   Avatar,
   Divider,
+  Tabs,
+  Tab,
+  Fab,
 } from '@mui/material';
 import {
   Add,
@@ -48,8 +51,13 @@ import {
   PlayArrow,
   Stop,
   Save,
+  LocalHospital,
+  Inventory,
+  DeliveryDining,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+// import MobileVisionScreeningForm from '../components/MobileVisionScreeningForm';
+import EnhancedScreeningInterface from '../components/EnhancedScreeningInterface';
 
 interface ScreeningSession {
   _id: string;
@@ -96,13 +104,18 @@ const Screenings: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   
+  // Tab state
+  const [activeTab, setActiveTab] = useState(0);
+  
   // Screening workflow states
   const [activeStep, setActiveStep] = useState(0);
   const [currentSession, setCurrentSession] = useState<ScreeningSession | null>(null);
   const [screeningDialogOpen, setScreeningDialogOpen] = useState(false);
+  const [mobileScreeningDialogOpen, setMobileScreeningDialogOpen] = useState(false);
+  const [enhancedScreeningDialogOpen, setEnhancedScreeningDialogOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   
   // Form states
-  const [selectedPatient, setSelectedPatient] = useState('');
   const [screeningType, setScreeningType] = useState('');
   const [equipmentUsed, setEquipmentUsed] = useState('');
   const [results, setResults] = useState<ScreeningResults>({
@@ -135,7 +148,7 @@ const Screenings: React.FC = () => {
       const token = localStorage.getItem('evep_token');
       
       // Fetch screening sessions
-      const sessionsResponse = await fetch('http://localhost:8013/api/v1/screenings/sessions', {
+      const sessionsResponse = await fetch('http://localhost:8013/api/v1/screening/api/v1/screenings/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -154,8 +167,8 @@ const Screenings: React.FC = () => {
             patient_name: 'John Doe',
             examiner_id: user?.user_id || '1',
             examiner_name: user?.first_name + ' ' + user?.last_name || 'Dr. Smith',
-            screening_type: 'Comprehensive Vision Screening',
-            equipment_used: 'Snellen Chart, Ishihara Test',
+            screening_type: 'Mobile Vision Screening',
+            equipment_used: 'Mobile Vision Screening Kit',
             status: 'completed',
             created_at: '2024-01-15T10:30:00Z',
             updated_at: '2024-01-15T11:00:00Z',
@@ -177,8 +190,8 @@ const Screenings: React.FC = () => {
             patient_name: 'Sarah Smith',
             examiner_id: user?.user_id || '1',
             examiner_name: user?.first_name + ' ' + user?.last_name || 'Dr. Smith',
-            screening_type: 'Basic Vision Screening',
-            equipment_used: 'Snellen Chart',
+            screening_type: 'Mobile Vision Screening',
+            equipment_used: 'Mobile Vision Screening Kit',
             status: 'in_progress',
             created_at: '2024-01-15T14:00:00Z',
             updated_at: '2024-01-15T14:15:00Z',
@@ -187,7 +200,7 @@ const Screenings: React.FC = () => {
       }
 
       // Fetch patients
-      const patientsResponse = await fetch('http://localhost:8013/api/v1/patients', {
+      const patientsResponse = await fetch('http://localhost:8013/api/v1/patient_management/api/v1/patients/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -210,6 +223,22 @@ const Screenings: React.FC = () => {
     setActiveStep(0);
     setCurrentSession(null);
     setScreeningDialogOpen(true);
+  };
+
+  const handleStartMobileScreening = () => {
+    setMobileScreeningDialogOpen(true);
+  };
+
+  const handlePatientSelect = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setMobileScreeningDialogOpen(false);
+  };
+
+  const handleMobileScreeningCompleted = (screening: any) => {
+    setSuccess('Mobile vision screening completed successfully!');
+    setMobileScreeningDialogOpen(false);
+    setSelectedPatient(null);
+    fetchData();
   };
 
   const handleNextStep = () => {
@@ -239,7 +268,7 @@ const Screenings: React.FC = () => {
       
       // Create or update screening session
       const sessionData = {
-        patient_id: selectedPatient,
+        patient_id: selectedPatient?._id,
         screening_type: screeningType,
         equipment_used: equipmentUsed,
         results: results,
@@ -273,7 +302,7 @@ const Screenings: React.FC = () => {
 
   const resetScreeningForm = () => {
     setActiveStep(0);
-    setSelectedPatient('');
+    setSelectedPatient(null);
     setScreeningType('');
     setEquipmentUsed('');
     setResults({
@@ -319,6 +348,13 @@ const Screenings: React.FC = () => {
     }
   };
 
+  const getScreeningTypeIcon = (type: string) => {
+    if (type.toLowerCase().includes('mobile')) {
+      return <LocalHospital />;
+    }
+    return <Assessment />;
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
@@ -339,14 +375,33 @@ const Screenings: React.FC = () => {
             Conduct and manage vision screening sessions
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={handleStartScreening}
-          sx={{ borderRadius: 2 }}
-        >
-          Start New Screening
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<Assessment />}
+            onClick={handleStartScreening}
+            sx={{ borderRadius: 2 }}
+          >
+            Standard Screening
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<LocalHospital />}
+            onClick={handleStartMobileScreening}
+            sx={{ borderRadius: 2 }}
+          >
+            Mobile Unit Screening
+          </Button>
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={<Visibility />}
+            onClick={() => setEnhancedScreeningDialogOpen(true)}
+            sx={{ borderRadius: 2 }}
+          >
+            Enhanced Screening
+          </Button>
+        </Box>
       </Box>
 
       {/* Alerts */}
@@ -361,6 +416,17 @@ const Screenings: React.FC = () => {
           {success}
         </Alert>
       )}
+
+      {/* Tabs */}
+      <Card sx={{ borderRadius: 3, mb: 3 }}>
+        <CardContent>
+          <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+            <Tab label="All Screenings" />
+            <Tab label="Mobile Unit Screenings" />
+            <Tab label="Standard Screenings" />
+          </Tabs>
+        </CardContent>
+      </Card>
 
       {/* Screening Sessions */}
       <Card sx={{ borderRadius: 3 }}>
@@ -382,7 +448,13 @@ const Screenings: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {sessions.map((session) => (
+                {sessions
+                  .filter(session => {
+                    if (activeTab === 1) return session.screening_type.toLowerCase().includes('mobile');
+                    if (activeTab === 2) return !session.screening_type.toLowerCase().includes('mobile');
+                    return true;
+                  })
+                  .map((session) => (
                   <TableRow key={session._id} hover>
                     <TableCell>
                       <Box display="flex" alignItems="center" gap={2}>
@@ -395,9 +467,12 @@ const Screenings: React.FC = () => {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">
-                        {session.screening_type}
-                      </Typography>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        {getScreeningTypeIcon(session.screening_type)}
+                        <Typography variant="body2">
+                          {session.screening_type}
+                        </Typography>
+                      </Box>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
@@ -444,7 +519,11 @@ const Screenings: React.FC = () => {
             </Table>
           </TableContainer>
           
-          {sessions.length === 0 && (
+          {sessions.filter(session => {
+            if (activeTab === 1) return session.screening_type.toLowerCase().includes('mobile');
+            if (activeTab === 2) return !session.screening_type.toLowerCase().includes('mobile');
+            return true;
+          }).length === 0 && (
             <Box textAlign="center" py={4}>
               <Typography color="text.secondary">
                 No screening sessions found
@@ -454,7 +533,109 @@ const Screenings: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Screening Workflow Dialog */}
+      {/* Patient Selection Dialog for Mobile Screening */}
+      <Dialog 
+        open={mobileScreeningDialogOpen} 
+        onClose={() => setMobileScreeningDialogOpen(false)} 
+        maxWidth="md" 
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={2}>
+            <LocalHospital color="primary" />
+            Select Patient for Mobile Vision Screening
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Choose a patient to conduct mobile vision screening with glasses prescription and fitting.
+          </Typography>
+          
+          <Grid container spacing={2}>
+            {patients.map((patient) => (
+              <Grid item xs={12} md={6} key={patient._id}>
+                <Card 
+                  sx={{ 
+                    cursor: 'pointer', 
+                    '&:hover': { bgcolor: 'grey.50' },
+                    border: '1px solid',
+                    borderColor: 'grey.200'
+                  }}
+                  onClick={() => handlePatientSelect(patient)}
+                >
+                  <CardContent>
+                    <Box display="flex" alignItems="center" gap={2}>
+                      <Avatar sx={{ bgcolor: 'primary.main' }}>
+                        <Person />
+                      </Avatar>
+                      <Box>
+                        <Typography variant="subtitle1">
+                          {patient.first_name} {patient.last_name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {patient.school} - Grade {patient.grade}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMobileScreeningDialogOpen(false)}>
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Mobile Vision Screening Form Dialog */}
+      {selectedPatient && (
+        <Dialog 
+          open={!!selectedPatient} 
+          onClose={() => setSelectedPatient(null)} 
+          maxWidth="lg" 
+          fullWidth
+        >
+          <DialogContent sx={{ p: 0 }}>
+            {/* <MobileVisionScreeningForm
+              patientId={selectedPatient._id}
+              patientName={`${selectedPatient.first_name} ${selectedPatient.last_name}`}
+              onScreeningCompleted={handleMobileScreeningCompleted}
+              onCancel={() => setSelectedPatient(null)}
+            /> */}
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+              <Typography variant="h6" color="text.secondary">
+                Mobile Vision Screening Form temporarily unavailable
+              </Typography>
+            </Box>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Enhanced Screening Interface Dialog */}
+      <Dialog 
+        open={enhancedScreeningDialogOpen} 
+        onClose={() => setEnhancedScreeningDialogOpen(false)} 
+        maxWidth="lg" 
+        fullWidth
+      >
+        <DialogContent sx={{ p: 0 }}>
+          <EnhancedScreeningInterface
+            patientId={patients[0]?._id || ''}
+            patientName={patients[0] ? `${patients[0].first_name} ${patients[0].last_name}` : 'Test Patient'}
+            onScreeningCompleted={(results) => {
+              setSuccess('Enhanced screening completed successfully!');
+              setEnhancedScreeningDialogOpen(false);
+              fetchData();
+            }}
+            onCancel={() => setEnhancedScreeningDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Standard Screening Workflow Dialog */}
       <Dialog 
         open={screeningDialogOpen} 
         onClose={() => setScreeningDialogOpen(false)} 
@@ -462,7 +643,7 @@ const Screenings: React.FC = () => {
         fullWidth
       >
         <DialogTitle>
-          Vision Screening Workflow
+          Standard Vision Screening Workflow
         </DialogTitle>
         <DialogContent>
           {/* Stepper */}
@@ -483,9 +664,12 @@ const Screenings: React.FC = () => {
               <FormControl fullWidth margin="normal">
                 <InputLabel>Patient</InputLabel>
                 <Select
-                  value={selectedPatient}
+                  value={selectedPatient?._id || ''}
                   label="Patient"
-                  onChange={(e) => setSelectedPatient(e.target.value)}
+                  onChange={(e) => {
+                    const patient = patients.find(p => p._id === e.target.value);
+                    setSelectedPatient(patient || null);
+                  }}
                 >
                   {patients.map((patient) => (
                     <MenuItem key={patient._id} value={patient._id}>
@@ -606,32 +790,32 @@ const Screenings: React.FC = () => {
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                                       <FormControl fullWidth margin="normal">
-                       <InputLabel>Color Vision</InputLabel>
-                       <Select
-                         value={results.color_vision}
-                         label="Color Vision"
-                         onChange={(e) => setResults(prev => ({ ...prev, color_vision: e.target.value as 'normal' | 'deficient' | 'failed' }))}
-                       >
-                         <MenuItem value="normal">Normal</MenuItem>
-                         <MenuItem value="deficient">Deficient</MenuItem>
-                         <MenuItem value="failed">Failed</MenuItem>
-                       </Select>
-                     </FormControl>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>Color Vision</InputLabel>
+                    <Select
+                      value={results.color_vision}
+                      label="Color Vision"
+                      onChange={(e) => setResults(prev => ({ ...prev, color_vision: e.target.value as 'normal' | 'deficient' | 'failed' }))}
+                    >
+                      <MenuItem value="normal">Normal</MenuItem>
+                      <MenuItem value="deficient">Deficient</MenuItem>
+                      <MenuItem value="failed">Failed</MenuItem>
+                    </Select>
+                  </FormControl>
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                                     <FormControl fullWidth margin="normal">
-                     <InputLabel>Depth Perception</InputLabel>
-                     <Select
-                       value={results.depth_perception}
-                       label="Depth Perception"
-                       onChange={(e) => setResults(prev => ({ ...prev, depth_perception: e.target.value as 'normal' | 'impaired' | 'failed' }))}
-                     >
-                       <MenuItem value="normal">Normal</MenuItem>
-                       <MenuItem value="impaired">Impaired</MenuItem>
-                       <MenuItem value="failed">Failed</MenuItem>
-                     </Select>
-                   </FormControl>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>Depth Perception</InputLabel>
+                    <Select
+                      value={results.depth_perception}
+                      label="Depth Perception"
+                      onChange={(e) => setResults(prev => ({ ...prev, depth_perception: e.target.value as 'normal' | 'impaired' | 'failed' }))}
+                    >
+                      <MenuItem value="normal">Normal</MenuItem>
+                      <MenuItem value="impaired">Impaired</MenuItem>
+                      <MenuItem value="failed">Failed</MenuItem>
+                    </Select>
+                  </FormControl>
                 </Grid>
                 <Grid item xs={12}>
                   <TextField

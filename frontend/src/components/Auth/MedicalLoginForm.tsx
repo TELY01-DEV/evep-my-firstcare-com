@@ -162,7 +162,7 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: `linear-gradient(135deg, #E3F2FD 0%, ${theme.palette.background.default} 100%)`,
+        background: 'linear-gradient(135deg, #F8EBF8 0%, #E8BEE8 100%)', // EVEP Light Pink to Secondary Pink
         padding: theme.spacing(2),
         position: 'relative',
       }}
@@ -175,14 +175,14 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
           width: '100%',
           borderRadius: 3,
           overflow: 'hidden',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1)',
+          boxShadow: '0 20px 40px rgba(155, 125, 207, 0.15)',
           marginBottom: theme.spacing(4), // Space for footer
         }}
       >
         {/* Medical Professional Header */}
         <Box
           sx={{
-            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+            background: 'linear-gradient(135deg, #9B7DCF 0%, #7B5DBF 100%)', // EVEP Purple gradient
             padding: theme.spacing(4, 3),
             textAlign: 'center',
             color: 'white',
@@ -220,7 +220,7 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
         </Box>
 
         <CardContent sx={{ padding: theme.spacing(4) }}>
-          <Typography variant="h5" fontWeight={600} gutterBottom textAlign="center">
+          <Typography variant="h5" fontWeight={600} gutterBottom textAlign="center" sx={{ color: '#9B7DCF' }}>
             Sign In
           </Typography>
           <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 3 }}>
@@ -288,9 +288,11 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
                 fontWeight: 600,
                 borderRadius: 2,
                 textTransform: 'none',
-                boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+                background: 'linear-gradient(135deg, #9B7DCF 0%, #7B5DBF 100%)', // EVEP Purple gradient
+                boxShadow: '0 4px 12px rgba(155, 125, 207, 0.3)',
                 '&:hover': {
-                  boxShadow: '0 6px 16px rgba(25, 118, 210, 0.4)',
+                  background: 'linear-gradient(135deg, #7B5DBF 0%, #9B7DCF 100%)', // Reverse EVEP Purple gradient
+                  boxShadow: '0 6px 16px rgba(155, 125, 207, 0.4)',
                 },
               }}
             >
@@ -309,7 +311,7 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
           </Divider>
 
           {/* Demo Login Buttons */}
-          <Typography variant="h6" fontWeight={600} gutterBottom textAlign="center">
+          <Typography variant="h6" fontWeight={600} gutterBottom textAlign="center" sx={{ color: '#9B7DCF' }}>
             Demo Access
           </Typography>
           <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 3 }}>
@@ -329,6 +331,12 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
                   borderRadius: 2,
                   textTransform: 'none',
                   fontWeight: 600,
+                  borderColor: '#9B7DCF',
+                  color: '#9B7DCF',
+                  '&:hover': {
+                    borderColor: '#7B5DBF',
+                    backgroundColor: 'rgba(155, 125, 207, 0.1)',
+                  },
                 }}
               >
                 Doctor
@@ -346,6 +354,12 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
                   borderRadius: 2,
                   textTransform: 'none',
                   fontWeight: 600,
+                  borderColor: '#9B7DCF',
+                  color: '#9B7DCF',
+                  '&:hover': {
+                    borderColor: '#7B5DBF',
+                    backgroundColor: 'rgba(155, 125, 207, 0.1)',
+                  },
                 }}
               >
                 Nurse
@@ -363,6 +377,12 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
                   borderRadius: 2,
                   textTransform: 'none',
                   fontWeight: 600,
+                  borderColor: '#9B7DCF',
+                  color: '#9B7DCF',
+                  '&:hover': {
+                    borderColor: '#7B5DBF',
+                    backgroundColor: 'rgba(155, 125, 207, 0.1)',
+                  },
                 }}
               >
                 Admin
@@ -380,7 +400,7 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
                   navigate('/register');
                 }}
                 sx={{
-                  color: theme.palette.primary.main,
+                  color: '#9B7DCF',
                   textDecoration: 'none',
                   fontWeight: 600,
                   '&:hover': {

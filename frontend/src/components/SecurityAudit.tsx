@@ -37,6 +37,7 @@ import {
   AccessTime
 } from '@mui/icons-material';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SecurityEvent {
   id: string;
@@ -70,6 +71,7 @@ interface SecurityStats {
 }
 
 const SecurityAudit: React.FC = () => {
+  const { token } = useAuth();
   const [events, setEvents] = useState<SecurityEvent[]>([]);
   const [stats, setStats] = useState<SecurityStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,10 +82,24 @@ const SecurityAudit: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch security events and stats
+      if (!token) {
+        setError('Authentication required');
+        setLoading(false);
+        return;
+      }
+
+      // Fetch security events and stats with authorization header
       const [eventsResponse, statsResponse] = await Promise.all([
-        axios.get('/api/v1/medical/security/events'),
-        axios.get('/api/v1/medical/security/stats')
+        axios.get('/api/v1/medical/security/events', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }),
+        axios.get('/api/v1/medical/security/stats', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
       ]);
 
       setEvents(eventsResponse.data.events || []);

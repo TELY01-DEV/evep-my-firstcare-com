@@ -1,41 +1,118 @@
 version: '3.8'
 
 services:
-  # Backend API Service
+  # Main EVEP Backend (without AI/ML)
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    build: ./backend
     container_name: evep-backend
     ports:
       - "8013:8000"
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
-      - SECRET_KEY=${SECRET_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-      - LINE_CHANNEL_ACCESS_TOKEN=${LINE_CHANNEL_ACCESS_TOKEN}
-      - LINE_CHANNEL_SECRET=${LINE_CHANNEL_SECRET}
-      - MONGO_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
-      - MONGO_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
-      - MONGO_DATABASE=${MONGO_DATABASE}
-      - MONGO_REPLICA_SET_NAME=${MONGO_REPLICA_SET_NAME}
-      - REDIS_CLUSTER_ENABLED=${REDIS_CLUSTER_ENABLED}
+      - MONGODB_URL=mongodb://mongo-primary:27017/evep
+      - REDIS_URL=redis://redis-master-1:6379
+      - AI_SERVICE_ENABLED=${AI_SERVICE_ENABLED:-false}
+      - AI_SERVICE_URL=${AI_SERVICE_URL:-http://ai-service:8001}
     volumes:
       - ./backend:/app
-      - backend_data:/app/data
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
     depends_on:
       - mongo-primary
-      - mongo-secondary-1
-      - mongo-secondary-2
       - redis-master-1
-      - redis-master-2
-      - redis-master-3
     networks:
       - evep-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # AI/ML Service (Separate Container)
+  ai-service:
+    build: ./ai-service
+    container_name: evep-ai-service
+    ports:
+      - "8001:8001"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - CHROMA_PERSIST_DIR=/app/chroma_db
+      - MODEL_CACHE_DIR=/app/models
+      - MAX_CONCURRENT_REQUESTS=${AI_MAX_CONCURRENT_REQUESTS:-5}
+      - REQUEST_TIMEOUT=${AI_REQUEST_TIMEOUT:-60}
+    volumes:
+      - ai_chroma_data:/app/chroma_db
+      - ai_model_cache:/app/models
+      - ./ai-service/logs:/app/logs
+    networks:
+      - evep-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    profiles:
+      - ai
+
+  # AI/ML Worker Service (for background processing)
+  ai-worker:
+    build: ./ai-service
+    container_name: evep-ai-worker
+    command: ["python", "-m", "app.worker"]
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - CHROMA_PERSIST_DIR=/app/chroma_db
+      - MODEL_CACHE_DIR=/app/models
+      - REDIS_URL=redis://redis-master-1:6379
+      - MAX_WORKERS=${AI_MAX_WORKERS:-3}
+    volumes:
+      - ai_chroma_data:/app/chroma_db
+      - ai_model_cache:/app/models
+      - ./ai-service/logs:/app/logs
+    networks:
+      - evep-network
+    restart: unless-stopped
+    depends_on:
+      - redis-master-1
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    profiles:
+      - ai
+
+  # AI/ML Monitoring Service
+  ai-monitor:
+    build: ./ai-service
+    container_name: evep-ai-monitor
+    command: ["python", "-m", "app.monitor"]
+    environment:
+      - PROMETHEUS_MULTIPROC_DIR=/tmp
+      - METRICS_PORT=8002
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./ai-service/logs:/app/logs
+    networks:
+      - evep-network
+    restart: unless-stopped
+    profiles:
+      - ai
 
   # Frontend Web Application (Medical Professional Portal)
   frontend:
@@ -58,21 +135,19 @@ services:
       - evep-network
     restart: unless-stopped
 
-  # Admin Panel Web Application
+  # Admin Panel Web Application (Separate System)
   admin-panel:
     build:
-      context: ./frontend
+      context: ./admin-panel
       dockerfile: Dockerfile
     container_name: evep-admin-panel
     ports:
       - "3015:3000"
     environment:
-      - REACT_APP_API_URL=https://admin.evep.my-firstcare.com
-      - REACT_APP_ENVIRONMENT=production
-      - REACT_APP_PORTAL_TYPE=admin
-      - REACT_APP_ADMIN_ONLY=true
+      - REACT_APP_API_URL=http://localhost:8013
+      - REACT_APP_ENVIRONMENT=development
     volumes:
-      - ./frontend:/app
+      - ./admin-panel:/app
       - /app/node_modules
     depends_on:
       - backend
@@ -406,6 +481,10 @@ volumes:
   grafana_data:
     driver: local
   elasticsearch_data:
+    driver: local
+  ai_chroma_data:
+    driver: local
+  ai_model_cache:
     driver: local
 
 networks:

@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVEP Workflow Diagrams & Documentation</title>
+    <style>
+        @media print { body { margin: 0; padding: 20px; } .page-break { page-break-before: always; } .no-break { page-break-inside: avoid; } }
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 1200px; margin: 0 auto; padding: 20px; background: white; }
+        .header { text-align: center; border-bottom: 3px solid #2c3e50; padding-bottom: 20px; margin-bottom: 30px; }
+        .header h1 { color: #2c3e50; margin: 0; font-size: 28px; }
+        .header h2 { color: #7f8c8d; margin: 10px 0 0 0; font-size: 18px; }
+        .section { margin: 30px 0; border: 2px solid #3498db; border-radius: 10px; padding: 20px; background: linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%); }
+        .section-header { background: #3498db; color: white; padding: 15px 20px; margin: -20px -20px 20px -20px; border-radius: 8px 8px 0 0; font-weight: bold; font-size: 18px; }
+        .subsection { background: white; padding: 15px; margin: 15px 0; border-radius: 8px; border-left: 4px solid #3498db; }
+        .subsection h3 { color: #2c3e50; margin: 0 0 15px 0; font-size: 16px; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; background: white; }
+        th, td { border: 1px solid #bdc3c7; padding: 12px; text-align: left; vertical-align: top; }
+        th { background: #34495e; color: white; font-weight: bold; }
+        tr:nth-child(even) { background: #f8f9fa; }
+        .workflow-step { background: #e8f5e8; border: 2px solid #27ae60; border-radius: 8px; padding: 15px; margin: 15px 0; }
+        .workflow-step-title { background: #27ae60; color: white; padding: 10px 15px; margin: -15px -15px 15px -15px; border-radius: 6px 6px 0 0; font-weight: bold; }
+        .workflow-list { list-style: none; padding: 0; margin: 0; }
+        .workflow-list li { padding: 8px 0; border-bottom: 1px solid #d5f4e6; position: relative; padding-left: 25px; }
+        .workflow-list li:before { content: "→"; position: absolute; left: 0; color: #27ae60; font-weight: bold; }
+        .workflow-list li:last-child { border-bottom: none; }
+        .api-endpoint { background: #f0f8ff; border: 2px solid #5dade2; border-radius: 8px; padding: 15px; margin: 15px 0; }
+        .api-endpoint-title { background: #5dade2; color: white; padding: 10px 15px; margin: -15px -15px 15px -15px; border-radius: 6px 6px 0 0; font-weight: bold; }
+        .endpoint-list { list-style: none; padding: 0; margin: 0; }
+        .endpoint-list li { padding: 8px 0; border-bottom: 1px solid #e3f2fd; }
+        .endpoint-list li:last-child { border-bottom: none; }
+        .endpoint-method { font-weight: bold; color: #1976d2; }
+        .endpoint-path { font-family: monospace; color: #333; }
+        .endpoint-description { color: #555; margin-left: 10px; }
+        .status-complete { color: #27ae60; font-weight: bold; }
+        .status-progress { color: #f39c12; font-weight: bold; }
+        .status-pending { color: #e74c3c; font-weight: bold; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #bdc3c7; color: #7f8c8d; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>EVEP Workflow Diagrams & Documentation</h1>
+        <h2>Eye Vision Enhancement Platform - Mobile Reflection Unit System</h2>
+        <p><strong>Comprehensive System Documentation & Implementation Guide</strong></p>
+        <p><strong>Document Version: 2.1 | Last Updated: August 30, 2024 | Print-Friendly Format</strong></p>
+    </div>
+
+    <!-- Overview -->
+    <div class="section no-break">
+        <div class="section-header">Overview</div>
+        <div class="subsection">
+            <p>This document provides a comprehensive overview of all workflow diagrams, screening component analysis, and entity-relationship diagrams for the EVEP (Eye Vision Enhancement Platform) Mobile Reflection Unit system.</p>
+            <p>The EVEP platform integrates school-based screening with hospital mobile unit services to provide comprehensive vision care for students, from initial screening through treatment and follow-up.</p>
+        </div>
+    </div>
+
+    <!-- Screening Component Comparison -->
+    <div class="section no-break">
+        <div class="section-header">EVEP Screening Component Comparison & Analysis</div>
+        
+        <div class="subsection">
+            <h3>School-based Screening vs Hospital Mobile Unit Screening</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th>School-based Screening</th>
+                        <th>Hospital Mobile Unit Screening</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Conducted By</strong></td>
+                        <td>Teachers</td>
+                        <td>Medical Staff (Doctors, Nurses, Technicians)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Equipment</strong></td>
+                        <td>Basic vision charts</td>
+                        <td>Advanced auto-refractors, specialized equipment</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Scope</strong></td>
+                        <td>Initial screening</td>
+                        <td>Comprehensive assessment and diagnosis</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Outcome</strong></td>
+                        <td>Basic vision status</td>
+                        <td>Detailed diagnosis and prescription</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Follow-up</strong></td>
+                        <td>Referral to mobile unit</td>
+                        <td>Direct treatment and glasses provision</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Data Storage</strong></td>
+                        <td>School system</td>
+                        <td>Hospital medical records</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Consent</strong></td>
+                        <td>Basic school consent</td>
+                        <td>Medical consent with parent approval</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="subsection">
+            <h3>Workflow Integration</h3>
+            <ul class="workflow-list">
+                <li><strong>Phase 1</strong>: School-based screening identifies potential issues</li>
+                <li><strong>Phase 2</strong>: Hospital mobile unit conducts detailed assessment</li>
+                <li><strong>Phase 3</strong>: Treatment and follow-up care provided</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- ER Diagram -->
+    <div class="section no-break">
+        <div class="section-header">EVEP Entity-Relationship (ER) Diagram</div>
+        
+        <div class="subsection">
+            <h3>Core System Entities</h3>
+            
+            <h4>1. Users & Authentication</h4>
+            <ul class="workflow-list">
+                <li>users - System user accounts</li>
+                <li>medical_staff_users - Medical staff specific accounts</li>
+                <li>roles - User role definitions</li>
+                <li>permissions - Access control permissions</li>
+            </ul>
+
+            <h4>2. Patient Management</h4>
+            <ul class="workflow-list">
+                <li>patients - Patient records and demographics</li>
+                <li>schools - School information</li>
+                <li>teachers - Teacher profiles</li>
+                <li>parents - Parent/guardian information</li>
+            </ul>
+
+            <h4>3. Screening & Assessment</h4>
+            <ul class="workflow-list">
+                <li>mobile_screening_sessions - Screening session records</li>
+                <li>initial_assessments - Initial assessment data</li>
+                <li>clinical_decisions - Clinical decision outcomes</li>
+                <li>screenings - General screening records</li>
+            </ul>
+
+            <h4>4. Treatment & Follow-up</h4>
+            <ul class="workflow-list">
+                <li>glasses_prescriptions - Glasses prescription data</li>
+                <li>manufacturing_orders - Manufacturing order tracking</li>
+                <li>follow_up_sessions - Follow-up session records</li>
+            </ul>
+
+            <h4>5. Equipment & Inventory</h4>
+            <ul class="workflow-list">
+                <li>equipment - Medical equipment records</li>
+                <li>equipment_calibration - Calibration tracking</li>
+                <li>inventory - Glasses inventory management</li>
+            </ul>
+        </div>
+
+        <div class="subsection">
+            <h3>Key Relationships</h3>
+            <ul class="workflow-list">
+                <li><strong>School → Teacher → Student → Parent</strong> (Hierarchical relationship)</li>
+                <li><strong>Medical Staff → Screening Sessions</strong> (Clinical workflow)</li>
+                <li><strong>Patient → Assessment → Decision → Treatment</strong> (Clinical pathway)</li>
+                <li><strong>Equipment → Calibration → Staff</strong> (Equipment management)</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Medical Staff ER Diagram -->
+    <div class="section no-break">
+        <div class="section-header">EVEP Medical Staff ER Diagram</div>
+        
+        <div class="subsection">
+            <h3>Medical Staff Core Entities</h3>
+            
+            <h4>1. MEDICAL_STAFF</h4>
+            <ul class="workflow-list">
+                <li>Complete staff profiles with roles and specializations</li>
+                <li>Contact information and employment details</li>
+                <li>Hospital assignment and department information</li>
+                <li>Active status and employment tracking</li>
+            </ul>
+
+            <h4>2. HOSPITAL</h4>
+            <ul class="workflow-list">
+                <li>Hospital information and contact details</li>
+                <li>Type classification (public/private)</li>
+                <li>Active status management</li>
+            </ul>
+
+            <h4>3. Staff Credentials & Training</h4>
+            <ul class="workflow-list">
+                <li><strong>MEDICAL_CREDENTIALS</strong>: License tracking and certifications</li>
+                <li><strong>STAFF_TRAINING</strong>: Equipment and protocol training records</li>
+                <li>Expiry date tracking and status management</li>
+            </ul>
+
+            <h4>4. Equipment Management</h4>
+            <ul class="workflow-list">
+                <li><strong>EQUIPMENT</strong>: Auto-refractors, vision charts, computers</li>
+                <li><strong>EQUIPMENT_CALIBRATION</strong>: Calibration tracking with staff responsibility</li>
+                <li>Equipment assignment and maintenance records</li>
+            </ul>
+
+            <h4>5. Clinical Workflow Integration</h4>
+            <ul class="workflow-list">
+                <li><strong>MOBILE_SCREENING_SESSION</strong>: Screening sessions with staff assignment</li>
+                <li><strong>SCREENING_ASSESSMENT</strong>: Individual assessments by staff</li>
+                <li><strong>CLINICAL_DECISION</strong>: Clinical decisions made by medical staff</li>
+            </ul>
+        </div>
+
+        <div class="subsection">
+            <h3>Medical Staff Roles & Responsibilities</h3>
+            
+            <div class="workflow-step">
+                <div class="workflow-step-title">Lead Doctor (Ophthalmologist/Optometrist)</div>
+                <ul class="workflow-list">
+                    <li>Conduct comprehensive eye examinations</li>
+                    <li>Make clinical decisions and diagnoses</li>
+                    <li>Create glasses prescriptions</li>
+                    <li>Supervise screening sessions</li>
+                    <li>Quality assurance oversight</li>
+                    <li>Patient consultation and education</li>
+                </ul>
+            </div>
+
+            <div class="workflow-step">
+                <div class="workflow-step-title">Nurse</div>
+                <ul class="workflow-list">
+                    <li>Patient registration and preparation</li>
+                    <li>Assist with screening procedures</li>
+                    <li>Patient care and comfort</li>
+                    <li>Equipment setup and calibration</li>
+                    <li>Documentation and record keeping</li>
+                    <li>Follow-up coordination</li>
+                </ul>
+            </div>
+
+            <div class="workflow-step">
+                <div class="workflow-step-title">Technician</div>
+                <ul class="workflow-list">
+                    <li>Equipment operation and maintenance</li>
+                    <li>Auto-refractor calibration</li>
+                    <li>Technical support during screening</li>
+                    <li>Equipment troubleshooting</li>
+                    <li>Data collection and entry</li>
+                    <li>Quality control checks</li>
+                </ul>
+            </div>
+
+            <div class="workflow-step">
+                <div class="workflow-step-title">Coordinator</div>
+                <ul class="workflow-list">
+                    <li>Schedule management and coordination</li>
+                    <li>School communication and liaison</li>
+                    <li>Mobile unit logistics</li>
+                    <li>Staff assignment and supervision</li>
+                    <li>Report generation and distribution</li>
+                    <li>Quality assurance coordination</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="subsection">
+            <h3>Access Control Matrix</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Role</th>
+                        <th>School Screening</th>
+                        <th>Mobile Unit</th>
+                        <th>Equipment</th>
+                        <th>Patient Data</th>
+                        <th>Reports</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Lead Doctor</strong></td>
+                        <td>Read</td>
+                        <td>Full Access</td>
+                        <td>Full Access</td>
+                        <td>Full Access</td>
+                        <td>Full Access</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Nurse</strong></td>
+                        <td>Read</td>
+                        <td>Full Access</td>
+                        <td>Read/Update</td>
+                        <td>Full Access</td>
+                        <td>Read</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Technician</strong></td>
+                        <td>Read</td>
+                        <td>Limited</td>
+                        <td>Full Access</td>
+                        <td>Read</td>
+                        <td>Read</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Coordinator</strong></td>
+                        <td>Read</td>
+                        <td>Read/Update</td>
+                        <td>Read</td>
+                        <td>Read</td>
+                        <td>Full Access</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Mobile Reflection Unit Workflow -->
+    <div class="section no-break">
+        <div class="section-header">EVEP Mobile Reflection Unit Workflow</div>
+        
+        <div class="subsection">
+            <h3>Complete Clinical Pathway</h3>
+            
+            <div class="workflow-step">
+                <div class="workflow-step-title">Phase 1: School-based Screening Management System</div>
+                <h4>System Relationships</h4>
+                <ul class="workflow-list">
+                    <li>Teacher belongs to School</li>
+                    <li>Student belongs to Teacher</li>
+                    <li>Parent has relationship with Student</li>
+                </ul>
+                <h4>Teacher Workflow</h4>
+                <ul class="workflow-list">
+                    <li>Teacher login to system</li>
+                    <li>Select Student from class list</li>
+                    <li>Conduct screening assessment</li>
+                    <li>Save screening outcome to system</li>
+                    <li>Generate screening reports</li>
+                </ul>
+            </div>
+
+            <div class="workflow-step">
+                <div class="workflow-step-title">Phase 2: Hospital Mobile Unit - Appointment & Consent</div>
+                <h4>Hospital Staff Actions</h4>
+                <ul class="workflow-list">
+                    <li>Create appointment schedule</li>
+                    <li>Send schedule to school</li>
+                    <li>Prepare notification letters</li>
+                    <li>Prepare consent documents</li>
+                    <li>Set up LINE BOT integration</li>
+                </ul>
+                <h4>Teacher & Parent Communication</h4>
+                <ul class="workflow-list">
+                    <li>Teacher sends notification letter</li>
+                    <li>Teacher sends consent document</li>
+                    <li>LINE BOT delivers soft copy documents</li>
+                    <li>Parents accept with consent</li>
+                    <li>Consent confirmation received</li>
+                </ul>
+            </div>
+
+            <div class="workflow-step">
+                <div class="workflow-step-title">Phase 3: Mobile Reflection Unit Screening Day</div>
+                <h4>Step 1: Student Registration (Admit as Patient)</h4>
+                <ul class="workflow-list">
+                    <li>Medical staff register student to system</li>
+                    <li>Verify student identity and consent</li>
+                    <li>Review school-based screening outcomes</li>
+                    <li>Create patient record</li>
+                    <li>Assign patient ID</li>
+                </ul>
+                <h4>Step 2: VA Screening and Diagnosis Flow</h4>
+                <ul class="workflow-list">
+                    <li>Conduct comprehensive vision assessment</li>
+                    <li>Auto-refractor measurements</li>
+                    <li>Manual vision testing</li>
+                    <li>Eye abnormality assessment</li>
+                    <li>Generate diagnosis results</li>
+                </ul>
+                <h4>Step 3: Outcome Classification</h4>
+                <ul class="workflow-list">
+                    <li>Normal patients: Screening complete</li>
+                    <li>Abnormal patients: Select glasses option</li>
+                    <li>Document screening outcomes</li>
+                    <li>Generate patient reports</li>
+                </ul>
+            </div>
+
+            <div class="workflow-step">
+                <div class="workflow-step-title">Phase 4: Glasses Delivery to School</div>
+                <h4>Delivery Preparation</h4>
+                <ul class="workflow-list">
+                    <li>Manufacturing completion verification</li>
+                    <li>Quality control check</li>
+                    <li>Packaging and labeling</li>
+                    <li>Delivery schedule coordination</li>
+                    <li>School notification</li>
+                </ul>
+                <h4>School Delivery Process</h4>
+                <ul class="workflow-list">
+                    <li>14-day delivery timeline</li>
+                    <li>Deliver to school location</li>
+                    <li>Patient verification at school</li>
+                    <li>Glasses fitting and adjustment</li>
+                    <li>Delivery confirmation</li>
+                </ul>
+            </div>
+
+            <div class="workflow-step">
+                <div class="workflow-step-title">Phase 5: Follow-up & Monitoring</div>
+                <ul class="workflow-list">
+                    <li>Comprehensive monitoring and quality assurance</li>
+                    <li>Patient satisfaction tracking</li>
+                    <li>Performance metrics analysis</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="api-endpoint">
+            <div class="api-endpoint-title">API Endpoints</div>
+            
+            <h4>Core Workflow Endpoints</h4>
+            <ul class="endpoint-list">
+                <li><span class="endpoint-method">POST</span> <span class="endpoint-path">/mobile-screening/registration</span><span class="endpoint-description">- Patient registration</span></li>
+                <li><span class="endpoint-method">POST</span> <span class="endpoint-path">/mobile-screening/assessments</span><span class="endpoint-description">- Initial assessment</span></li>
+                <li><span class="endpoint-method">POST</span> <span class="endpoint-path">/mobile-screening/clinical-decisions</span><span class="endpoint-description">- Clinical decisions</span></li>
+                <li><span class="endpoint-method">POST</span> <span class="endpoint-path">/mobile-screening/glasses-prescriptions</span><span class="endpoint-description">- Glasses prescriptions</span></li>
+                <li><span class="endpoint-method">POST</span> <span class="endpoint-path">/mobile-screening/manufacturing-orders</span><span class="endpoint-description">- Manufacturing orders</span></li>
+                <li><span class="endpoint-method">POST</span> <span class="endpoint-path">/mobile-screening/follow-up-sessions</span><span class="endpoint-description">- Follow-up sessions</span></li>
+                <li><span class="endpoint-method">GET</span> <span class="endpoint-path">/mobile-screening/statistics</span><span class="endpoint-description">- Statistics and analytics</span></li>
+            </ul>
+
+            <h4>Complete Workflow API</h4>
+            <ul class="endpoint-list">
+                <li><span class="endpoint-method">POST</span> <span class="endpoint-path">/mobile-screening/complete-workflow</span><span class="endpoint-description">- Execute entire workflow</span></li>
+            </ul>
+
+            <h4>Additional Endpoints</h4>
+            <ul class="endpoint-list">
+                <li><span class="endpoint-method">GET</span> <span class="endpoint-path">/mobile-screening/school-screening/{id}</span><span class="endpoint-description">- School screening data</span></li>
+                <li><span class="endpoint-method">GET</span> <span class="endpoint-path">/mobile-screening/appointments/{id}</span><span class="endpoint-description">- Appointment details</span></li>
+                <li><span class="endpoint-method">GET</span> <span class="endpoint-path">/mobile-screening/consent/{id}</span><span class="endpoint-description">- Consent information</span></li>
+                <li><span class="endpoint-method">GET</span> <span class="endpoint-path">/mobile-screening/screening-session/{id}</span><span class="endpoint-description">- Screening session</span></li>
+                <li><span class="endpoint-method">GET</span> <span class="endpoint-path">/mobile-screening/delivery/status/{id}</span><span class="endpoint-description">- Delivery status</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Documentation Files -->
+    <div class="section no-break">
+        <div class="section-header">Documentation Files</div>
+        
+        <div class="subsection">
+            <h3>Current Documentation Structure</h3>
+            
+            <h4>Core Documentation</h4>
+            <ul class="workflow-list">
+                <li>EVEP_Updated_ER_Diagram.md - Complete database schema</li>
+                <li>EVEP_Medical_Staff_ER_Diagram.md - Medical staff specific ER diagram</li>
+                <li>EVEP_ER_FLOWCHART_PRINT.html - Print-friendly workflow flowchart</li>
+                <li>EVEP_Medical_Staff_ER_Diagram_Print.html - Print-friendly medical staff diagram</li>
+            </ul>
+
+            <h4>Workflow Documentation</h4>
+            <ul class="workflow-list">
+                <li>MOBILE_VISION_SCREENING_WORKFLOW.md - Detailed clinical pathway</li>
+                <li>Mobile_Reflection_Unit_Workflow_PDF.md - Human-readable workflow guide</li>
+                <li>Mobile_Reflection_Unit_Implementation_Summary.md - Implementation overview</li>
+            </ul>
+
+            <h4>Analysis & Planning</h4>
+            <ul class="workflow-list">
+                <li>MOBILE_REFLECTION_UNIT_MISSING_FLOWS.md - Missing flows analysis</li>
+                <li>EVEP_Database_Collections_Structure.md - Database structure details</li>
+            </ul>
+        </div>
+
+        <div class="subsection">
+            <h3>Key Features of Documentation</h3>
+            
+            <h4>1. Comprehensive Coverage</h4>
+            <ul class="workflow-list">
+                <li>Complete system architecture</li>
+                <li>All workflow phases documented</li>
+                <li>Medical staff management</li>
+                <li>Equipment and inventory tracking</li>
+            </ul>
+
+            <h4>2. Multiple Formats</h4>
+            <ul class="workflow-list">
+                <li>Markdown (.md) for technical documentation</li>
+                <li>HTML (.html) for print-friendly versions</li>
+                <li>Mermaid diagrams for visual representation</li>
+                <li>Tables for comparison and analysis</li>
+            </ul>
+
+            <h4>3. Implementation Ready</h4>
+            <ul class="workflow-list">
+                <li>API endpoint specifications</li>
+                <li>Database schema definitions</li>
+                <li>Access control matrices</li>
+                <li>Role-based permissions</li>
+            </ul>
+
+            <h4>4. Quality Assurance</h4>
+            <ul class="workflow-list">
+                <li>Print-optimized layouts</li>
+                <li>Professional formatting</li>
+                <li>Clear visual hierarchy</li>
+                <li>Comprehensive indexing</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Implementation Status -->
+    <div class="section no-break">
+        <div class="section-header">Implementation Status</div>
+        
+        <div class="subsection">
+            <h3>Completed Components</h3>
+            <ul class="workflow-list">
+                <li><span class="status-complete">✅ Complete ER diagram for all entities</span></li>
+                <li><span class="status-complete">✅ Medical staff ER diagram with roles</span></li>
+                <li><span class="status-complete">✅ Workflow documentation for all phases</span></li>
+                <li><span class="status-complete">✅ API endpoint specifications</span></li>
+                <li><span class="status-complete">✅ Access control matrices</span></li>
+                <li><span class="status-complete">✅ Print-friendly documentation</span></li>
+            </ul>
+        </div>
+
+        <div class="subsection">
+            <h3>In Progress</h3>
+            <ul class="workflow-list">
+                <li><span class="status-progress">🔄 Backend API implementation</span></li>
+                <li><span class="status-progress">🔄 Database schema implementation</span></li>
+                <li><span class="status-progress">🔄 Frontend integration</span></li>
+                <li><span class="status-progress">🔄 Testing and validation</span></li>
+            </ul>
+        </div>
+
+        <div class="subsection">
+            <h3>Next Steps</h3>
+            <ul class="workflow-list">
+                <li><span class="status-pending">📋 Complete backend development</span></li>
+                <li><span class="status-pending">📋 Frontend interface development</span></li>
+                <li><span class="status-pending">📋 Integration testing</span></li>
+                <li><span class="status-pending">📋 User acceptance testing</span></li>
+                <li><span class="status-pending">📋 Production deployment</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p><strong>EVEP Workflow Diagrams & Documentation</strong></p>
+        <p>Document Version: 2.1 | Last Updated: August 30, 2024 | Next Review: November 2024</p>
+        <p>This documentation provides a comprehensive foundation for the EVEP Mobile Reflection Unit system, covering complete system architecture, medical staff management, clinical workflow, and technical implementation.</p>
+        <p><strong>Status: ✅ Complete and Ready for Implementation</strong></p>
+    </div>
+</body>
+</html>

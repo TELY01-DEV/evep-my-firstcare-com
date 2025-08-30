@@ -1,81 +1,97 @@
 import { createTheme, ThemeOptions } from '@mui/material/styles';
 
-// EVEP Brand Color Palette (extracted from logo)
+// EVEP Medical Portal Theme - Using Original EVEP Purple Colors
 const evepColors = {
-  // Primary EVEP Blue - Main brand color
+  // Primary EVEP Purple - Main brand color
   primary: {
-    main: '#1E3A8A', // EVEP Primary Blue
-    light: '#3B82F6', // Light Blue
-    dark: '#1E40AF', // Dark Blue
+    main: '#9B7DCF', // EVEP Primary Purple
+    light: '#A070D0', // EVEP Iris Purple
+    dark: '#7B5DBF', // EVEP Dark Purple
     contrastText: '#FFFFFF',
   },
   
-  // Secondary EVEP Teal - Accent color
+  // Secondary EVEP Pink - Accent color
   secondary: {
-    main: '#0F766E', // EVEP Teal
-    light: '#14B8A6', // Light Teal
-    dark: '#0D5A52', // Dark Teal
-    contrastText: '#FFFFFF',
+    main: '#E8BEE8', // EVEP Secondary Pink
+    light: '#F8EBF8', // EVEP Light Pink
+    dark: '#D8A8D8', // EVEP Dark Pink
+    contrastText: '#7B5DBF',
   },
   
   // Success Green - Health, Recovery, Positive Results
   success: {
-    main: '#2E7D32', // Medical Green
-    light: '#4CAF50', // Light Green
-    dark: '#1B5E20', // Dark Green
+    main: '#059669', // Medical Green
+    light: '#10B981', // Light Green
+    dark: '#047857', // Dark Green
     contrastText: '#FFFFFF',
   },
   
   // Warning Orange - Caution, Attention Required
   warning: {
-    main: '#F57C00', // Medical Orange
-    light: '#FF9800', // Light Orange
-    dark: '#E65100', // Dark Orange
+    main: '#D97706', // Medical Orange
+    light: '#F59E0B', // Light Orange
+    dark: '#B45309', // Dark Orange
     contrastText: '#FFFFFF',
   },
   
-  // Error Red - Critical Issues, Alerts
+  // Error Red - Critical Issues, Medical Alerts
   error: {
-    main: '#D32F2F', // Medical Red
-    light: '#F44336', // Light Red
-    dark: '#C62828', // Dark Red
+    main: '#DC2626', // Medical Red
+    light: '#EF4444', // Light Red
+    dark: '#B91C1C', // Dark Red
     contrastText: '#FFFFFF',
   },
   
-  // Neutral Grays - Professional, Clean
+  // Info Purple - EVEP Information
+  info: {
+    main: '#9B7DCF', // EVEP Purple for info
+    light: '#A070D0', // EVEP Light Purple
+    dark: '#7B5DBF', // EVEP Dark Purple
+    contrastText: '#FFFFFF',
+  },
+  
+  // Neutral Grays - Clean, Professional
   grey: {
-    50: '#FAFAFA',
-    100: '#F5F5F5',
-    200: '#EEEEEE',
-    300: '#E0E0E0',
-    400: '#BDBDBD',
-    500: '#9E9E9E',
-    600: '#757575',
-    700: '#616161',
-    800: '#424242',
-    900: '#212121',
+    50: '#F8FAFC',
+    100: '#F1F5F9',
+    200: '#E2E8F0',
+    300: '#CBD5E1',
+    400: '#94A3B8',
+    500: '#64748B',
+    600: '#475569',
+    700: '#334155',
+    800: '#1E293B',
+    900: '#0F172A',
   },
   
-  // Background Colors
+  // Background Colors - Soft, EVEP-Friendly
   background: {
-    default: '#F5F5F5', // Light Gray
+    default: '#F8EBF8', // EVEP Light Pink Background
     paper: '#FFFFFF',
-    secondary: '#EEEEEE', // Lighter Gray
-    medical: '#E3F2FD', // Medical Light Blue
+    secondary: '#F1F5F9', // Light Gray
+    medical: '#EFF6FF', // Medical Light Blue
+    card: '#FFFFFF',
+    sidebar: '#F8EBF8', // EVEP Light Pink
   },
   
-  // Text Colors
+  // Text Colors - EVEP Professional
   text: {
-    primary: '#212121', // Dark Gray
-    secondary: '#757575', // Medium Gray
-    disabled: '#BDBDBD', // Light Gray
-    medical: '#1565C0', // Medical Blue
+    primary: '#1E293B', // Dark Blue-Gray
+    secondary: '#64748B', // Medium Gray
+    disabled: '#94A3B8', // Light Gray
+    medical: '#9B7DCF', // EVEP Purple
+    success: '#059669', // Medical Green
+    warning: '#D97706', // Medical Orange
+    error: '#DC2626', // Medical Red
   },
+  
+  // Divider Colors
+  divider: '#E2E8F0',
 };
 
-// Medical Professional Typography
-const medicalTypography = {
-  fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+// EVEP Professional Typography
+const evepTypography = {
+  fontFamily: '"Inter", "Noto Sans Thai", "Roboto", "Helvetica", "Arial", sans-serif',
   
   // EVEP Professional Headings
   h1: {
@@ -157,14 +173,69 @@ const medicalTypography = {
   },
 };
 
-// Create the EVEP theme
+// Create the EVEP Medical Portal theme
 const evepTheme = createTheme({
   palette: evepColors,
-  typography: medicalTypography,
+  typography: evepTypography,
   shape: {
-    borderRadius: 8,
+    borderRadius: 12, // Softer, more EVEP-friendly
   },
   spacing: 8,
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
+          fontWeight: 600,
+          textTransform: 'none',
+          boxShadow: 'none',
+          '&:hover': {
+            boxShadow: '0px 4px 8px rgba(155, 125, 207, 0.15)',
+          },
+        },
+        contained: {
+          '&:hover': {
+            boxShadow: '0px 4px 8px rgba(155, 125, 207, 0.2)',
+          },
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 16,
+          boxShadow: '0px 1px 3px rgba(155, 125, 207, 0.1), 0px 1px 2px rgba(155, 125, 207, 0.06)',
+          border: '1px solid #E2E8F0',
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#FFFFFF',
+          color: evepColors.text.primary,
+          boxShadow: '0px 1px 3px rgba(155, 125, 207, 0.1)',
+        },
+      },
+    },
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: evepColors.background.sidebar,
+          borderRight: '1px solid #E2E8F0',
+          boxShadow: '2px 0px 8px rgba(155, 125, 207, 0.1)',
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          fontWeight: 600,
+        },
+      },
+    },
+  },
 });
 
 export default evepTheme;

@@ -97,7 +97,7 @@ async def create_patient(
     """Create a new patient"""
     
     # Check if user has permission to create patients
-    if current_user["role"] not in ["doctor", "teacher", "admin"]:
+    if current_user["role"] not in ["doctor", "admin", "medical_staff"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to create patients"
@@ -172,6 +172,42 @@ async def create_patient(
         **{k: v for k, v in patient_doc.items() if k != "_id"}
     )
 
+@router.get("/", response_model=List[PatientResponse])
+async def get_patients(
+    skip: int = 0,
+    limit: int = 100,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all patients with pagination"""
+    
+    # Check if user has permission to view patients
+    if current_user["role"] not in ["doctor", "parent", "admin", "medical_staff"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to view patients"
+        )
+    
+    patients_collection = get_patients_collection()
+    
+    # Build query based on user role
+    query = {}
+    if current_user["role"] == "parent":
+        # Parents can only see their own children
+        query["parent_email"] = current_user["email"]
+    
+    # Get patients with pagination
+    cursor = patients_collection.find(query).skip(skip).limit(limit)
+    patients = await cursor.to_list(length=limit)
+    
+    # Convert to response format
+    return [
+        PatientResponse(
+            patient_id=str(patient["_id"]),
+            **{k: v for k, v in patient.items() if k != "_id"}
+        )
+        for patient in patients
+    ]
+
 @router.get("/{patient_id}", response_model=PatientResponse)
 async def get_patient(
     patient_id: str,
@@ -180,7 +216,7 @@ async def get_patient(
     """Get patient by ID"""
     
     # Check if user has permission to view patients
-    if current_user["role"] not in ["doctor", "teacher", "parent", "admin"]:
+    if current_user["role"] not in ["doctor", "parent", "admin", "medical_staff"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view patients"
@@ -371,7 +407,7 @@ async def search_patients(
     """Search patients with filters"""
     
     # Check if user has permission to search patients
-    if current_user["role"] not in ["doctor", "teacher", "parent", "admin"]:
+    if current_user["role"] not in ["doctor", "parent", "admin", "medical_staff"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to search patients"
@@ -527,7 +563,7 @@ async def get_patient_documents(
     """Get all documents for a patient"""
     
     # Check if user has permission to view documents
-    if current_user["role"] not in ["doctor", "teacher", "parent", "admin"]:
+    if current_user["role"] not in ["doctor", "parent", "admin", "medical_staff"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view documents"
@@ -576,3 +612,105 @@ async def get_patient_documents(
         })
     
     return {"documents": document_list}
+
+@router.post("/from-student/{student_id}", response_model=PatientResponse)
+async def register_student_as_patient(
+    student_id: str,
+    patient_data: PatientCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Register a student as a patient"""
+    
+    # Check if user has permission to create patients
+    if current_user["role"] not in ["doctor", "admin", "medical_staff"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to create patients"
+        )
+    
+    patients_collection = get_patients_collection()
+    audit_logs_collection = get_audit_logs_collection()
+    
+    # Get student data from EVEP system
+    db = get_database()
+    student = await db.evep.students.find_one({"_id": ObjectId(student_id)})
+    
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+    
+    # Get parent data
+    parent = None
+    if student.get("parent_id"):
+        parent = await db.evep.parents.find_one({"_id": ObjectId(student["parent_id"])})
+    
+    # Check if patient already exists for this student
+    existing_patient = await patients_collection.find_one({
+        "student_id": student_id
+    })
+    
+    if existing_patient:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Patient already exists for this student"
+        )
+    
+    # Generate blockchain hash for audit
+    audit_hash = generate_blockchain_hash(
+        f"student_to_patient:{student_id}:{current_user['user_id']}"
+    )
+    
+    # Create patient document from student data
+    patient_doc = {
+        "first_name": student["first_name"],
+        "last_name": student["last_name"],
+        "date_of_birth": student["birth_date"].isoformat() if isinstance(student["birth_date"], datetime) else student["birth_date"],
+        "gender": student["gender"],
+        "parent_email": parent["email"] if parent else patient_data.parent_email,
+        "parent_phone": parent["phone"] if parent else patient_data.parent_phone,
+        "emergency_contact": patient_data.emergency_contact,
+        "emergency_phone": patient_data.emergency_phone,
+        "address": student["address"]["house_no"] + " " + student["address"]["road"] + ", " + student["address"]["subdistrict"] + ", " + student["address"]["district"] + ", " + student["address"]["province"],
+        "school": student["school_name"],
+        "grade": student["grade_level"],
+        "medical_history": patient_data.medical_history or {},
+        "family_vision_history": patient_data.family_vision_history or {},
+        "insurance_info": patient_data.insurance_info or {},
+        "consent_forms": patient_data.consent_forms or {},
+        "is_active": True,
+        "created_at": settings.get_current_timestamp(),
+        "updated_at": settings.get_current_timestamp(),
+        "created_by": current_user["user_id"],
+        "audit_hash": audit_hash,
+        "screening_history": [],
+        "documents": [],
+        "student_id": student_id,  # Link to original student record
+        "source": "student_registration"
+    }
+    
+    # Insert patient into database
+    result = await patients_collection.insert_one(patient_doc)
+    patient_doc["_id"] = result.inserted_id
+    
+    # Log patient creation from student
+    await audit_logs_collection.insert_one({
+        "action": "student_registered_as_patient",
+        "user_id": current_user["user_id"],
+        "patient_id": str(result.inserted_id),
+        "student_id": student_id,
+        "timestamp": settings.get_current_timestamp(),
+        "audit_hash": audit_hash,
+        "details": {
+            "patient_name": f"{student['first_name']} {student['last_name']}",
+            "parent_email": parent["email"] if parent else patient_data.parent_email,
+            "school": student["school_name"],
+            "grade": student["grade_level"]
+        }
+    })
+    
+    return PatientResponse(
+        patient_id=str(result.inserted_id),
+        **{k: v for k, v in patient_doc.items() if k != "_id"}
+    )

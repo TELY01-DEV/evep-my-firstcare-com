@@ -171,6 +171,52 @@ async def get_system_stats(
             detail=f"Failed to get system statistics: {str(e)}"
         )
 
+@router.get("/system-monitoring")
+async def get_system_monitoring(
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get system monitoring metrics for the monitoring dashboard"""
+    
+    # Check if user has admin permissions
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    try:
+        # Log this system monitoring access
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="access",
+            action="System monitoring accessed",
+            resource="/api/v1/admin/system-monitoring",
+            details="Admin accessed system monitoring metrics"
+        )
+        
+        # Mock system monitoring data
+        # In a real implementation, these would be actual system metrics
+        system_metrics = {
+            "cpu_usage": 42,
+            "memory_usage": 68,
+            "disk_usage": 45,
+            "network_usage": 25,
+            "active_connections": 15,
+            "uptime": 86400,  # 24 hours in seconds
+            "last_backup": "2025-08-28T10:00:00Z",
+            "system_health": "healthy"
+        }
+        
+        return system_metrics
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get system monitoring data: {str(e)}"
+        )
+
 @router.get("/users")
 async def get_users(
     request: Request,
@@ -640,6 +686,484 @@ async def get_system_settings(current_user: dict = Depends(get_current_user)):
             detail=f"Failed to get system settings: {str(e)}"
         )
 
+@router.get("/settings/list")
+async def get_system_settings_list(
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get system settings as a list for the admin panel"""
+    
+    # Check if user has admin permissions
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    try:
+        # Log this settings access
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="access",
+            action="System settings list accessed",
+            resource="/api/v1/admin/settings/list",
+            details="Admin accessed system settings list"
+        )
+        
+        # Convert the settings structure to a list format expected by the frontend
+        settings_list = [
+            # General Settings
+            {
+                "key": "siteName",
+                "value": "EVEP Platform",
+                "category": "general",
+                "type": "string",
+                "description": "Platform name displayed throughout the application",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "siteDescription",
+                "value": "EYE Vision Evaluation Platform",
+                "category": "general",
+                "type": "string",
+                "description": "Platform description",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "timezone",
+                "value": "Asia/Bangkok",
+                "category": "general",
+                "type": "string",
+                "description": "Default timezone for the application",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "language",
+                "value": "en",
+                "category": "general",
+                "type": "string",
+                "description": "Default language for the application",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "maintenanceMode",
+                "value": False,
+                "category": "general",
+                "type": "boolean",
+                "description": "Enable maintenance mode",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            
+            # Email Settings
+            {
+                "key": "smtpHost",
+                "value": "smtp.gmail.com",
+                "category": "email",
+                "type": "string",
+                "description": "SMTP server hostname",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "smtpPort",
+                "value": 587,
+                "category": "email",
+                "type": "number",
+                "description": "SMTP server port",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "smtpUsername",
+                "value": "",
+                "category": "email",
+                "type": "string",
+                "description": "SMTP username",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "smtpPassword",
+                "value": "",
+                "category": "email",
+                "type": "string",
+                "description": "SMTP password",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "fromEmail",
+                "value": "noreply@evep.com",
+                "category": "email",
+                "type": "string",
+                "description": "Default sender email address",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "fromName",
+                "value": "EVEP System",
+                "category": "email",
+                "type": "string",
+                "description": "Default sender name",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "enableEmailNotifications",
+                "value": True,
+                "category": "email",
+                "type": "boolean",
+                "description": "Enable email notifications",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            
+            # Security Settings
+            {
+                "key": "sessionTimeout",
+                "value": 30,
+                "category": "security",
+                "type": "number",
+                "description": "Session timeout in minutes",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "maxLoginAttempts",
+                "value": 5,
+                "category": "security",
+                "type": "number",
+                "description": "Maximum login attempts before lockout",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "passwordMinLength",
+                "value": 8,
+                "category": "security",
+                "type": "number",
+                "description": "Minimum password length",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "requireTwoFactor",
+                "value": False,
+                "category": "security",
+                "type": "boolean",
+                "description": "Require two-factor authentication",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "enableAuditLogging",
+                "value": True,
+                "category": "security",
+                "type": "boolean",
+                "description": "Enable audit logging",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "ipWhitelist",
+                "value": [],
+                "category": "security",
+                "type": "json",
+                "description": "IP addresses whitelist",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            
+            # Storage Settings
+            {
+                "key": "maxFileSize",
+                "value": 10,
+                "category": "storage",
+                "type": "number",
+                "description": "Maximum file size in MB",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "allowedFileTypes",
+                "value": ["jpg", "jpeg", "png", "pdf", "doc", "docx"],
+                "category": "storage",
+                "type": "json",
+                "description": "Allowed file types for upload",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "enableCompression",
+                "value": True,
+                "category": "storage",
+                "type": "boolean",
+                "description": "Enable file compression",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "backupFrequency",
+                "value": "daily",
+                "category": "storage",
+                "type": "string",
+                "description": "Backup frequency",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "retentionDays",
+                "value": 30,
+                "category": "storage",
+                "type": "number",
+                "description": "Data retention period in days",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            
+            # Notification Settings
+            {
+                "key": "enableEmailAlerts",
+                "value": True,
+                "category": "notification",
+                "type": "boolean",
+                "description": "Enable email alerts",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "enableSMSAlerts",
+                "value": False,
+                "category": "notification",
+                "type": "boolean",
+                "description": "Enable SMS alerts",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "enablePushNotifications",
+                "value": True,
+                "category": "notification",
+                "type": "boolean",
+                "description": "Enable push notifications",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            },
+            {
+                "key": "alertLevels",
+                "value": ["critical", "warning", "info"],
+                "category": "notification",
+                "type": "json",
+                "description": "Alert levels for notifications",
+                "is_editable": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            }
+        ]
+        
+        return settings_list
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get system settings list: {str(e)}"
+        )
+
+@router.put("/settings/{key}")
+async def update_system_setting(
+    key: str,
+    request: Request,
+    setting_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a specific system setting"""
+    
+    # Check if user has admin permissions
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    try:
+        # Log this settings update
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="update",
+            action=f"System setting updated: {key}",
+            resource=f"/api/v1/admin/settings/{key}",
+            details=f"Admin updated system setting: {key} = {setting_data.get('value')}"
+        )
+        
+        # In a real implementation, this would update the database
+        # For now, just return success
+        return {
+            "message": f"Setting {key} updated successfully",
+            "key": key,
+            "value": setting_data.get("value"),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update system setting: {str(e)}"
+        )
+
+@router.post("/settings")
+async def create_system_setting(
+    request: Request,
+    setting_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new system setting"""
+    
+    # Check if user has admin permissions
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    try:
+        # Log this settings creation
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="create",
+            action=f"System setting created: {setting_data.get('key')}",
+            resource="/api/v1/admin/settings",
+            details=f"Admin created system setting: {setting_data.get('key')} = {setting_data.get('value')}"
+        )
+        
+        # In a real implementation, this would save to database
+        # For now, just return success
+        return {
+            "message": f"Setting {setting_data.get('key')} created successfully",
+            "key": setting_data.get("key"),
+            "value": setting_data.get("value"),
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create system setting: {str(e)}"
+        )
+
+@router.delete("/settings/{key}")
+async def delete_system_setting(
+    key: str,
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a system setting"""
+    
+    # Check if user has admin permissions
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    try:
+        # Log this settings deletion
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="delete",
+            action=f"System setting deleted: {key}",
+            resource=f"/api/v1/admin/settings/{key}",
+            details=f"Admin deleted system setting: {key}"
+        )
+        
+        # In a real implementation, this would delete from database
+        # For now, just return success
+        return {
+            "message": f"Setting {key} deleted successfully",
+            "key": key
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete system setting: {str(e)}"
+        )
+
+@router.post("/settings/initialize")
+async def initialize_system_settings(
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    """Initialize system settings with default values"""
+    
+    # Check if user has admin permissions
+    if current_user["role"] != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    try:
+        # Log this settings initialization
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="initialize",
+            action="System settings initialized",
+            resource="/api/v1/admin/settings/initialize",
+            details="Admin initialized system settings with default values"
+        )
+        
+        # In a real implementation, this would initialize database with default settings
+        # For now, just return success
+        return {
+            "message": "System settings initialized successfully",
+            "initialized_at": datetime.utcnow().isoformat(),
+            "settings_count": 25  # Number of default settings
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to initialize system settings: {str(e)}"
+        )
+
 @router.put("/settings")
 async def update_system_settings(
     settings_data: SettingsUpdate,
@@ -868,3 +1392,429 @@ async def get_security_stats(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get security stats: {str(e)}")
+
+@router.get("/database/stats")
+async def get_database_stats(request: Request, current_user: dict = Depends(get_current_user)):
+    """Get database statistics"""
+    
+    if current_user["role"] not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Log this database stats access
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="access",
+            action="Database stats accessed",
+            resource="/api/v1/admin/database/stats",
+            details="Admin accessed database statistics"
+        )
+        
+        # Get collections
+        users_collection = get_users_collection()
+        patients_collection = get_patients_collection()
+        screenings_collection = get_screenings_collection()
+        audit_logs_collection = get_audit_logs_collection()
+        
+        # Calculate real statistics
+        total_users = await users_collection.count_documents({})
+        total_patients = await patients_collection.count_documents({})
+        total_screenings = await screenings_collection.count_documents({})
+        
+        # Get recent activity count (last 24 hours)
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        recent_activity = await audit_logs_collection.count_documents({
+            "timestamp": {"$gte": yesterday.isoformat()}
+        })
+        
+        # Get system status
+        system_status = "Healthy"
+        pending_updates = 0  # This would be calculated based on actual system updates
+        
+        # Get last backup time (mock for now)
+        last_backup = "2 hours ago"  # This would come from actual backup system
+        
+        # Calculate user distribution
+        admin_users = await users_collection.count_documents({"role": {"$in": ["admin", "super_admin"]}})
+        medical_users = await users_collection.count_documents({"role": {"$in": ["doctor", "nurse", "teacher", "parent", "medical_staff"]}})
+        
+        # Get recent security events
+        recent_security_events = await audit_logs_collection.count_documents({
+            "timestamp": {"$gte": yesterday.isoformat()},
+            "portal": "admin"
+        })
+        
+        # Mock database size calculation (in real implementation, would use actual database stats)
+        total_size = 2.5 * 1024 * 1024 * 1024  # 2.5 GB mock
+        
+        # Database stats
+        stats = {
+            "name": "evep_database",
+            "size": total_size,
+            "collections": 4,  # We have 4 main collections
+            "indexes": 24,  # Mock value
+            "status": "online",
+            "connections": 15,  # Mock value
+            "operations_per_sec": 1250,  # Mock value
+            "memory_usage": 68,  # Mock value
+            "disk_usage": 45,  # Mock value
+            "data_size": total_size * 0.8,  # Mock calculation
+            "index_size": total_size * 0.1,  # Mock calculation
+            "storage_size": total_size * 0.9,  # Mock calculation
+            "objects": total_users + total_patients + total_screenings + recent_activity
+        }
+        
+        return stats
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get database stats: {str(e)}")
+
+@router.get("/database/collections")
+async def get_database_collections(request: Request, current_user: dict = Depends(get_current_user)):
+    """Get database collections information"""
+    
+    if current_user["role"] not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Log this database collections access
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="access",
+            action="Database collections accessed",
+            resource="/api/v1/admin/database/collections",
+            details="Admin accessed database collections information"
+        )
+        
+        # Get collections for real data
+        users_collection = get_users_collection()
+        patients_collection = get_patients_collection()
+        screenings_collection = get_screenings_collection()
+        audit_logs_collection = get_audit_logs_collection()
+        
+        # Get real counts
+        users_count = await users_collection.count_documents({})
+        patients_count = await patients_collection.count_documents({})
+        screenings_count = await screenings_collection.count_documents({})
+        audit_logs_count = await audit_logs_collection.count_documents({})
+        
+        collections_info = [
+            {
+                "name": "users",
+                "count": users_count,
+                "size": users_count * 3200,  # Estimated 3.2KB per user
+                "avg_obj_size": 3200,
+                "indexes": 3,
+                "last_updated": datetime.utcnow().isoformat(),
+                "storage_size": users_count * 3500,  # Mock calculation
+                "index_size": users_count * 200  # Mock calculation
+            },
+            {
+                "name": "patients",
+                "count": patients_count,
+                "size": patients_count * 2400,  # Estimated 2.4KB per patient
+                "avg_obj_size": 2400,
+                "indexes": 5,
+                "last_updated": datetime.utcnow().isoformat(),
+                "storage_size": patients_count * 2600,  # Mock calculation
+                "index_size": patients_count * 300  # Mock calculation
+            },
+            {
+                "name": "screenings",
+                "count": screenings_count,
+                "size": screenings_count * 1500,  # Estimated 1.5KB per screening
+                "avg_obj_size": 1500,
+                "indexes": 4,
+                "last_updated": datetime.utcnow().isoformat(),
+                "storage_size": screenings_count * 1700,  # Mock calculation
+                "index_size": screenings_count * 250  # Mock calculation
+            },
+            {
+                "name": "audit_logs",
+                "count": audit_logs_count,
+                "size": audit_logs_count * 1000,  # Estimated 1KB per log
+                "avg_obj_size": 1000,
+                "indexes": 2,
+                "last_updated": datetime.utcnow().isoformat(),
+                "storage_size": audit_logs_count * 1100,  # Mock calculation
+                "index_size": audit_logs_count * 100  # Mock calculation
+            }
+        ]
+        
+        return {"collections": collections_info}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get database collections: {str(e)}")
+
+@router.get("/database/performance")
+async def get_database_performance(request: Request, current_user: dict = Depends(get_current_user)):
+    """Get database performance metrics"""
+    
+    if current_user["role"] not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Log this database performance access
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="access",
+            action="Database performance accessed",
+            resource="/api/v1/admin/database/performance",
+            details="Admin accessed database performance metrics"
+        )
+        
+        # Mock performance metrics (in real implementation, this would come from database monitoring)
+        performance_metrics = [
+            {
+                "metric": "Query Response Time",
+                "value": 45,
+                "unit": "ms",
+                "trend": "stable",
+                "threshold": 100,
+                "status": "good"
+            },
+            {
+                "metric": "Write Operations",
+                "value": 1250,
+                "unit": "ops/sec",
+                "trend": "up",
+                "threshold": 2000,
+                "status": "good"
+            },
+            {
+                "metric": "Read Operations",
+                "value": 890,
+                "unit": "ops/sec",
+                "trend": "stable",
+                "threshold": 1500,
+                "status": "good"
+            },
+            {
+                "metric": "Connection Pool",
+                "value": 15,
+                "unit": "connections",
+                "trend": "stable",
+                "threshold": 50,
+                "status": "good"
+            }
+        ]
+        
+        return {"performance": performance_metrics}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get database performance: {str(e)}")
+
+@router.get("/database/backups")
+async def get_database_backups(request: Request, current_user: dict = Depends(get_current_user)):
+    """Get database backups"""
+    
+    if current_user["role"] not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Log this database backups access
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="access",
+            action="Database backups accessed",
+            resource="/api/v1/admin/database/backups",
+            details="Admin accessed database backups"
+        )
+        
+        # Mock backup data (in real implementation, this would come from backup system)
+        backups = [
+            {
+                "id": "1",
+                "name": "backup_2024_01_15_full",
+                "size": 2.3 * 1024 * 1024 * 1024,  # 2.3 GB
+                "created_at": "2024-01-15T02:00:00Z",
+                "status": "completed",
+                "type": "full"
+            },
+            {
+                "id": "2",
+                "name": "backup_2024_01_16_incremental",
+                "size": 125 * 1024 * 1024,  # 125 MB
+                "created_at": "2024-01-16T02:00:00Z",
+                "status": "completed",
+                "type": "incremental"
+            }
+        ]
+        
+        return {"backups": backups}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get database backups: {str(e)}")
+
+@router.post("/database/backup")
+async def create_database_backup(
+    request: Request,
+    backup_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a database backup"""
+    
+    if current_user["role"] not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Log this backup creation
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="backup",
+            action="Database backup created",
+            resource="/api/v1/admin/database/backup",
+            details=f"Admin created database backup: {backup_data.get('name', 'unknown')}"
+        )
+        
+        # Mock backup creation (in real implementation, this would trigger actual backup)
+        backup_name = backup_data.get("name", f"backup_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}")
+        backup_type = backup_data.get("type", "full")
+        
+        # Simulate backup creation
+        backup_id = str(int(datetime.utcnow().timestamp()))
+        
+        return {
+            "message": "Backup creation started successfully",
+            "backup_id": backup_id,
+            "name": backup_name,
+            "type": backup_type,
+            "status": "in_progress"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create database backup: {str(e)}")
+
+@router.get("/system-stats")
+async def get_system_stats(request: Request, current_user: dict = Depends(get_current_user)):
+    """Get comprehensive system statistics"""
+    
+    if current_user["role"] not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Log this system stats access
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="access",
+            action="System stats accessed",
+            resource="/api/v1/admin/system-stats",
+            details="Admin accessed system statistics"
+        )
+        
+        # Get collections
+        users_collection = get_users_collection()
+        patients_collection = get_patients_collection()
+        screenings_collection = get_screenings_collection()
+        audit_logs_collection = get_audit_logs_collection()
+        
+        # Calculate real statistics
+        total_users = await users_collection.count_documents({})
+        total_patients = await patients_collection.count_documents({})
+        total_screenings = await screenings_collection.count_documents({})
+        
+        # Get recent activity count (last 24 hours)
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        recent_activity = await audit_logs_collection.count_documents({
+            "timestamp": {"$gte": yesterday.isoformat()}
+        })
+        
+        # Get system status
+        system_status = "Healthy"
+        pending_updates = 0  # This would be calculated based on actual system updates
+        
+        # Get last backup time (mock for now)
+        last_backup = "2 hours ago"  # This would come from actual backup system
+        
+        # Calculate user distribution
+        admin_users = await users_collection.count_documents({"role": {"$in": ["admin", "super_admin"]}})
+        medical_users = await users_collection.count_documents({"role": {"$in": ["doctor", "nurse", "teacher", "parent", "medical_staff"]}})
+        
+        # Get recent security events
+        recent_security_events = await audit_logs_collection.count_documents({
+            "timestamp": {"$gte": yesterday.isoformat()},
+            "portal": "admin"
+        })
+        
+        # System stats
+        stats = {
+            "total_users": total_users,
+            "admin_users": admin_users,
+            "medical_users": medical_users,
+            "total_patients": total_patients,
+            "total_screenings": total_screenings,
+            "recent_activity": recent_activity,
+            "recent_security_events": recent_security_events,
+            "system_status": system_status,
+            "pending_updates": pending_updates,
+            "last_backup": last_backup,
+            "database_status": "Online",
+            "security_status": "Secure",
+            "uptime": "99.9%",
+            "memory_usage": 45.2,  # Mock data - would come from system monitoring
+            "cpu_usage": 23.1,     # Mock data - would come from system monitoring
+            "disk_usage": 67.8,    # Mock data - would come from system monitoring
+            "active_connections": 12,  # Mock data - would come from connection pool
+            "database_connections": 8   # Mock data - would come from database monitoring
+        }
+        
+        return stats
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get system stats: {str(e)}")
+
+@router.get("/system/health")
+async def get_system_health(request: Request, current_user: dict = Depends(get_current_user)):
+    """Get system health information"""
+    
+    if current_user["role"] not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Log this health check access
+        await log_security_event(
+            request=request,
+            current_user=current_user,
+            event_type="access",
+            action="System health accessed",
+            resource="/api/v1/admin/system/health",
+            details="Admin accessed system health information"
+        )
+        
+        # Check database connectivity
+        try:
+            users_collection = get_users_collection()
+            await users_collection.find_one({})
+            database_status = "Online"
+        except Exception:
+            database_status = "Offline"
+        
+        # Mock system health data (in real implementation, this would come from system monitoring)
+        health_data = {
+            "status": "Healthy",
+            "uptime": "99.9%",
+            "memory_usage": 45.2,
+            "cpu_usage": 23.1,
+            "disk_usage": 67.8,
+            "database_status": database_status,
+            "database_connections": 8,
+            "active_connections": 12,
+            "last_check": datetime.utcnow().isoformat(),
+            "services": {
+                "api": "Online",
+                "database": database_status,
+                "redis": "Online",
+                "socketio": "Online"
+            }
+        }
+        
+        return health_data
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get system health: {str(e)}")

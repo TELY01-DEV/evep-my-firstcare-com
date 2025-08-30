@@ -67,7 +67,7 @@ const Dashboard: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8013/api/v1/dashboard/stats', {
+      const response = await fetch('http://localhost:8013/api/v1/reporting/api/v1/reports/dashboard/overview', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -78,8 +78,43 @@ const Dashboard: React.FC = () => {
         throw new Error('Failed to fetch dashboard data');
       }
 
-      const data = await response.json();
-      setStats(data);
+      const responseData = await response.json();
+      
+      // Map API response to component expected format
+      if (responseData.status === 'success' && responseData.data) {
+        const apiData = responseData.data;
+        setStats({
+          totalPatients: apiData.total_patients || 0,
+          totalScreenings: apiData.total_screenings || 0,
+          pendingScreenings: apiData.pending_assessments || 0,
+          completedScreenings: apiData.total_assessments || 0,
+          recentActivity: [
+            {
+              id: '1',
+              type: 'screening',
+              description: `${apiData.screenings_today} new screenings today`,
+              timestamp: apiData.last_updated,
+              status: 'success' as const,
+            },
+            {
+              id: '2',
+              type: 'patient',
+              description: `${apiData.new_patients_today} new patients registered today`,
+              timestamp: apiData.last_updated,
+              status: 'info' as const,
+            },
+            {
+              id: '3',
+              type: 'alert',
+              description: `${apiData.urgent_cases} urgent cases require attention`,
+              timestamp: apiData.last_updated,
+              status: 'warning' as const,
+            },
+          ],
+        });
+      } else {
+        throw new Error('Invalid response format');
+      }
     } catch (err) {
       console.error('Dashboard data fetch error:', err);
       setError('Failed to load dashboard data');

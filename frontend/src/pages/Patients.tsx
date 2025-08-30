@@ -121,7 +121,7 @@ const Patients: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8013/api/v1/patients', {
+      const response = await fetch('http://localhost:8013/api/v1/patient_management/api/v1/patients/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -748,8 +748,8 @@ const Patients: React.FC = () => {
                 <Grid item xs={12}>
                   <Typography variant="subtitle2" color="text.secondary">
                     Medical History
-                  </Typography>
-                  <Typography variant="body1">
+      </Typography>
+        <Typography variant="body1">
                     {viewingPatient.medical_history || 'No medical history recorded'}
                   </Typography>
                 </Grid>
@@ -765,7 +765,7 @@ const Patients: React.FC = () => {
                     ) : (
                       <Typography variant="body2" color="text.secondary">
                         No allergies recorded
-                      </Typography>
+        </Typography>
                     )}
                   </Box>
                 </Grid>

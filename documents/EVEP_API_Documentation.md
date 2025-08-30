@@ -8,6 +8,12 @@ The EVEP (EYE Vision Evaluation Platform) API provides comprehensive endpoints f
 **API Version**: v1  
 **Content Type**: `application/json`
 
+### Portal URLs
+- **Medical Portal**: `https://portal.evep.my-firstcare.com` (Port 3013)
+- **Admin Portal**: `https://admin.evep.my-firstcare.com` (Port 3015)
+- **API Documentation**: `https://stardust.evep.my-firstcare.com` (Port 3014)
+- **CDN Service**: `https://cdn.evep.my-firstcare.com` (Port 8014)
+
 ## Authentication
 
 The EVEP API uses JWT (JSON Web Tokens) for authentication. All protected endpoints require a valid Bearer token in the Authorization header.

@@ -34,6 +34,8 @@ from app.api.va_screening import router as va_screening_router
 from app.api.glasses_inventory import router as glasses_inventory_router
 from app.api.delivery_management import router as delivery_management_router
 from app.api.insights import router as insights_router
+from app.api.mobile_screening import router as mobile_screening_router
+from app.api.medical_staff import router as medical_staff_router
 
 # Import medical security API
 from app.api.medical_security import get_medical_security_events, get_medical_security_stats
@@ -186,6 +188,14 @@ async def startup_event():
     # Include delivery management API router
     app.include_router(delivery_management_router, prefix="/api/v1", tags=["delivery_management"])
     logger.info("Delivery Management API router included successfully!")
+    
+    # Include mobile screening API router
+    app.include_router(mobile_screening_router, prefix="/api/v1", tags=["mobile_screening"])
+    logger.info("Mobile Screening API router included successfully!")
+    
+    # Include medical staff management API router
+    app.include_router(medical_staff_router, prefix="/api/v1", tags=["medical_staff"])
+    logger.info("Medical Staff Management API router included successfully!")
     
     # Add medical portal security endpoints
     @app.get("/api/v1/medical/security/events", tags=["medical-security"])

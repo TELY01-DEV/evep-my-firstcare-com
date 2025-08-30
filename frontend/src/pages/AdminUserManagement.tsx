@@ -336,10 +336,10 @@ const AdminUserManagement: React.FC = () => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
-            User Management
+            Medical Portal User Management
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Manage admin users and medical portal users
+            Manage all users of the medical portal (doctors, nurses, teachers, parents)
           </Typography>
         </Box>
         <Box display="flex" gap={2}>

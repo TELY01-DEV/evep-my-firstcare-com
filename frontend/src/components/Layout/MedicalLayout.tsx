@@ -32,6 +32,15 @@ import {
   MedicalServices as MedicalServicesIcon,
   HealthAndSafety as HealthIcon,
   Security as SecurityIcon,
+  School as SchoolIcon,
+  Person as PersonIcon,
+  Group as GroupIcon,
+  PersonOutline as ChildIcon,
+  Inventory as InventoryIcon,
+  LocalShipping as DeliveryIcon,
+  Assignment as AssignmentIcon,
+  Schedule as ScheduleIcon,
+  Chat as ChatIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
@@ -104,6 +113,122 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
       path: '/dashboard/security',
       badge: null,
     },
+    {
+      text: 'EVEP Management',
+      icon: <SchoolIcon />,
+      path: '/dashboard/evep',
+      badge: 'New',
+      children: [
+        {
+          text: 'Students',
+          icon: <ChildIcon />,
+          path: '/dashboard/evep/students',
+          badge: null,
+        },
+        {
+          text: 'Parents',
+          icon: <GroupIcon />,
+          path: '/dashboard/evep/parents',
+          badge: null,
+        },
+        {
+          text: 'Teachers',
+          icon: <PersonIcon />,
+          path: '/dashboard/evep/teachers',
+          badge: null,
+        },
+        {
+          text: 'Schools',
+          icon: <SchoolIcon />,
+          path: '/dashboard/evep/schools',
+          badge: null,
+        },
+        {
+          text: 'School-based Screening',
+          icon: <AssessmentIcon />,
+          path: '/dashboard/evep/school-screenings',
+          badge: 'New',
+        },
+      ],
+    },
+    {
+      text: 'Medical Screening',
+      icon: <MedicalServicesIcon />,
+      path: '/dashboard/medical-screening',
+      badge: 'New',
+      children: [
+        {
+          text: 'Patient Registration',
+          icon: <PersonIcon />,
+          path: '/dashboard/medical-screening/patient-registration',
+          badge: 'New',
+        },
+        {
+          text: 'VA Screening Interface',
+          icon: <VisibilityIcon />,
+          path: '/dashboard/medical-screening/va-screening',
+          badge: 'New',
+        },
+        {
+          text: 'Diagnosis & Treatment',
+          icon: <AssessmentIcon />,
+          path: '/dashboard/medical-screening/diagnosis',
+          badge: 'New',
+        },
+        {
+          text: 'Schedule Hospital Screening Appointment',
+          icon: <ScheduleIcon />,
+          path: '/dashboard/evep/appointments',
+          badge: 'New',
+        },
+      ],
+    },
+    {
+      text: 'Glasses Management',
+      icon: <InventoryIcon />,
+      path: '/dashboard/glasses-management',
+      badge: 'New',
+      children: [
+        {
+          text: 'Inventory Check',
+          icon: <InventoryIcon />,
+          path: '/dashboard/glasses-management/inventory',
+          badge: 'New',
+        },
+                {
+          text: 'Delivery Tracking',
+          icon: <DeliveryIcon />,
+          path: '/dashboard/glasses-management/delivery',
+          badge: 'New',
+        },
+      ],
+    },
+    {
+      text: 'Medical Staff Management',
+      icon: <PersonIcon />,
+      path: '/dashboard/medical-staff',
+      badge: 'New',
+      children: [
+        {
+          text: 'Staff Directory',
+          icon: <PersonIcon />,
+          path: '/dashboard/medical-staff',
+          badge: 'New',
+        },
+        {
+          text: 'Staff Management',
+          icon: <PersonIcon />,
+          path: '/dashboard/medical-staff/management',
+          badge: 'New',
+        },
+      ],
+    },
+    {
+      text: 'LINE Notifications',
+      icon: <ChatIcon />,
+      path: '/dashboard/line-notifications',
+      badge: 'New',
+    },
   ];
 
   const drawer = (
@@ -152,56 +277,119 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
       {/* Navigation Menu */}
       <List sx={{ padding: theme.spacing(2, 0) }}>
         {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => navigate(item.path)}
-              sx={{
-                margin: theme.spacing(0, 2),
-                borderRadius: 2,
-                '&.Mui-selected': {
-                  backgroundColor: theme.palette.primary.main,
-                  color: theme.palette.primary.contrastText,
-                  '&:hover': {
-                    backgroundColor: theme.palette.primary.dark,
-                  },
-                  '& .MuiListItemIcon-root': {
-                    color: theme.palette.primary.contrastText,
-                  },
-                },
-              }}
-            >
-              <ListItemIcon
+          <React.Fragment key={item.text}>
+            <ListItem disablePadding>
+              <ListItemButton
+                selected={location.pathname === item.path || (item.children && item.children.some(child => location.pathname === child.path))}
+                onClick={() => {
+                  if (item.children) {
+                    // Handle nested menu - for now just navigate to first child
+                    navigate(item.children[0].path);
+                  } else {
+                    navigate(item.path);
+                  }
+                }}
                 sx={{
-                  minWidth: 40,
-                  color: location.pathname === item.path 
-                    ? theme.palette.primary.contrastText 
-                    : theme.palette.text.secondary,
+                  margin: theme.spacing(0, 2),
+                  borderRadius: 2,
+                  '&.Mui-selected': {
+                    backgroundColor: theme.palette.primary.main,
+                    color: theme.palette.primary.contrastText,
+                    '&:hover': {
+                      backgroundColor: theme.palette.primary.dark,
+                    },
+                    '& .MuiListItemIcon-root': {
+                      color: theme.palette.primary.contrastText,
+                    },
+                  },
                 }}
               >
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText 
-                primary={item.text}
-                primaryTypographyProps={{
-                  fontWeight: location.pathname === item.path ? 600 : 400,
-                }}
-              />
-              {item.badge && (
-                <Chip
-                  label={item.badge}
-                  size="small"
-                  color="primary"
+                <ListItemIcon
                   sx={{
-                    fontSize: '0.7rem',
-                    height: 20,
-                    backgroundColor: theme.palette.error.main,
-                    color: theme.palette.error.contrastText,
+                    minWidth: 40,
+                    color: (location.pathname === item.path || (item.children && item.children.some(child => location.pathname === child.path)))
+                      ? theme.palette.primary.contrastText 
+                      : theme.palette.text.secondary,
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText 
+                  primary={item.text}
+                  primaryTypographyProps={{
+                    fontWeight: (location.pathname === item.path || (item.children && item.children.some(child => location.pathname === child.path))) ? 600 : 400,
                   }}
                 />
-              )}
-            </ListItemButton>
-          </ListItem>
+                {item.badge && (
+                  <Chip
+                    label={item.badge}
+                    size="small"
+                    color="primary"
+                    sx={{
+                      fontSize: '0.7rem',
+                      height: 20,
+                      backgroundColor: theme.palette.error.main,
+                      color: theme.palette.error.contrastText,
+                    }}
+                  />
+                )}
+              </ListItemButton>
+            </ListItem>
+            
+            {/* Render nested menu items */}
+            {item.children && item.children.map((child) => (
+              <ListItem key={child.text} disablePadding sx={{ pl: 4 }}>
+                <ListItemButton
+                  selected={location.pathname === child.path}
+                  onClick={() => navigate(child.path)}
+                  sx={{
+                    margin: theme.spacing(0, 2),
+                    borderRadius: 2,
+                    '&.Mui-selected': {
+                      backgroundColor: theme.palette.primary.light,
+                      color: theme.palette.primary.contrastText,
+                      '&:hover': {
+                        backgroundColor: theme.palette.primary.main,
+                      },
+                      '& .MuiListItemIcon-root': {
+                        color: theme.palette.primary.contrastText,
+                      },
+                    },
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 40,
+                      color: location.pathname === child.path 
+                        ? theme.palette.primary.contrastText 
+                        : theme.palette.text.secondary,
+                    }}
+                  >
+                    {child.icon}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={child.text}
+                    primaryTypographyProps={{
+                      fontWeight: location.pathname === child.path ? 600 : 400,
+                    }}
+                  />
+                  {child.badge && (
+                    <Chip
+                      label={child.badge}
+                      size="small"
+                      color="primary"
+                      sx={{
+                        fontSize: '0.7rem',
+                        height: 20,
+                        backgroundColor: theme.palette.error.main,
+                        color: theme.palette.error.contrastText,
+                      }}
+                    />
+                  )}
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </React.Fragment>
         ))}
       </List>
 

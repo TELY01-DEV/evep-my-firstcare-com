@@ -1,0 +1,463 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Grid,
+  Button,
+  Chip,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert,
+  Snackbar,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Avatar,
+  Tooltip,
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Visibility as ViewIcon,
+  Assessment as AssessmentIcon,
+  School as SchoolIcon,
+  Person as PersonIcon,
+} from '@mui/icons-material';
+import axios from 'axios';
+import { useAdminAuth } from '../contexts/AdminAuthContext.tsx';
+
+interface SchoolScreening {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  examiner_id: string;
+  examiner_name: string;
+  screening_type: string;
+  screening_category: string;
+  equipment_used: string;
+  notes: string;
+  status: string;
+  results: any[];
+  conclusion: string;
+  recommendations: string;
+  follow_up_date: string;
+  created_at: string;
+  completed_at: string;
+}
+
+const SchoolScreeningsManagement: React.FC = () => {
+  const { user } = useAdminAuth();
+  const [screenings, setScreenings] = useState<SchoolScreening[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [editingScreening, setEditingScreening] = useState<SchoolScreening | null>(null);
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'info' | 'warning';
+  }>({ open: false, message: '', severity: 'info' });
+
+  const [formData, setFormData] = useState({
+    patient_id: '',
+    examiner_id: '',
+    screening_type: '',
+    equipment_used: '',
+    notes: '',
+  });
+
+  useEffect(() => {
+    fetchSchoolScreenings();
+  }, []);
+
+  const fetchSchoolScreenings = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await axios.get('/api/v1/screenings/sessions?screening_category=school_screening', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setScreenings(response.data.sessions || []);
+    } catch (error) {
+      console.error('Error fetching school screenings:', error);
+      setSnackbar({
+        open: true,
+        message: 'Error fetching school screenings',
+        severity: 'error'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateScreening = () => {
+    setEditingScreening(null);
+    setFormData({
+      patient_id: '',
+      examiner_id: '',
+      screening_type: '',
+      equipment_used: '',
+      notes: '',
+    });
+    setOpenDialog(true);
+  };
+
+  const handleEditScreening = (screening: SchoolScreening) => {
+    setEditingScreening(screening);
+    setFormData({
+      patient_id: screening.patient_id,
+      examiner_id: screening.examiner_id,
+      screening_type: screening.screening_type,
+      equipment_used: screening.equipment_used || '',
+      notes: screening.notes || '',
+    });
+    setOpenDialog(true);
+  };
+
+  const handleSaveScreening = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const screeningData = {
+        ...formData,
+        screening_category: 'school_screening',
+      };
+
+      if (editingScreening) {
+        await axios.put(`/api/v1/screenings/sessions/${editingScreening.id}`, screeningData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setSnackbar({
+          open: true,
+          message: 'School screening updated successfully!',
+          severity: 'success'
+        });
+      } else {
+        await axios.post('/api/v1/screenings/sessions', screeningData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setSnackbar({
+          open: true,
+          message: 'School screening created successfully!',
+          severity: 'success'
+        });
+      }
+
+      setOpenDialog(false);
+      fetchSchoolScreenings();
+    } catch (error) {
+      console.error('Error saving school screening:', error);
+      setSnackbar({
+        open: true,
+        message: 'Error saving school screening',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleDeleteScreening = async (screeningId: string) => {
+    if (window.confirm('Are you sure you want to delete this school screening?')) {
+      try {
+        const token = localStorage.getItem('adminToken');
+        await axios.delete(`/api/v1/screenings/sessions/${screeningId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setSnackbar({
+          open: true,
+          message: 'School screening deleted successfully!',
+          severity: 'success'
+        });
+        fetchSchoolScreenings();
+      } catch (error) {
+        console.error('Error deleting school screening:', error);
+        setSnackbar({
+          open: true,
+          message: 'Error deleting school screening',
+          severity: 'error'
+        });
+      }
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'success';
+      case 'in_progress':
+        return 'warning';
+      case 'cancelled':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h6">Loading school screenings...</Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <AssessmentIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+          <Typography variant="h4" component="h1">
+            School-based Screening Management
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={handleCreateScreening}
+          sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' } }}
+        >
+          Create School Screening
+        </Button>
+      </Box>
+
+      <Grid container spacing={3}>
+        {/* Statistics Cards */}
+        <Grid item xs={12} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Total School Screenings
+              </Typography>
+              <Typography variant="h4">
+                {screenings.length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                Completed
+              </Typography>
+              <Typography variant="h4" color="success.main">
+                {screenings.filter(s => s.status === 'completed').length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                In Progress
+              </Typography>
+              <Typography variant="h4" color="warning.main">
+                {screenings.filter(s => s.status === 'in_progress').length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
+                This Month
+              </Typography>
+              <Typography variant="h4" color="info.main">
+                {screenings.filter(s => {
+                  const createdDate = new Date(s.created_at);
+                  const now = new Date();
+                  return createdDate.getMonth() === now.getMonth() && 
+                         createdDate.getFullYear() === now.getFullYear();
+                }).length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Screenings Table */}
+      <Card sx={{ mt: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            School Screening Sessions
+          </Typography>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Patient</TableCell>
+                  <TableCell>Examiner</TableCell>
+                  <TableCell>Type</TableCell>
+                  <TableCell>Equipment</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Created</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {screenings.map((screening) => (
+                  <TableRow key={screening.id}>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar sx={{ width: 32, height: 32 }}>
+                          <PersonIcon />
+                        </Avatar>
+                        <Typography variant="body2">
+                          {screening.patient_name}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>{screening.examiner_name}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={screening.screening_type} 
+                        size="small" 
+                        color="primary" 
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>{screening.equipment_used || 'N/A'}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={screening.status} 
+                        size="small" 
+                        color={getStatusColor(screening.status) as any}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {new Date(screening.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Tooltip title="View Details">
+                          <IconButton size="small" color="info">
+                            <ViewIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Edit Screening">
+                          <IconButton 
+                            size="small" 
+                            color="primary"
+                            onClick={() => handleEditScreening(screening)}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete Screening">
+                          <IconButton 
+                            size="small" 
+                            color="error"
+                            onClick={() => handleDeleteScreening(screening.id)}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {editingScreening ? 'Edit School Screening' : 'Create New School Screening'}
+        </DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Patient ID"
+                value={formData.patient_id}
+                onChange={(e) => setFormData({ ...formData, patient_id: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Examiner ID"
+                value={formData.examiner_id}
+                onChange={(e) => setFormData({ ...formData, examiner_id: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Screening Type</InputLabel>
+                <Select
+                  value={formData.screening_type}
+                  label="Screening Type"
+                  onChange={(e) => setFormData({ ...formData, screening_type: e.target.value })}
+                >
+                  <MenuItem value="distance">Distance Vision</MenuItem>
+                  <MenuItem value="near">Near Vision</MenuItem>
+                  <MenuItem value="color">Color Vision</MenuItem>
+                  <MenuItem value="comprehensive">Comprehensive</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Equipment Used"
+                value={formData.equipment_used}
+                onChange={(e) => setFormData({ ...formData, equipment_used: e.target.value })}
+                placeholder="e.g., Snellen Chart, Color Vision Test"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Notes"
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                placeholder="Additional notes about the screening session..."
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={handleSaveScreening} variant="contained">
+            {editingScreening ? 'Update' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
+};
+
+export default SchoolScreeningsManagement;
