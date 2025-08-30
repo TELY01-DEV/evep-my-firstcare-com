@@ -121,7 +121,7 @@ const Patients: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8013/api/v1/patient_management/api/v1/patients/', {
+              const response = await fetch('http://localhost:8013/api/v1/patient_management/patients/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -132,43 +132,8 @@ const Patients: React.FC = () => {
         const data = await response.json();
         setPatients(data.patients || []);
       } else {
-        // Mock data for development
-        setPatients([
-          {
-            _id: '1',
-            first_name: 'John',
-            last_name: 'Doe',
-            date_of_birth: '2015-03-15',
-            gender: 'male',
-            parent_name: 'Jane Doe',
-            parent_phone: '+66-81-234-5678',
-            parent_email: 'jane.doe@email.com',
-            school: 'Bangkok International School',
-            grade: 'Grade 3',
-            medical_history: 'No significant medical history',
-            allergies: ['Peanuts'],
-            status: 'active',
-            created_at: '2024-01-15T10:30:00Z',
-            updated_at: '2024-01-15T10:30:00Z',
-          },
-          {
-            _id: '2',
-            first_name: 'Sarah',
-            last_name: 'Smith',
-            date_of_birth: '2014-07-22',
-            gender: 'female',
-            parent_name: 'Michael Smith',
-            parent_phone: '+66-82-345-6789',
-            parent_email: 'michael.smith@email.com',
-            school: 'St. Andrews International School',
-            grade: 'Grade 4',
-            medical_history: 'Asthma (controlled)',
-            allergies: ['Dust', 'Pollen'],
-            status: 'active',
-            created_at: '2024-01-14T14:20:00Z',
-            updated_at: '2024-01-14T14:20:00Z',
-          },
-        ]);
+        console.error('Failed to fetch patients from API');
+        setPatients([]);
       }
     } catch (err) {
       console.error('Patients fetch error:', err);

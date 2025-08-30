@@ -108,10 +108,18 @@ const EvepTeachers: React.FC = () => {
   const fetchTeachers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/v1/evep/teachers', {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await fetch('http://localhost:8013/api/v1/evep/teachers', {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
-      setTeachers(response.data.teachers || []);
+      if (response.ok) {
+        const data = await response.json();
+        setTeachers(data.teachers || []);
+      } else {
+        throw new Error('Failed to fetch teachers');
+      }
     } catch (error) {
       console.error('Error fetching teachers:', error);
       setSnackbar({ open: true, message: 'Error fetching teachers', severity: 'error' });
@@ -187,15 +195,33 @@ const EvepTeachers: React.FC = () => {
   const handleSubmit = async () => {
     try {
       if (editingTeacher) {
-        await axios.put(`/api/v1/evep/teachers/${editingTeacher.id}`, formData, {
-          headers: { Authorization: `Bearer ${token}` }
+        const response = await fetch(`http://localhost:8013/api/v1/evep/teachers/${editingTeacher.id}`, {
+          method: 'PUT',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
         });
-        setSnackbar({ open: true, message: 'Teacher updated successfully', severity: 'success' });
+        if (response.ok) {
+          setSnackbar({ open: true, message: 'Teacher updated successfully', severity: 'success' });
+        } else {
+          throw new Error('Failed to update teacher');
+        }
       } else {
-        await axios.post('/api/v1/evep/teachers', formData, {
-          headers: { Authorization: `Bearer ${token}` }
+        const response = await fetch('http://localhost:8013/api/v1/evep/teachers', {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
         });
-        setSnackbar({ open: true, message: 'Teacher created successfully', severity: 'success' });
+        if (response.ok) {
+          setSnackbar({ open: true, message: 'Teacher created successfully', severity: 'success' });
+        } else {
+          throw new Error('Failed to create teacher');
+        }
       }
       handleCloseDialog();
       fetchTeachers();
@@ -208,11 +234,19 @@ const EvepTeachers: React.FC = () => {
   const handleDelete = async (teacherId: string) => {
     if (window.confirm('Are you sure you want to delete this teacher?')) {
       try {
-        await axios.delete(`/api/v1/evep/teachers/${teacherId}`, {
-          headers: { Authorization: `Bearer ${token}` }
+        const response = await fetch(`http://localhost:8013/api/v1/evep/teachers/${teacherId}`, {
+          method: 'DELETE',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
-        setSnackbar({ open: true, message: 'Teacher deleted successfully', severity: 'success' });
-        fetchTeachers();
+        if (response.ok) {
+          setSnackbar({ open: true, message: 'Teacher deleted successfully', severity: 'success' });
+          fetchTeachers();
+        } else {
+          throw new Error('Failed to delete teacher');
+        }
       } catch (error) {
         console.error('Error deleting teacher:', error);
         setSnackbar({ open: true, message: 'Error deleting teacher', severity: 'error' });
@@ -225,7 +259,10 @@ const EvepTeachers: React.FC = () => {
     setOpenDialog(true);
   };
 
-  const formatAddress = (address: Address) => {
+  const formatAddress = (address?: Address) => {
+    if (!address) {
+      return 'Address not available';
+    }
     const parts = [
       address.house_no,
       address.village_no,
@@ -235,7 +272,7 @@ const EvepTeachers: React.FC = () => {
       address.district,
       address.province
     ].filter(Boolean);
-    return parts.join(', ');
+    return parts.join(', ') || 'Address not available';
   };
 
   if (loading) {

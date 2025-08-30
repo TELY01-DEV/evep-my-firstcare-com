@@ -16,6 +16,7 @@ import Screenings from './pages/Screenings';
 import Reports from './pages/Reports';
 import AIInsights from './pages/AIInsights';
 import SecurityAudit from './components/SecurityAudit';
+import MedicalStaff from './pages/MedicalStaff';
 
 // Admin Pages
 import Admin from './pages/Admin';
@@ -37,7 +38,7 @@ import VAScreeningInterface from './components/VAScreeningInterface';
 import AppointmentScheduler from './components/AppointmentScheduler';
 import LineNotificationManager from './components/LineNotificationManager';
 // import MedicalStaff from './pages/MedicalStaff';
-// import EnhancedInventoryManager from './components/EnhancedInventoryManager';
+import GlassesInventoryManager from './components/GlassesInventoryManager';
 
 // Components
 import MedicalLayout from './components/Layout/MedicalLayout';
@@ -140,12 +141,12 @@ function App() {
                       <Route path="medical-screening/diagnosis" element={<div>Diagnosis & Treatment</div>} />
                       
                       {/* Glasses Management Routes */}
-                      {/* <Route path="glasses-management/inventory" element={<EnhancedInventoryManager />} />
-                      <Route path="glasses-management/delivery" element={<EnhancedInventoryManager />} /> */}
+                              <Route path="glasses-management/inventory" element={<GlassesInventoryManager mode="inventory" />} />
+        <Route path="glasses-management/delivery" element={<GlassesInventoryManager mode="delivery" />} />
                       
                       {/* Medical Staff Management Routes */}
-                      {/* <Route path="medical-staff" element={<MedicalStaff />} />
-                      <Route path="medical-staff/management" element={<MedicalStaff />} /> */}
+                      <Route path="medical-staff" element={<MedicalStaff />} />
+                      <Route path="medical-staff/management" element={<MedicalStaff />} />
                       
                       {/* LINE Bot Management Routes */}
                       <Route path="line-notifications" element={<LineNotificationManager />} />

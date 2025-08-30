@@ -56,10 +56,11 @@ import {
 } from '@mui/icons-material';
 
 interface EnhancedScreeningInterfaceProps {
-  patientId: string;
-  patientName: string;
+  patientId?: string;
+  patientName?: string;
   onScreeningCompleted?: (results: any) => void;
   onCancel?: () => void;
+  allowPatientSelection?: boolean;
 }
 
 interface EyeChartData {
@@ -69,6 +70,16 @@ interface EyeChartData {
   letters: string[];
   currentRow: number;
   currentLetter: number;
+}
+
+interface Patient {
+  _id: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth?: string;
+  school?: string;
+  grade?: string;
+  student_id?: string;
 }
 
 interface ScreeningResults {
@@ -82,6 +93,9 @@ interface ScreeningResults {
   recommendations: string;
   follow_up_required: boolean;
   follow_up_date?: string;
+  patient_id?: string;
+  screening_date?: string;
+  examiner_id?: string;
 }
 
 const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
@@ -89,7 +103,16 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
   patientName,
   onScreeningCompleted,
   onCancel,
+  allowPatientSelection = true,
 }) => {
+  // Patient selection state
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(
+    patientId && patientName ? { _id: patientId, first_name: patientName.split(' ')[0], last_name: patientName.split(' ')[1] || '' } : null
+  );
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patientSelectionStep, setPatientSelectionStep] = useState(allowPatientSelection && !patientId);
+  const [loadingPatients, setLoadingPatients] = useState(false);
+  
   const [activeStep, setActiveStep] = useState(0);
   const [currentTest, setCurrentTest] = useState<'distance' | 'near' | 'color' | 'depth'>('distance');
   const [currentEye, setCurrentEye] = useState<'left' | 'right'>('left');
@@ -105,7 +128,43 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
     notes: '',
     recommendations: '',
     follow_up_required: false,
+    patient_id: patientId,
+    screening_date: new Date().toISOString().split('T')[0],
   });
+
+  // Fetch patients on component mount
+  useEffect(() => {
+    if (allowPatientSelection) {
+      fetchPatients();
+    }
+  }, [allowPatientSelection]);
+
+  const fetchPatients = async () => {
+    try {
+      setLoadingPatients(true);
+      const token = localStorage.getItem('evep_token');
+      
+      const response = await fetch('http://localhost:8013/api/v1/patient_management/api/v1/patients/', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPatients(data.patients || []);
+      } else {
+        console.error('Failed to fetch patients from API');
+        setPatients([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch patients:', err);
+      setPatients([]);
+    } finally {
+      setLoadingPatients(false);
+    }
+  };
 
   const [eyeChart, setEyeChart] = useState<EyeChartData>({
     type: 'snellen',
@@ -116,7 +175,15 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
     currentLetter: 0,
   });
 
-  const steps = [
+  const steps = allowPatientSelection && !patientId ? [
+    'Patient Selection',
+    'Setup & Calibration',
+    'Distance Vision Test',
+    'Near Vision Test',
+    'Color Vision Test',
+    'Depth Perception Test',
+    'Results & Recommendations'
+  ] : [
     'Setup & Calibration',
     'Distance Vision Test',
     'Near Vision Test',
@@ -431,9 +498,221 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
     </Card>
   );
 
+  const renderPatientSelection = () => (
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        Select Patient for Enhanced Vision Screening
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Choose a patient to conduct enhanced vision screening with comprehensive tests.
+      </Typography>
+
+      {loadingPatients ? (
+        <Box display="flex" justifyContent="center" p={3}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Card>
+          <CardContent>
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Select Patient</InputLabel>
+              <Select
+                value={selectedPatient?._id || ''}
+                label="Select Patient"
+                onChange={(e) => {
+                  const patient = patients.find(p => p._id === e.target.value);
+                  setSelectedPatient(patient || null);
+                }}
+              >
+                {patients.map((patient) => (
+                  <MenuItem key={patient._id} value={patient._id}>
+                    {patient.first_name} {patient.last_name} 
+                    {patient.school && ` - ${patient.school}`}
+                    {patient.grade && ` (Grade ${patient.grade})`}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            {selectedPatient && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Selected: {selectedPatient.first_name} {selectedPatient.last_name}
+                {selectedPatient.school && ` from ${selectedPatient.school}`}
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </Box>
+  );
+
+  const handleScreeningComplete = async () => {
+    try {
+      // Save to database
+      const token = localStorage.getItem('evep_token');
+      const screeningData = {
+        ...results,
+        patient_id: selectedPatient?._id || patientId,
+        screening_date: new Date().toISOString(),
+        examiner_id: localStorage.getItem('user_id'),
+        screening_type: 'enhanced_vision_screening',
+        status: 'completed'
+      };
+
+      const response = await fetch('http://localhost:8013/api/v1/screening/api/v1/screenings/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(screeningData),
+      });
+
+      if (response.ok) {
+        const savedData = await response.json();
+        console.log('Screening results saved to database:', savedData);
+        
+        if (onScreeningCompleted) {
+          onScreeningCompleted({ ...results, id: savedData.id });
+        }
+      } else {
+        console.error('Failed to save screening results to database');
+        // Still call onScreeningCompleted even if database save fails
+        if (onScreeningCompleted) {
+          onScreeningCompleted(results);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving screening results:', error);
+      // Still call onScreeningCompleted even if database save fails
+      if (onScreeningCompleted) {
+        onScreeningCompleted(results);
+      }
+    }
+  };
+
+  const renderPatientProfile = () => {
+    if (!selectedPatient) {
+      return (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="subtitle2">No Patient Selected</Typography>
+          <Typography variant="body2">
+            Please select a patient to begin the enhanced vision screening.
+          </Typography>
+        </Alert>
+      );
+    }
+
+    const calculateAge = (birthDate: string) => {
+      const today = new Date();
+      const birth = new Date(birthDate);
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--;
+      }
+      return age;
+    };
+
+    return (
+      <Card sx={{ mb: 3, bgcolor: 'primary.50', border: '2px solid', borderColor: 'primary.main' }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h6" color="primary" sx={{ display: 'flex', alignItems: 'center' }}>
+              <Person sx={{ mr: 1 }} />
+              Patient Profile
+            </Typography>
+            <Chip 
+              label="Enhanced Screening Patient" 
+              color="primary" 
+              size="small" 
+              variant="filled"
+            />
+          </Box>
+          
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Avatar sx={{ mr: 2, bgcolor: 'primary.main', width: 56, height: 56 }}>
+                  <Typography variant="h6">
+                    {selectedPatient.first_name.charAt(0)}{selectedPatient.last_name.charAt(0)}
+                  </Typography>
+                </Avatar>
+                <Box>
+                  <Typography variant="h5" fontWeight="bold">
+                    {selectedPatient.first_name} {selectedPatient.last_name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Patient ID: {selectedPatient._id}
+                  </Typography>
+                </Box>
+              </Box>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Age</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedPatient.date_of_birth ? calculateAge(selectedPatient.date_of_birth) : 'N/A'} years
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Student ID</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedPatient.student_id || 'Not specified'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Date of Birth</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedPatient.date_of_birth ? new Date(selectedPatient.date_of_birth).toLocaleDateString() : 'Not specified'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">School</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedPatient.school || 'Not specified'}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Grid>
+            
+            <Grid item xs={12}>
+              <Divider sx={{ my: 1 }} />
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
+                  <Typography variant="subtitle2" color="text.secondary">Grade Level</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedPatient.grade || 'Not specified'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Typography variant="subtitle2" color="text.secondary">Screening Type</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    Enhanced Vision Screening
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Typography variant="subtitle2" color="text.secondary">Status</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    In Progress
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+    );
+  };
+
   const renderStepContent = () => {
     switch (activeStep) {
       case 0:
+        if (allowPatientSelection && !patientId) {
+          return renderPatientSelection();
+        }
         return (
           <Box>
             <Typography variant="h6" gutterBottom>
@@ -486,6 +765,7 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
               Testing {currentEye} eye - {currentTest} vision
             </Typography>
             
+            {renderPatientProfile()}
             {renderEyeChart()}
           </Box>
         );
@@ -496,6 +776,7 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
             <Typography variant="h6" gutterBottom>
               Color Vision Test
             </Typography>
+            {renderPatientProfile()}
             {renderColorVisionTest()}
           </Box>
         );
@@ -506,6 +787,7 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
             <Typography variant="h6" gutterBottom>
               Depth Perception Test
             </Typography>
+            {renderPatientProfile()}
             {renderDepthPerceptionTest()}
           </Box>
         );
@@ -516,6 +798,7 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
             <Typography variant="h6" gutterBottom>
               Results & Recommendations
             </Typography>
+            {renderPatientProfile()}
             {renderResultsVisualization()}
             
             <TextField
@@ -553,7 +836,7 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
             Enhanced Vision Screening
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Patient: {patientName}
+            Patient: {selectedPatient ? `${selectedPatient.first_name} ${selectedPatient.last_name}` : patientName || 'Not Selected'}
           </Typography>
         </Box>
         <Box display="flex" gap={2}>
@@ -620,6 +903,7 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
             <Button
               variant="contained"
               onClick={() => setActiveStep(prev => prev + 1)}
+              disabled={activeStep === 0 && allowPatientSelection && !patientId && !selectedPatient}
             >
               Next
             </Button>
@@ -627,7 +911,7 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
             <Button
               variant="contained"
               startIcon={<Save />}
-              onClick={() => onScreeningCompleted?.(results)}
+              onClick={handleScreeningComplete}
             >
               Complete Screening
             </Button>

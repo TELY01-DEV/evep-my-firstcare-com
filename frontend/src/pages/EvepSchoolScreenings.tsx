@@ -38,11 +38,12 @@ import {
   School as SchoolIcon,
   Person as PersonIcon,
 } from '@mui/icons-material';
-import axios from 'axios';
+
 import { useAuth } from '../contexts/AuthContext';
 
 interface SchoolScreening {
-  id: string;
+  id?: string;
+  _id?: string;
   patient_id: string;
   patient_name: string;
   examiner_id: string;
@@ -57,7 +58,7 @@ interface SchoolScreening {
   recommendations: string;
   follow_up_date: string;
   created_at: string;
-  completed_at: string;
+  completed_at: string | null;
 }
 
 interface Student {
@@ -107,18 +108,19 @@ const EvepSchoolScreenings: React.FC = () => {
 
   const fetchSchoolScreenings = async () => {
     try {
-      const response = await axios.get('/api/v1/screenings/sessions?screening_category=school_screening', {
+      const response = await fetch('http://localhost:8013/api/v1/screenings/?screening_category=school_screening', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setScreenings(response.data || []);
+      const data = await response.json();
+      setScreenings(data || []);
     } catch (error) {
       console.error('Error fetching school screenings:', error);
+      setScreenings([]);
       setSnackbar({
         open: true,
-        message: 'Error fetching school screenings',
+        message: 'Failed to fetch school screenings',
         severity: 'error'
       });
-      setScreenings([]);
     } finally {
       setLoading(false);
     }
@@ -126,10 +128,11 @@ const EvepSchoolScreenings: React.FC = () => {
 
   const fetchStudents = async () => {
     try {
-      const response = await axios.get('/api/v1/evep/students', {
+      const response = await fetch('http://localhost:8013/api/v1/evep/students/', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setStudents(response.data.students || []);
+      const data = await response.json();
+      setStudents(data.students || []);
     } catch (error) {
       console.error('Error fetching students:', error);
       setStudents([]);
@@ -138,10 +141,11 @@ const EvepSchoolScreenings: React.FC = () => {
 
   const fetchTeachers = async () => {
     try {
-      const response = await axios.get('/api/v1/evep/teachers', {
+      const response = await fetch('http://localhost:8013/api/v1/evep/teachers/', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setTeachers(response.data.teachers || []);
+      const data = await response.json();
+      setTeachers(data.teachers || []);
     } catch (error) {
       console.error('Error fetching teachers:', error);
       setTeachers([]);
@@ -180,8 +184,22 @@ const EvepSchoolScreenings: React.FC = () => {
       };
 
       if (editingScreening) {
-        await axios.put(`/api/v1/screenings/sessions/${editingScreening.id}`, screeningData, {
-          headers: { Authorization: `Bearer ${token}` }
+        const screeningId = editingScreening.id || editingScreening._id;
+        if (!screeningId) {
+          setSnackbar({
+            open: true,
+            message: 'Invalid screening ID for update',
+            severity: 'error'
+          });
+          return;
+        }
+        await fetch(`http://localhost:8013/api/v1/screenings/${screeningId}`, {
+          method: 'PUT',
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(screeningData)
         });
         setSnackbar({
           open: true,
@@ -189,8 +207,13 @@ const EvepSchoolScreenings: React.FC = () => {
           severity: 'success'
         });
       } else {
-        await axios.post('/api/v1/screenings/sessions', screeningData, {
-          headers: { Authorization: `Bearer ${token}` }
+        await fetch('http://localhost:8013/api/v1/screenings/', {
+          method: 'POST',
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(screeningData)
         });
         setSnackbar({
           open: true,
@@ -212,9 +235,19 @@ const EvepSchoolScreenings: React.FC = () => {
   };
 
   const handleDeleteScreening = async (screeningId: string) => {
+    if (!screeningId) {
+      setSnackbar({
+        open: true,
+        message: 'Invalid screening ID',
+        severity: 'error'
+      });
+      return;
+    }
+    
     if (window.confirm('Are you sure you want to delete this school screening?')) {
       try {
-        await axios.delete(`/api/v1/screenings/sessions/${screeningId}`, {
+        await fetch(`http://localhost:8013/api/v1/screenings/${screeningId}`, {
+          method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         });
         setSnackbar({
@@ -403,7 +436,7 @@ const EvepSchoolScreenings: React.FC = () => {
                           <IconButton 
                             size="small" 
                             color="error"
-                            onClick={() => handleDeleteScreening(screening.id)}
+                            onClick={() => handleDeleteScreening(screening.id || screening._id || '')}
                           >
                             <DeleteIcon />
                           </IconButton>

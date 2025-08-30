@@ -67,7 +67,7 @@ const Dashboard: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8013/api/v1/reporting/api/v1/reports/dashboard/overview', {
+              const response = await fetch('http://localhost:8013/api/v1/reporting/reports/dashboard/overview', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -118,35 +118,12 @@ const Dashboard: React.FC = () => {
     } catch (err) {
       console.error('Dashboard data fetch error:', err);
       setError('Failed to load dashboard data');
-      // Set mock data for development
       setStats({
-        totalPatients: 156,
-        totalScreenings: 89,
-        pendingScreenings: 12,
-        completedScreenings: 77,
-        recentActivity: [
-          {
-            id: '1',
-            type: 'screening',
-            description: 'New screening completed for Patient #123',
-            timestamp: '2024-01-15T10:30:00Z',
-            status: 'success',
-          },
-          {
-            id: '2',
-            type: 'patient',
-            description: 'New patient registered: John Doe',
-            timestamp: '2024-01-15T09:15:00Z',
-            status: 'info',
-          },
-          {
-            id: '3',
-            type: 'alert',
-            description: 'Follow-up required for Patient #89',
-            timestamp: '2024-01-15T08:45:00Z',
-            status: 'warning',
-          },
-        ],
+        totalPatients: 0,
+        totalScreenings: 0,
+        pendingScreenings: 0,
+        completedScreenings: 0,
+        recentActivity: [],
       });
     } finally {
       setLoading(false);

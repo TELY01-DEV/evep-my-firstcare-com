@@ -123,10 +123,18 @@ const EvepStudents: React.FC = () => {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/v1/evep/students', {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await fetch('http://localhost:8013/api/v1/evep/students', {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
-      setStudents(response.data.students || []);
+      if (response.ok) {
+        const data = await response.json();
+        setStudents(data.students || []);
+      } else {
+        throw new Error('Failed to fetch students');
+      }
     } catch (error) {
       console.error('Error fetching students:', error);
       setSnackbar({ open: true, message: 'Error fetching students', severity: 'error' });
@@ -138,10 +146,18 @@ const EvepStudents: React.FC = () => {
 
   const fetchParents = async () => {
     try {
-      const response = await axios.get('/api/v1/evep/parents', {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await fetch('http://localhost:8013/api/v1/evep/parents', {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
-      setParents(response.data.parents || []);
+      if (response.ok) {
+        const data = await response.json();
+        setParents(data.parents || []);
+      } else {
+        throw new Error('Failed to fetch parents');
+      }
     } catch (error) {
       console.error('Error fetching parents:', error);
       setParents([]);
@@ -221,15 +237,33 @@ const EvepStudents: React.FC = () => {
   const handleSubmit = async () => {
     try {
       if (editingStudent) {
-        await axios.put(`/api/v1/evep/students/${editingStudent.id}`, formData, {
-          headers: { Authorization: `Bearer ${token}` }
+        const response = await fetch(`http://localhost:8013/api/v1/evep/students/${editingStudent.id}`, {
+          method: 'PUT',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
         });
-        setSnackbar({ open: true, message: 'Student updated successfully', severity: 'success' });
+        if (response.ok) {
+          setSnackbar({ open: true, message: 'Student updated successfully', severity: 'success' });
+        } else {
+          throw new Error('Failed to update student');
+        }
       } else {
-        await axios.post('/api/v1/evep/students', formData, {
-          headers: { Authorization: `Bearer ${token}` }
+        const response = await fetch('http://localhost:8013/api/v1/evep/students', {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
         });
-        setSnackbar({ open: true, message: 'Student created successfully', severity: 'success' });
+        if (response.ok) {
+          setSnackbar({ open: true, message: 'Student created successfully', severity: 'success' });
+        } else {
+          throw new Error('Failed to create student');
+        }
       }
       handleCloseDialog();
       fetchStudents();
@@ -242,11 +276,19 @@ const EvepStudents: React.FC = () => {
   const handleDelete = async (studentId: string) => {
     if (window.confirm('Are you sure you want to delete this student?')) {
       try {
-        await axios.delete(`/api/v1/evep/students/${studentId}`, {
-          headers: { Authorization: `Bearer ${token}` }
+        const response = await fetch(`http://localhost:8013/api/v1/evep/students/${studentId}`, {
+          method: 'DELETE',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
-        setSnackbar({ open: true, message: 'Student deleted successfully', severity: 'success' });
-        fetchStudents();
+        if (response.ok) {
+          setSnackbar({ open: true, message: 'Student deleted successfully', severity: 'success' });
+          fetchStudents();
+        } else {
+          throw new Error('Failed to delete student');
+        }
       } catch (error) {
         console.error('Error deleting student:', error);
         setSnackbar({ open: true, message: 'Error deleting student', severity: 'error' });

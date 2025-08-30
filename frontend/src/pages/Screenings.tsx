@@ -57,6 +57,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import MobileVisionScreeningForm from '../components/MobileVisionScreeningForm';
+import StandardVisionScreeningForm from '../components/StandardVisionScreeningForm';
 import EnhancedScreeningInterface from '../components/EnhancedScreeningInterface';
 
 interface ScreeningSession {
@@ -113,6 +114,7 @@ const Screenings: React.FC = () => {
   const [screeningDialogOpen, setScreeningDialogOpen] = useState(false);
   const [mobileScreeningDialogOpen, setMobileScreeningDialogOpen] = useState(false);
   const [mobileScreeningPageOpen, setMobileScreeningPageOpen] = useState(false);
+  const [standardScreeningPageOpen, setStandardScreeningPageOpen] = useState(false);
   const [enhancedScreeningDialogOpen, setEnhancedScreeningDialogOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   
@@ -160,44 +162,8 @@ const Screenings: React.FC = () => {
         const sessionsData = await sessionsResponse.json();
         setSessions(sessionsData.sessions || []);
       } else {
-        // Mock data for development
-        setSessions([
-          {
-            _id: '1',
-            patient_id: '1',
-            patient_name: 'John Doe',
-            examiner_id: user?.user_id || '1',
-            examiner_name: user?.first_name + ' ' + user?.last_name || 'Dr. Smith',
-            screening_type: 'Mobile Vision Screening',
-            equipment_used: 'Mobile Vision Screening Kit',
-            status: 'completed',
-            created_at: '2024-01-15T10:30:00Z',
-            updated_at: '2024-01-15T11:00:00Z',
-            results: {
-              left_eye_distance: '20/20',
-              right_eye_distance: '20/25',
-              left_eye_near: '20/20',
-              right_eye_near: '20/20',
-              color_vision: 'normal',
-              depth_perception: 'normal',
-              notes: 'Patient performed well during screening',
-              recommendations: 'Continue regular eye care',
-              follow_up_required: false,
-            }
-          },
-          {
-            _id: '2',
-            patient_id: '2',
-            patient_name: 'Sarah Smith',
-            examiner_id: user?.user_id || '1',
-            examiner_name: user?.first_name + ' ' + user?.last_name || 'Dr. Smith',
-            screening_type: 'Mobile Vision Screening',
-            equipment_used: 'Mobile Vision Screening Kit',
-            status: 'in_progress',
-            created_at: '2024-01-15T14:00:00Z',
-            updated_at: '2024-01-15T14:15:00Z',
-          }
-        ]);
+        console.error('Failed to fetch sessions from API');
+        setSessions([]);
       }
 
       // Fetch patients
@@ -228,6 +194,10 @@ const Screenings: React.FC = () => {
 
   const handleStartMobileScreening = () => {
     setMobileScreeningPageOpen(true);
+  };
+
+  const handleStartStandardScreening = () => {
+    setStandardScreeningPageOpen(true);
   };
 
   const handlePatientSelect = (patient: Patient) => {
@@ -378,6 +348,20 @@ const Screenings: React.FC = () => {
     );
   }
 
+  // If standard screening page is open, show the standard screening form
+  if (standardScreeningPageOpen) {
+    return (
+      <StandardVisionScreeningForm
+        onComplete={(screening: any) => {
+          setSuccess('Standard vision screening completed successfully!');
+          setStandardScreeningPageOpen(false);
+          fetchData();
+        }}
+        onCancel={() => setStandardScreeningPageOpen(false)}
+      />
+    );
+  }
+
   return (
     <Box p={3}>
       {/* Header */}
@@ -394,7 +378,7 @@ const Screenings: React.FC = () => {
           <Button
             variant="outlined"
             startIcon={<Assessment />}
-            onClick={handleStartScreening}
+            onClick={handleStartStandardScreening}
             sx={{ borderRadius: 2 }}
           >
             Standard Screening

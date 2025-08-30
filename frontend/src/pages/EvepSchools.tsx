@@ -97,14 +97,22 @@ const EvepSchools: React.FC = () => {
   const fetchSchools = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/v1/evep/schools', {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await fetch('http://localhost:8013/api/v1/evep/schools', {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
-      setSchools(response.data.schools || []);
+      if (response.ok) {
+        const data = await response.json();
+        setSchools(data.schools || []);
+      } else {
+        throw new Error('Failed to fetch schools');
+      }
     } catch (error) {
       console.error('Error fetching schools:', error);
-      setSnackbar({ open: true, message: 'Error fetching schools', severity: 'error' });
       setSchools([]);
+      setSnackbar({ open: true, message: 'Failed to fetch schools', severity: 'error' });
     } finally {
       setLoading(false);
     }
@@ -166,15 +174,33 @@ const EvepSchools: React.FC = () => {
   const handleSubmit = async () => {
     try {
       if (editingSchool) {
-        await axios.put(`/api/v1/evep/schools/${editingSchool.id}`, formData, {
-          headers: { Authorization: `Bearer ${token}` }
+        const response = await fetch(`http://localhost:8013/api/v1/evep/schools/${editingSchool.id}`, {
+          method: 'PUT',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
         });
-        setSnackbar({ open: true, message: 'School updated successfully', severity: 'success' });
+        if (response.ok) {
+          setSnackbar({ open: true, message: 'School updated successfully', severity: 'success' });
+        } else {
+          throw new Error('Failed to update school');
+        }
       } else {
-        await axios.post('/api/v1/evep/schools', formData, {
-          headers: { Authorization: `Bearer ${token}` }
+        const response = await fetch('http://localhost:8013/api/v1/evep/schools', {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
         });
-        setSnackbar({ open: true, message: 'School created successfully', severity: 'success' });
+        if (response.ok) {
+          setSnackbar({ open: true, message: 'School created successfully', severity: 'success' });
+        } else {
+          throw new Error('Failed to create school');
+        }
       }
       handleCloseDialog();
       fetchSchools();
@@ -187,11 +213,19 @@ const EvepSchools: React.FC = () => {
   const handleDelete = async (schoolId: string) => {
     if (window.confirm('Are you sure you want to delete this school?')) {
       try {
-        await axios.delete(`/api/v1/evep/schools/${schoolId}`, {
-          headers: { Authorization: `Bearer ${token}` }
+        const response = await fetch(`http://localhost:8013/api/v1/evep/schools/${schoolId}`, {
+          method: 'DELETE',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
-        setSnackbar({ open: true, message: 'School deleted successfully', severity: 'success' });
-        fetchSchools();
+        if (response.ok) {
+          setSnackbar({ open: true, message: 'School deleted successfully', severity: 'success' });
+          fetchSchools();
+        } else {
+          throw new Error('Failed to delete school');
+        }
       } catch (error) {
         console.error('Error deleting school:', error);
         setSnackbar({ open: true, message: 'Error deleting school', severity: 'error' });

@@ -77,10 +77,12 @@ import {
   School as SchoolIcon,
   Home,
   LocalShipping,
+  ArrowBack,
 } from '@mui/icons-material';
 
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import DoctorDiagnosisForm from './DoctorDiagnosisForm';
+
 
 interface MobileVisionScreeningFormProps {
   onScreeningCompleted?: (screening: any) => void;
@@ -98,6 +100,7 @@ interface Patient {
   citizen_id?: string;
   parent_consent?: boolean;
   registration_status?: 'pending' | 'registered' | 'screened';
+  photos?: string[]; // Array of photo URLs/base64 strings
 }
 
 interface VisionResults {
@@ -137,6 +140,9 @@ interface VisionResults {
   // Notes
   screening_notes: string;
   recommendations: string;
+  
+  // Doctor Diagnosis
+  doctor_diagnosis?: any;
 }
 
 interface Appointment {
@@ -222,6 +228,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
     'Parent Consent',
     'Student Registration',
     'VA Screening',
+    'Doctor Diagnosis',
     'Glasses Selection',
     'Inventory Check',
     'School Delivery'
@@ -249,76 +256,13 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
         const data = await response.json();
         setPatients(data.patients || []);
       } else {
-        // Mock data for development
-        setPatients([
-          {
-            _id: '1',
-            first_name: 'John',
-            last_name: 'Doe',
-            date_of_birth: '2015-03-15',
-            school: 'Bangkok International School',
-            grade: 'Grade 3',
-            student_id: 'STU001',
-            citizen_id: '1234567890123',
-            parent_consent: true,
-            registration_status: 'registered'
-          },
-          {
-            _id: '2',
-            first_name: 'Sarah',
-            last_name: 'Smith',
-            date_of_birth: '2014-08-22',
-            school: 'Bangkok International School',
-            grade: 'Grade 4',
-            student_id: 'STU002',
-            citizen_id: '1234567890124',
-            parent_consent: false,
-            registration_status: 'pending'
-          },
-          {
-            _id: '3',
-            first_name: 'Michael',
-            last_name: 'Johnson',
-            date_of_birth: '2016-01-10',
-            school: 'Bangkok International School',
-            grade: 'Grade 2',
-            student_id: 'STU003',
-            citizen_id: '1234567890125',
-            parent_consent: true,
-            registration_status: 'screened'
-          }
-        ]);
+        console.error('Failed to fetch patients from API');
+        setPatients([]);
       }
     } catch (err) {
       console.error('Failed to fetch patients:', err);
       setError('Failed to fetch patients');
-      // Set mock data on error
-      setPatients([
-        {
-          _id: '1',
-          first_name: 'John',
-          last_name: 'Doe',
-          date_of_birth: '2015-03-15',
-          school: 'Bangkok International School',
-          grade: 'Grade 3',
-          student_id: 'STU001',
-          citizen_id: '1234567890123',
-          parent_consent: true,
-          registration_status: 'registered'
-        },
-        {
-          _id: '2',
-          first_name: 'Sarah',
-          last_name: 'Smith',
-          date_of_birth: '2014-08-22',
-          school: 'Bangkok International School',
-          grade: 'Grade 4',
-          student_id: 'STU002',
-          citizen_id: '1234567890124',
-          parent_consent: false,
-          registration_status: 'pending'
-        }
-      ]);
+      setPatients([]);
     } finally {
       setLoading(false);
     }
@@ -328,7 +272,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
     try {
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8013/api/v1/appointment/api/v1/appointments/', {
+      const response = await fetch('http://localhost:8013/api/v1/appointments/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -339,54 +283,13 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
         const data = await response.json();
         setAppointments(data.appointments || []);
       } else {
-        // Mock data for development
-        setAppointments([
-          {
-            _id: '1',
-            patient_id: '1',
-            patient_name: 'John Doe',
-            appointment_date: '2024-01-20',
-            appointment_time: '09:00',
-            status: 'confirmed',
-            parent_consent: true,
-            consent_date: '2024-01-15'
-          },
-          {
-            _id: '2',
-            patient_id: '2',
-            patient_name: 'Sarah Smith',
-            appointment_date: '2024-01-21',
-            appointment_time: '10:30',
-            status: 'scheduled',
-            parent_consent: false
-          }
-        ]);
+        console.error('Failed to fetch appointments from API');
+        setAppointments([]);
       }
     } catch (err) {
       console.error('Failed to fetch appointments:', err);
       setError('Failed to fetch appointments');
-      // Set mock data on error
-      setAppointments([
-        {
-          _id: '1',
-          patient_id: '1',
-          patient_name: 'John Doe',
-          appointment_date: '2024-01-20',
-          appointment_time: '09:00',
-          status: 'confirmed',
-          parent_consent: true,
-          consent_date: '2024-01-15'
-        },
-        {
-          _id: '2',
-          patient_id: '2',
-          patient_name: 'Sarah Smith',
-          appointment_date: '2024-01-21',
-          appointment_time: '10:30',
-          status: 'scheduled',
-          parent_consent: false
-        }
-      ]);
+      setAppointments([]);
     }
   };
 
@@ -480,8 +383,35 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
         Select Patient for Mobile Vision Screening
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Choose a patient to conduct mobile vision screening with glasses prescription and fitting.
+        Choose a patient to conduct mobile vision screening with glasses prescription and fitting, or start the workflow without a patient.
       </Typography>
+
+      {/* Quick Start Option */}
+      <Card sx={{ mb: 3, border: '2px dashed', borderColor: 'primary.main' }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box>
+              <Typography variant="h6" color="primary">
+                Start Workflow Without Patient
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Begin the mobile vision screening workflow and add patient information later
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<Assessment />}
+              onClick={() => {
+                setSelectedPatient(null);
+                setActiveStep(1); // Move to Parent Consent step
+              }}
+            >
+              Start Workflow
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
 
       {/* Patient Selection Tabs */}
       <Tabs value={selectedTab} onChange={(e, newValue) => setSelectedTab(newValue)} sx={{ mb: 3 }}>
@@ -627,6 +557,125 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
     </Box>
   );
 
+  const renderPatientProfile = () => {
+    if (!selectedPatient) {
+      return (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="subtitle2">No Patient Selected</Typography>
+          <Typography variant="body2">
+            Patient information will be added in the Student Registration step.
+          </Typography>
+        </Alert>
+      );
+    }
+
+    const calculateAge = (birthDate: string) => {
+      const today = new Date();
+      const birth = new Date(birthDate);
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--;
+      }
+      return age;
+    };
+
+    return (
+      <Card sx={{ mb: 3, bgcolor: 'primary.50', border: '2px solid', borderColor: 'primary.main' }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h6" color="primary" sx={{ display: 'flex', alignItems: 'center' }}>
+              <Person sx={{ mr: 1 }} />
+              Patient Profile
+            </Typography>
+            <Chip 
+              label="Mobile Unit Patient" 
+              color="primary" 
+              size="small" 
+              variant="filled"
+            />
+          </Box>
+          
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Avatar 
+                  sx={{ mr: 2, bgcolor: 'primary.main', width: 56, height: 56 }}
+                  src={selectedPatient.photos && selectedPatient.photos.length > 0 ? selectedPatient.photos[0] : undefined}
+                >
+                  <Typography variant="h6">
+                    {selectedPatient.first_name.charAt(0)}{selectedPatient.last_name.charAt(0)}
+                  </Typography>
+                </Avatar>
+                <Box>
+                  <Typography variant="h5" fontWeight="bold">
+                    {selectedPatient.first_name} {selectedPatient.last_name}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Patient ID: {selectedPatient._id}
+                  </Typography>
+                </Box>
+              </Box>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Age</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {calculateAge(selectedPatient.date_of_birth)} years
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Student ID</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedPatient.student_id || 'Not specified'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Date of Birth</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {new Date(selectedPatient.date_of_birth).toLocaleDateString()}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">School</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedPatient.school || 'Not specified'}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Grid>
+            
+            <Grid item xs={12}>
+              <Divider sx={{ my: 1 }} />
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={4}>
+                  <Typography variant="subtitle2" color="text.secondary">Grade Level</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedPatient.grade || 'Not specified'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Typography variant="subtitle2" color="text.secondary">Citizen ID</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedPatient.citizen_id || 'Not specified'}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <Typography variant="subtitle2" color="text.secondary">Status</Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {selectedPatient.registration_status || 'Not specified'}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+    );
+  };
+
   const renderWorkflowStep = () => {
     switch (activeStep) {
       case 0:
@@ -638,6 +687,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
             <Typography variant="h6" gutterBottom>
               Parent Consent
             </Typography>
+            {renderPatientProfile()}
             <Card>
               <CardContent>
                 <FormControlLabel
@@ -673,19 +723,119 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
             </Typography>
             <Card>
               <CardContent>
-                <Typography variant="body1" gutterBottom>
-                  Patient: {selectedPatient?.first_name} {selectedPatient?.last_name}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Registration status: {selectedPatient?.registration_status || 'pending'}
-                </Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<HowToReg />}
-                  sx={{ mt: 2 }}
-                >
-                  Complete Registration
-                </Button>
+                {selectedPatient ? (
+                  <>
+                    <Typography variant="body1" gutterBottom>
+                      Patient: {selectedPatient.first_name} {selectedPatient.last_name}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Registration status: {selectedPatient.registration_status || 'pending'}
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      startIcon={<HowToReg />}
+                      sx={{ mt: 2 }}
+                    >
+                      Complete Registration
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      No patient selected. Please add patient information to continue.
+                    </Alert>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="First Name"
+                          value={newPatient.first_name}
+                          onChange={(e) => setNewPatient({
+                            ...newPatient,
+                            first_name: e.target.value
+                          })}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Last Name"
+                          value={newPatient.last_name}
+                          onChange={(e) => setNewPatient({
+                            ...newPatient,
+                            last_name: e.target.value
+                          })}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Date of Birth"
+                          type="date"
+                          value={newPatient.date_of_birth}
+                          onChange={(e) => setNewPatient({
+                            ...newPatient,
+                            date_of_birth: e.target.value
+                          })}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="School"
+                          value={newPatient.school}
+                          onChange={(e) => setNewPatient({
+                            ...newPatient,
+                            school: e.target.value
+                          })}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Grade"
+                          value={newPatient.grade}
+                          onChange={(e) => setNewPatient({
+                            ...newPatient,
+                            grade: e.target.value
+                          })}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Parent Name"
+                          value={newPatient.parent_name}
+                          onChange={(e) => setNewPatient({
+                            ...newPatient,
+                            parent_name: e.target.value
+                          })}
+                        />
+                      </Grid>
+                    </Grid>
+                    <Button
+                      variant="contained"
+                      startIcon={<HowToReg />}
+                      sx={{ mt: 2 }}
+                      onClick={() => {
+                        // Create a temporary patient object
+                        const tempPatient: Patient = {
+                          _id: `temp_${Date.now()}`,
+                          first_name: newPatient.first_name,
+                          last_name: newPatient.last_name,
+                          date_of_birth: newPatient.date_of_birth,
+                          school: newPatient.school,
+                          grade: newPatient.grade,
+                          registration_status: 'registered'
+                        };
+                        setSelectedPatient(tempPatient);
+                      }}
+                    >
+                      Register Patient
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           </Box>
@@ -697,6 +847,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
             <Typography variant="h6" gutterBottom>
               Visual Acuity Screening
             </Typography>
+            {renderPatientProfile()}
             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
                 <Card>
@@ -758,12 +909,29 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
           </Box>
         );
       
-      case 4: // Glasses Selection
+      case 4: // Doctor Diagnosis
+        return (
+          <DoctorDiagnosisForm
+            patient={selectedPatient}
+            onComplete={(diagnosis) => {
+              // Store diagnosis data
+              setScreeningResults({
+                ...screeningResults,
+                doctor_diagnosis: diagnosis
+              });
+              handleNext();
+            }}
+            onBack={() => setActiveStep(activeStep - 1)}
+          />
+        );
+      
+      case 5: // Glasses Selection
         return (
           <Box>
             <Typography variant="h6" gutterBottom>
               Glasses Selection
             </Typography>
+            {renderPatientProfile()}
             <Card>
               <CardContent>
                 <FormControlLabel
@@ -820,12 +988,13 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
           </Box>
         );
       
-      case 5: // Inventory Check
+      case 6: // Inventory Check
         return (
           <Box>
             <Typography variant="h6" gutterBottom>
               Inventory Check
             </Typography>
+            {renderPatientProfile()}
             <Card>
               <CardContent>
                 <FormControlLabel
@@ -851,12 +1020,13 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
           </Box>
         );
       
-      case 6: // School Delivery
+      case 7: // School Delivery
         return (
           <Box>
             <Typography variant="h6" gutterBottom>
               School Delivery
             </Typography>
+            {renderPatientProfile()}
             <Card>
               <CardContent>
                 <FormControl component="fieldset">
@@ -895,13 +1065,24 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Hospital Mobile Unit Workflow
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Complete mobile vision screening workflow with glasses prescription and fitting
-        </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+        <Box>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Hospital Mobile Unit Workflow
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Complete mobile vision screening workflow with glasses prescription and fitting
+          </Typography>
+        </Box>
+        {onCancel && (
+          <Button
+            variant="outlined"
+            startIcon={<ArrowBack />}
+            onClick={onCancel}
+          >
+            Cancel
+          </Button>
+        )}
       </Box>
 
       {/* Alerts */}
@@ -939,13 +1120,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
 
       {/* Navigation */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="outlined"
-            onClick={onCancel}
-          >
-            Cancel
-          </Button>
+        <Box>
           <Button
             disabled={activeStep === 0}
             onClick={handleBack}

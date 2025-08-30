@@ -51,6 +51,7 @@ class Parent(BaseModel):
     income_level: Optional[Literal["low", "middle", "high"]] = None
     address: Address
     emergency_contact: EmergencyContact
+    status: Optional[str] = "active"
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -77,6 +78,7 @@ class Student(BaseModel):
     disease: Optional[str] = None
     parent_id: str  # Reference to parent document
     consent_document: bool = False
+    status: Optional[str] = "active"
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -100,6 +102,7 @@ class Teacher(BaseModel):
     position: Optional[str] = None
     school_year: Optional[str] = None
     work_address: Address
+    status: Optional[str] = "active"
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -118,6 +121,7 @@ class School(BaseModel):
     address: Address
     phone: Optional[str] = None
     email: Optional[str] = None
+    status: Optional[str] = "active"
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

@@ -4,419 +4,467 @@ import {
   Card,
   CardContent,
   Typography,
-  TextField,
   Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+  TextField,
   Grid,
-  Alert,
-  CircularProgress,
-  Chip,
-  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Paper,
   IconButton,
+  Tooltip,
+  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Alert,
+  Snackbar,
+  CircularProgress,
+  Avatar,
+  Divider,
   List,
   ListItem,
   ListItemText,
-  ListItemIcon,
-  Divider
+  ListItemAvatar,
+  Fab,
+  Badge,
 } from '@mui/material';
 import {
-  Inventory,
   Add,
   Edit,
+  Delete,
   Visibility,
+  Inventory,
+  LocalShipping,
   Warning,
   CheckCircle,
   Error,
-  ExpandMore,
-  LocalShipping,
+  Refresh,
+  Search,
+  FilterList,
+  AddShoppingCart,
+  RemoveShoppingCart,
   Assessment,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Visibility as GlassesIcon,
+  Category,
+  ColorLens,
+  Straighten,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
-
-interface GlassesInventoryManagerProps {
-  onItemCreated?: (item: any) => void;
-  onStockAdjusted?: (adjustment: any) => void;
-}
 
 interface GlassesItem {
-  item_id: string;
+  _id: string;
   item_code: string;
-  item_name: string;
+  name: string;
   category: string;
-  brand?: string;
-  model?: string;
-  specifications?: any;
-  unit_price: number;
-  cost_price: number;
-  current_stock: number;
-  reorder_level: number;
-  supplier_info?: any;
-  notes?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-interface StockAdjustment {
-  item_id: string;
-  adjustment_type: string;
+  brand: string;
+  model: string;
+  frame_color: string;
+  lens_type: string;
+  prescription_range: string;
+  size: string;
+  material: string;
   quantity: number;
-  reason: string;
-  reference_document?: string;
-  notes?: string;
+  min_quantity: number;
+  unit_price: number;
+  supplier: string;
+  location: string;
+  status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'discontinued';
+  last_updated: string;
+  created_at: string;
 }
 
-const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({
-  onItemCreated,
-  onStockAdjusted
-}) => {
-  const { token } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+interface GlassesInventoryManagerProps {
+  mode?: 'inventory' | 'delivery';
+}
 
-  // Data state
+const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode = 'inventory' }) => {
+  const { user } = useAuth();
   const [items, setItems] = useState<GlassesItem[]>([]);
-  const [statistics, setStatistics] = useState<any>(null);
-  const [lowStockItems, setLowStockItems] = useState<GlassesItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [editingItem, setEditingItem] = useState<GlassesItem | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'info' | 'warning';
+  }>({ open: false, message: '', severity: 'info' });
 
-  // Form state
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [showAdjustmentForm, setShowAdjustmentForm] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<GlassesItem | null>(null);
+  const [formData, setFormData] = useState({
+    item_code: '',
+    name: '',
+    category: '',
+    brand: '',
+    model: '',
+    frame_color: '',
+    lens_type: '',
+    prescription_range: '',
+    size: '',
+    material: '',
+    quantity: 0,
+    min_quantity: 5,
+    unit_price: 0,
+    supplier: '',
+    location: '',
+  });
 
-  // Create form state
-  const [itemCode, setItemCode] = useState('');
-  const [itemName, setItemName] = useState('');
-  const [category, setCategory] = useState('');
-  const [brand, setBrand] = useState('');
-  const [model, setModel] = useState('');
-  const [unitPrice, setUnitPrice] = useState('');
-  const [costPrice, setCostPrice] = useState('');
-  const [initialStock, setInitialStock] = useState('');
-  const [reorderLevel, setReorderLevel] = useState('');
-  const [notes, setNotes] = useState('');
-
-  // Adjustment form state
-  const [adjustmentType, setAdjustmentType] = useState('');
-  const [adjustmentQuantity, setAdjustmentQuantity] = useState('');
-  const [adjustmentReason, setAdjustmentReason] = useState('');
-  const [adjustmentNotes, setAdjustmentNotes] = useState('');
-
-  // Load data on component mount
   useEffect(() => {
-    loadInventory();
-    loadStatistics();
-    loadLowStockItems();
+    fetchInventory();
   }, []);
 
-  const loadInventory = async () => {
+  const fetchInventory = async () => {
     try {
-      const response = await axios.get('/api/v1/inventory/glasses', {
-        headers: { Authorization: `Bearer ${token}` }
+      setLoading(true);
+      const token = localStorage.getItem('evep_token');
+      const response = await fetch('http://localhost:8013/api/v1/inventory/glasses', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
-      setItems(response.data || []);
-    } catch (err: any) {
-      setError('Failed to load inventory');
-    }
-  };
 
-  const loadStatistics = async () => {
-    try {
-      const response = await axios.get('/api/v1/inventory/glasses/stats', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setStatistics(response.data);
-    } catch (err: any) {
-      setError('Failed to load statistics');
-    }
-  };
-
-  const loadLowStockItems = async () => {
-    try {
-      const response = await axios.get('/api/v1/inventory/glasses/low-stock', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setLowStockItems(response.data.low_stock_items || []);
-    } catch (err: any) {
-      setError('Failed to load low stock items');
-    }
-  };
-
-  const handleCreateItem = async () => {
-    if (!itemCode || !itemName || !category || !unitPrice || !costPrice || !initialStock || !reorderLevel) {
-      setError('Please fill in all required fields');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const itemData = {
-        item_code: itemCode,
-        item_name: itemName,
-        category: category,
-        brand: brand || undefined,
-        model: model || undefined,
-        unit_price: parseFloat(unitPrice),
-        cost_price: parseFloat(costPrice),
-        initial_stock: parseInt(initialStock),
-        reorder_level: parseInt(reorderLevel),
-        notes: notes || undefined
-      };
-
-      const response = await axios.post(
-        '/api/v1/inventory/glasses',
-        itemData,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-
-      setSuccess('Item created successfully!');
-      setShowCreateForm(false);
-      resetCreateForm();
-      loadInventory();
-      loadStatistics();
-      if (onItemCreated) {
-        onItemCreated(response.data);
+      if (response.ok) {
+        const data = await response.json();
+        setItems(data.items || []);
+      } else {
+        console.error('Failed to fetch inventory from API');
+        setItems([]);
       }
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to create item');
+    } catch (error) {
+      console.error('Error fetching inventory:', error);
+      setSnackbar({
+        open: true,
+        message: 'Error fetching inventory data',
+        severity: 'error'
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAdjustStock = async () => {
-    if (!selectedItem || !adjustmentType || !adjustmentQuantity || !adjustmentReason) {
-      setError('Please fill in all required fields');
-      return;
-    }
+  const handleAddItem = () => {
+    setEditingItem(null);
+    setFormData({
+      item_code: '',
+      name: '',
+      category: '',
+      brand: '',
+      model: '',
+      frame_color: '',
+      lens_type: '',
+      prescription_range: '',
+      size: '',
+      material: '',
+      quantity: 0,
+      min_quantity: 5,
+      unit_price: 0,
+      supplier: '',
+      location: '',
+    });
+    setOpenDialog(true);
+  };
 
-    setLoading(true);
-    setError(null);
+  const handleEditItem = (item: GlassesItem) => {
+    setEditingItem(item);
+    setFormData({
+      item_code: item.item_code,
+      name: item.name,
+      category: item.category,
+      brand: item.brand,
+      model: item.model,
+      frame_color: item.frame_color,
+      lens_type: item.lens_type,
+      prescription_range: item.prescription_range,
+      size: item.size,
+      material: item.material,
+      quantity: item.quantity,
+      min_quantity: item.min_quantity,
+      unit_price: item.unit_price,
+      supplier: item.supplier,
+      location: item.location,
+    });
+    setOpenDialog(true);
+  };
 
+  const handleSaveItem = async () => {
     try {
-      const adjustmentData = {
-        item_id: selectedItem.item_id,
-        adjustment_type: adjustmentType,
-        quantity: parseInt(adjustmentQuantity),
-        reason: adjustmentReason,
-        notes: adjustmentNotes || undefined
-      };
+      const token = localStorage.getItem('evep_token');
+      const url = editingItem 
+        ? `http://localhost:8013/api/v1/inventory/glasses/${editingItem._id}`
+        : 'http://localhost:8013/api/v1/inventory/glasses';
+      
+      const response = await fetch(url, {
+        method: editingItem ? 'PUT' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
 
-      const response = await axios.post(
-        `/api/v1/inventory/glasses/${selectedItem.item_id}/adjust-stock`,
-        adjustmentData,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-
-      setSuccess('Stock adjusted successfully!');
-      setShowAdjustmentForm(false);
-      resetAdjustmentForm();
-      loadInventory();
-      loadStatistics();
-      loadLowStockItems();
-      if (onStockAdjusted) {
-        onStockAdjusted(response.data);
+      if (response.ok) {
+        setSnackbar({
+          open: true,
+          message: `Item ${editingItem ? 'updated' : 'added'} successfully!`,
+          severity: 'success'
+        });
+        setOpenDialog(false);
+        fetchInventory();
+      } else {
+        throw 'Failed to save item';
       }
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to adjust stock');
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error('Error saving item:', error);
+      setSnackbar({
+        open: true,
+        message: 'Error saving item',
+        severity: 'error'
+      });
     }
   };
 
-  const resetCreateForm = () => {
-    setItemCode('');
-    setItemName('');
-    setCategory('');
-    setBrand('');
-    setModel('');
-    setUnitPrice('');
-    setCostPrice('');
-    setInitialStock('');
-    setReorderLevel('');
-    setNotes('');
+  const handleDeleteItem = async (itemId: string) => {
+    if (window.confirm('Are you sure you want to delete this item?')) {
+      try {
+        const token = localStorage.getItem('evep_token');
+        const response = await fetch(`http://localhost:8013/api/v1/inventory/glasses/${itemId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          setSnackbar({
+            open: true,
+            message: 'Item deleted successfully!',
+            severity: 'success'
+          });
+          fetchInventory();
+        } else {
+          throw 'Failed to delete item';
+        }
+      } catch (error) {
+        console.error('Error deleting item:', error);
+        setSnackbar({
+          open: true,
+          message: 'Error deleting item',
+          severity: 'error'
+        });
+      }
+    }
   };
 
-  const resetAdjustmentForm = () => {
-    setAdjustmentType('');
-    setAdjustmentQuantity('');
-    setAdjustmentReason('');
-    setAdjustmentNotes('');
-    setSelectedItem(null);
-  };
-
-  const getStockStatusColor = (currentStock: number, reorderLevel: number) => {
-    if (currentStock === 0) return 'error';
-    if (currentStock <= reorderLevel) return 'warning';
-    return 'success';
-  };
-
-  const getStockStatusText = (currentStock: number, reorderLevel: number) => {
-    if (currentStock === 0) return 'Out of Stock';
-    if (currentStock <= reorderLevel) return 'Low Stock';
-    return 'In Stock';
-  };
-
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'frames':
-        return 'primary';
-      case 'lenses':
-        return 'secondary';
-      case 'accessories':
-        return 'info';
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'in_stock':
+        return 'success';
+      case 'low_stock':
+        return 'warning';
+      case 'out_of_stock':
+        return 'error';
+      case 'discontinued':
+        return 'default';
       default:
         return 'default';
     }
   };
 
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'in_stock':
+        return <CheckCircle />;
+      case 'low_stock':
+        return <Warning />;
+      case 'out_of_stock':
+        return <Error />;
+      case 'discontinued':
+        return <Visibility />;
+      default:
+        return <Visibility />;
+    }
+  };
+
+  const filteredItems = items.filter(item => {
+    const matchesSearch = 
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.item_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.brand.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategory = filterCategory === 'all' || item.category === filterCategory;
+    const matchesStatus = filterStatus === 'all' || item.status === filterStatus;
+    
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
+
+  const getInventoryStats = () => {
+    const totalItems = items.length;
+    const inStock = items.filter(item => item.status === 'in_stock').length;
+    const lowStock = items.filter(item => item.status === 'low_stock').length;
+    const outOfStock = items.filter(item => item.status === 'out_of_stock').length;
+    const totalValue = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+
+    return { totalItems, inStock, lowStock, outOfStock, totalValue };
+  };
+
+  const stats = getInventoryStats();
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
-    <Box>
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Inventory sx={{ fontSize: 32, color: 'primary.main' }} />
+          <Typography variant="h4" component="h1">
+            {mode === 'inventory' ? 'Glasses Inventory Management' : 'Glasses Delivery Management'}
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={handleAddItem}
+          sx={{ bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' } }}
+        >
+          Add New Item
+        </Button>
+      </Box>
+
       {/* Statistics Cards */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Typography variant="h6" color="primary">
-                <Inventory sx={{ mr: 1, verticalAlign: 'middle' }} />
+              <Typography color="textSecondary" gutterBottom>
                 Total Items
               </Typography>
               <Typography variant="h4">
-                {statistics?.total_items || 0}
+                {stats.totalItems}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Typography variant="h6" color="warning.main">
-                <Warning sx={{ mr: 1, verticalAlign: 'middle' }} />
+              <Typography color="textSecondary" gutterBottom>
+                In Stock
+              </Typography>
+              <Typography variant="h4" color="success.main">
+                {stats.inStock}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" gutterBottom>
                 Low Stock
               </Typography>
-              <Typography variant="h4">
-                {statistics?.low_stock_count || 0}
+              <Typography variant="h4" color="warning.main">
+                {stats.lowStock}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Typography variant="h6" color="error">
-                <Error sx={{ mr: 1, verticalAlign: 'middle' }} />
-                Out of Stock
-              </Typography>
-              <Typography variant="h4">
-                {statistics?.out_of_stock_count || 0}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" color="success.main">
-                <TrendingUp sx={{ mr: 1, verticalAlign: 'middle' }} />
+              <Typography color="textSecondary" gutterBottom>
                 Total Value
               </Typography>
-              <Typography variant="h4">
-                ฿{(statistics?.total_inventory_value || 0).toLocaleString()}
+              <Typography variant="h4" color="primary.main">
+                ฿{stats.totalValue.toLocaleString()}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      {/* Low Stock Alert */}
-      {lowStockItems.length > 0 && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <Typography variant="subtitle1">
-            Low Stock Alert: {lowStockItems.length} items need reordering
-          </Typography>
-          <List dense>
-            {lowStockItems.slice(0, 3).map((item) => (
-              <ListItem key={item.item_id}>
-                <ListItemIcon>
-                  <Warning color="warning" />
-                </ListItemIcon>
-                <ListItemText
-                  primary={item.item_name}
-                  secondary={`Current: ${item.current_stock}, Reorder Level: ${item.reorder_level}`}
-                />
-              </ListItem>
-            ))}
-          </List>
-        </Alert>
-      )}
-
-      {/* Action Buttons */}
-      <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => setShowCreateForm(true)}
-        >
-          Add New Item
-        </Button>
-        <Button
-          variant="outlined"
-          startIcon={<Assessment />}
-          onClick={() => {
-            loadStatistics();
-            loadLowStockItems();
-          }}
-        >
-          Refresh Data
-        </Button>
-      </Box>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {success}
-        </Alert>
-      )}
+      {/* Search and Filters */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={4}>
+                             <TextField
+                 fullWidth
+                 label="Search Items"
+                 value={searchTerm}
+                 onChange={(e) => setSearchTerm(e.target.value)}
+                 InputProps={{
+                   startAdornment: <Search />
+                 }}
+               />
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>Category</InputLabel>
+                <Select
+                  value={filterCategory}
+                  label="Category"
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                >
+                  <MenuItem value="all">All Categories</MenuItem>
+                  <MenuItem value="Children">Children</MenuItem>
+                  <MenuItem value="Teen">Teen</MenuItem>
+                  <MenuItem value="Adult">Adult</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={filterStatus}
+                  label="Status"
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                >
+                  <MenuItem value="all">All Status</MenuItem>
+                  <MenuItem value="in_stock">In Stock</MenuItem>
+                  <MenuItem value="low_stock">Low Stock</MenuItem>
+                  <MenuItem value="out_of_stock">Out of Stock</MenuItem>
+                  <MenuItem value="discontinued">Discontinued</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={2}>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<Refresh />}
+                onClick={fetchInventory}
+              >
+                Refresh
+              </Button>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
 
       {/* Inventory Table */}
       <Card>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
-            <Inventory sx={{ mr: 1, verticalAlign: 'middle' }} />
-            Glasses Inventory
-          </Typography>
-
           <TableContainer>
             <Table>
               <TableHead>
@@ -425,51 +473,86 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({
                   <TableCell>Name</TableCell>
                   <TableCell>Category</TableCell>
                   <TableCell>Brand</TableCell>
-                  <TableCell>Stock</TableCell>
-                  <TableCell>Unit Price</TableCell>
+                  <TableCell>Quantity</TableCell>
                   <TableCell>Status</TableCell>
+                  <TableCell>Unit Price</TableCell>
+                  <TableCell>Location</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {items.map((item) => (
-                  <TableRow key={item.item_id}>
-                    <TableCell>{item.item_code}</TableCell>
-                    <TableCell>{item.item_name}</TableCell>
+                {filteredItems.map((item) => (
+                  <TableRow key={item._id}>
                     <TableCell>
-                      <Chip
-                        label={item.category}
-                        color={getCategoryColor(item.category) as any}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>{item.brand || '-'}</TableCell>
-                    <TableCell>
-                      <Typography
-                        variant="body2"
-                        color={getStockStatusColor(item.current_stock, item.reorder_level)}
-                      >
-                        {item.current_stock}
+                      <Typography variant="subtitle2" fontWeight="bold">
+                        {item.item_code}
                       </Typography>
                     </TableCell>
-                    <TableCell>฿{item.unit_price.toLocaleString()}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={getStockStatusText(item.current_stock, item.reorder_level)}
-                        color={getStockStatusColor(item.current_stock, item.reorder_level) as any}
-                        size="small"
-                      />
+                      <Box>
+                        <Typography variant="subtitle2">
+                          {item.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {item.model} • {item.frame_color}
+                        </Typography>
+                      </Box>
                     </TableCell>
                     <TableCell>
-                      <IconButton
+                      <Chip 
+                        label={item.category} 
+                        size="small" 
+                        color="primary" 
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>{item.brand}</TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2">
+                          {item.quantity}
+                        </Typography>
+                        {item.quantity <= item.min_quantity && (
+                          <Warning color="warning" fontSize="small" />
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        icon={getStatusIcon(item.status)}
+                        label={item.status.replace('_', ' ')}
                         size="small"
-                        onClick={() => {
-                          setSelectedItem(item);
-                          setShowAdjustmentForm(true);
-                        }}
-                      >
-                        <Edit />
-                      </IconButton>
+                        color={getStatusColor(item.status) as any}
+                      />
+                    </TableCell>
+                    <TableCell>฿{item.unit_price.toLocaleString()}</TableCell>
+                    <TableCell>{item.location}</TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Tooltip title="View Details">
+                          <IconButton size="small" color="info">
+                            <Visibility />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Edit Item">
+                          <IconButton 
+                            size="small" 
+                            color="primary"
+                            onClick={() => handleEditItem(item)}
+                          >
+                            <Edit />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete Item">
+                          <IconButton 
+                            size="small" 
+                            color="error"
+                            onClick={() => handleDeleteItem(item._id)}
+                          >
+                            <Delete />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -479,36 +562,40 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({
         </CardContent>
       </Card>
 
-      {/* Create Item Dialog */}
-      <Dialog open={showCreateForm} onClose={() => setShowCreateForm(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Add New Inventory Item</DialogTitle>
+      {/* Add/Edit Dialog */}
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {editingItem ? 'Edit Glasses Item' : 'Add New Glasses Item'}
+        </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 label="Item Code"
-                value={itemCode}
-                onChange={(e) => setItemCode(e.target.value)}
-                required
+                value={formData.item_code}
+                onChange={(e) => setFormData({ ...formData, item_code: e.target.value })}
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Item Name"
-                value={itemName}
-                onChange={(e) => setItemName(e.target.value)}
-                required
+                label="Name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </Grid>
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth required>
+              <FormControl fullWidth>
                 <InputLabel>Category</InputLabel>
-                <Select value={category} label="Category" onChange={(e) => setCategory(e.target.value)}>
-                  <MenuItem value="frames">Frames</MenuItem>
-                  <MenuItem value="lenses">Lenses</MenuItem>
-                  <MenuItem value="accessories">Accessories</MenuItem>
+                <Select
+                  value={formData.category}
+                  label="Category"
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                >
+                  <MenuItem value="Children">Children</MenuItem>
+                  <MenuItem value="Teen">Teen</MenuItem>
+                  <MenuItem value="Adult">Adult</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -516,151 +603,125 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({
               <TextField
                 fullWidth
                 label="Brand"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
+                value={formData.brand}
+                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 label="Model"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
+                value={formData.model}
+                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Unit Price (THB)"
-                type="number"
-                value={unitPrice}
-                onChange={(e) => setUnitPrice(e.target.value)}
-                required
+                label="Frame Color"
+                value={formData.frame_color}
+                onChange={(e) => setFormData({ ...formData, frame_color: e.target.value })}
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Cost Price (THB)"
-                type="number"
-                value={costPrice}
-                onChange={(e) => setCostPrice(e.target.value)}
-                required
+                label="Lens Type"
+                value={formData.lens_type}
+                onChange={(e) => setFormData({ ...formData, lens_type: e.target.value })}
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Initial Stock"
-                type="number"
-                value={initialStock}
-                onChange={(e) => setInitialStock(e.target.value)}
-                required
+                label="Prescription Range"
+                value={formData.prescription_range}
+                onChange={(e) => setFormData({ ...formData, prescription_range: e.target.value })}
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Reorder Level"
-                type="number"
-                value={reorderLevel}
-                onChange={(e) => setReorderLevel(e.target.value)}
-                required
+                label="Size"
+                value={formData.size}
+                onChange={(e) => setFormData({ ...formData, size: e.target.value })}
               />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Notes"
-                multiline
-                rows={3}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                label="Material"
+                value={formData.material}
+                onChange={(e) => setFormData({ ...formData, material: e.target.value })}
               />
             </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowCreateForm(false)}>Cancel</Button>
-          <Button
-            onClick={handleCreateItem}
-            variant="contained"
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} /> : <Add />}
-          >
-            {loading ? 'Creating...' : 'Create Item'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Stock Adjustment Dialog */}
-      <Dialog open={showAdjustmentForm} onClose={() => setShowAdjustmentForm(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Adjust Stock</DialogTitle>
-        <DialogContent>
-          {selectedItem && (
-            <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
-              <Typography variant="subtitle1">
-                Item: {selectedItem.item_name}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Current Stock: {selectedItem.current_stock} | Reorder Level: {selectedItem.reorder_level}
-              </Typography>
-            </Paper>
-          )}
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12}>
-              <FormControl fullWidth required>
-                <InputLabel>Adjustment Type</InputLabel>
-                <Select value={adjustmentType} label="Adjustment Type" onChange={(e) => setAdjustmentType(e.target.value)}>
-                  <MenuItem value="in">Stock In</MenuItem>
-                  <MenuItem value="out">Stock Out</MenuItem>
-                  <MenuItem value="adjustment">Stock Adjustment</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 label="Quantity"
                 type="number"
-                value={adjustmentQuantity}
-                onChange={(e) => setAdjustmentQuantity(e.target.value)}
-                required
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Minimum Quantity"
+                type="number"
+                value={formData.min_quantity}
+                onChange={(e) => setFormData({ ...formData, min_quantity: parseInt(e.target.value) || 0 })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Unit Price (฿)"
+                type="number"
+                value={formData.unit_price}
+                onChange={(e) => setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Supplier"
+                value={formData.supplier}
+                onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
               />
             </Grid>
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Reason"
-                value={adjustmentReason}
-                onChange={(e) => setAdjustmentReason(e.target.value)}
-                required
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Notes"
-                multiline
-                rows={3}
-                value={adjustmentNotes}
-                onChange={(e) => setAdjustmentNotes(e.target.value)}
+                label="Location"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               />
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowAdjustmentForm(false)}>Cancel</Button>
-          <Button
-            onClick={handleAdjustStock}
-            variant="contained"
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} /> : <Edit />}
-          >
-            {loading ? 'Adjusting...' : 'Adjust Stock'}
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={handleSaveItem} variant="contained">
+            {editingItem ? 'Update' : 'Add'} Item
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

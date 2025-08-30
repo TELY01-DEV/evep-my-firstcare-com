@@ -119,10 +119,18 @@ const EvepParents: React.FC = () => {
   const fetchParents = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/v1/evep/parents', {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await fetch('http://localhost:8013/api/v1/evep/parents', {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
-      setParents(response.data.parents || []);
+      if (response.ok) {
+        const data = await response.json();
+        setParents(data.parents || []);
+      } else {
+        throw new Error('Failed to fetch parents');
+      }
     } catch (error) {
       console.error('Error fetching parents:', error);
       setSnackbar({ open: true, message: 'Error fetching parents', severity: 'error' });
@@ -151,14 +159,14 @@ const EvepParents: React.FC = () => {
         occupation: parent.occupation || '',
         income_level: parent.income_level || '',
         address: {
-          house_no: parent.address.house_no || '',
-          village_no: parent.address.village_no || '',
-          soi: parent.address.soi || '',
-          road: parent.address.road || '',
-          subdistrict: parent.address.subdistrict || '',
-          district: parent.address.district || '',
-          province: parent.address.province || '',
-          postal_code: parent.address.postal_code || ''
+          house_no: parent.address?.house_no || '',
+          village_no: parent.address?.village_no || '',
+          soi: parent.address?.soi || '',
+          road: parent.address?.road || '',
+          subdistrict: parent.address?.subdistrict || '',
+          district: parent.address?.district || '',
+          province: parent.address?.province || '',
+          postal_code: parent.address?.postal_code || ''
         },
         emergency_contact: parent.emergency_contact
       });
@@ -204,15 +212,33 @@ const EvepParents: React.FC = () => {
   const handleSubmit = async () => {
     try {
       if (editingParent) {
-        await axios.put(`/api/v1/evep/parents/${editingParent.id}`, formData, {
-          headers: { Authorization: `Bearer ${token}` }
+        const response = await fetch(`http://localhost:8013/api/v1/evep/parents/${editingParent.id}`, {
+          method: 'PUT',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
         });
-        setSnackbar({ open: true, message: 'Parent updated successfully', severity: 'success' });
+        if (response.ok) {
+          setSnackbar({ open: true, message: 'Parent updated successfully', severity: 'success' });
+        } else {
+          throw new Error('Failed to update parent');
+        }
       } else {
-        await axios.post('/api/v1/evep/parents', formData, {
-          headers: { Authorization: `Bearer ${token}` }
+        const response = await fetch('http://localhost:8013/api/v1/evep/parents', {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
         });
-        setSnackbar({ open: true, message: 'Parent created successfully', severity: 'success' });
+        if (response.ok) {
+          setSnackbar({ open: true, message: 'Parent created successfully', severity: 'success' });
+        } else {
+          throw new Error('Failed to create parent');
+        }
       }
       handleCloseDialog();
       fetchParents();
@@ -225,11 +251,19 @@ const EvepParents: React.FC = () => {
   const handleDelete = async (parentId: string) => {
     if (window.confirm('Are you sure you want to delete this parent?')) {
       try {
-        await axios.delete(`/api/v1/evep/parents/${parentId}`, {
-          headers: { Authorization: `Bearer ${token}` }
+        const response = await fetch(`http://localhost:8013/api/v1/evep/parents/${parentId}`, {
+          method: 'DELETE',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
-        setSnackbar({ open: true, message: 'Parent deleted successfully', severity: 'success' });
-        fetchParents();
+        if (response.ok) {
+          setSnackbar({ open: true, message: 'Parent deleted successfully', severity: 'success' });
+          fetchParents();
+        } else {
+          throw new Error('Failed to delete parent');
+        }
       } catch (error) {
         console.error('Error deleting parent:', error);
         setSnackbar({ open: true, message: 'Error deleting parent', severity: 'error' });
@@ -242,7 +276,10 @@ const EvepParents: React.FC = () => {
     setOpenDialog(true);
   };
 
-  const formatAddress = (address: Address) => {
+  const formatAddress = (address?: Address) => {
+    if (!address) {
+      return 'Address not available';
+    }
     const parts = [
       address.house_no,
       address.village_no,
@@ -252,7 +289,7 @@ const EvepParents: React.FC = () => {
       address.district,
       address.province
     ].filter(Boolean);
-    return parts.join(', ');
+    return parts.join(', ') || 'Address not available';
   };
 
   const getIncomeLevelColor = (level?: string) => {
@@ -446,7 +483,10 @@ const EvepParents: React.FC = () => {
 
               <Typography variant="h6" gutterBottom>Emergency Contact</Typography>
               <Typography gutterBottom>
-                {viewingParent.emergency_contact.name} - {viewingParent.emergency_contact.phone} ({viewingParent.emergency_contact.relation})
+                {viewingParent.emergency_contact ? 
+                  `${viewingParent.emergency_contact.name} - ${viewingParent.emergency_contact.phone} (${viewingParent.emergency_contact.relation})` : 
+                  'Emergency contact not available'
+                }
               </Typography>
             </Box>
           ) : (

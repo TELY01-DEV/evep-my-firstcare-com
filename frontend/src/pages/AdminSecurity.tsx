@@ -108,36 +108,8 @@ const AdminSecurity: React.FC = () => {
         const eventsData = await eventsResponse.json();
         setSecurityEvents(eventsData);
       } else {
-        // Mock data for development
-        setSecurityEvents([
-          {
-            id: '1',
-            type: 'login_attempt',
-            description: 'Failed login attempt detected',
-            timestamp: '2024-01-15T10:30:00Z',
-            severity: 'medium',
-            user: 'unknown@example.com',
-            ipAddress: '192.168.1.100',
-          },
-          {
-            id: '2',
-            type: 'password_change',
-            description: 'Password changed successfully',
-            timestamp: '2024-01-15T09:15:00Z',
-            severity: 'low',
-            user: 'admin@evep.com',
-            ipAddress: '192.168.1.101',
-          },
-          {
-            id: '3',
-            type: 'suspicious_activity',
-            description: 'Multiple failed login attempts',
-            timestamp: '2024-01-15T08:45:00Z',
-            severity: 'high',
-            user: 'test@example.com',
-            ipAddress: '192.168.1.102',
-          },
-        ]);
+        console.error('Failed to fetch security events from API');
+        setSecurityEvents([]);
       }
     } catch (err) {
       console.error('Security data fetch error:', err);
