@@ -56,7 +56,7 @@ import {
   DeliveryDining,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-// import MobileVisionScreeningForm from '../components/MobileVisionScreeningForm';
+import MobileVisionScreeningForm from '../components/MobileVisionScreeningForm';
 import EnhancedScreeningInterface from '../components/EnhancedScreeningInterface';
 
 interface ScreeningSession {
@@ -112,6 +112,7 @@ const Screenings: React.FC = () => {
   const [currentSession, setCurrentSession] = useState<ScreeningSession | null>(null);
   const [screeningDialogOpen, setScreeningDialogOpen] = useState(false);
   const [mobileScreeningDialogOpen, setMobileScreeningDialogOpen] = useState(false);
+  const [mobileScreeningPageOpen, setMobileScreeningPageOpen] = useState(false);
   const [enhancedScreeningDialogOpen, setEnhancedScreeningDialogOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   
@@ -226,7 +227,7 @@ const Screenings: React.FC = () => {
   };
 
   const handleStartMobileScreening = () => {
-    setMobileScreeningDialogOpen(true);
+    setMobileScreeningPageOpen(true);
   };
 
   const handlePatientSelect = (patient: Patient) => {
@@ -360,6 +361,20 @@ const Screenings: React.FC = () => {
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
         <CircularProgress size={60} />
       </Box>
+    );
+  }
+
+  // If mobile screening page is open, show the mobile screening form
+  if (mobileScreeningPageOpen) {
+    return (
+      <MobileVisionScreeningForm
+        onScreeningCompleted={(screening) => {
+          setSuccess('Mobile vision screening completed successfully!');
+          setMobileScreeningPageOpen(false);
+          fetchData();
+        }}
+        onCancel={() => setMobileScreeningPageOpen(false)}
+      />
     );
   }
 
@@ -909,6 +924,8 @@ const Screenings: React.FC = () => {
           )}
         </DialogActions>
       </Dialog>
+
+
     </Box>
   );
 };
