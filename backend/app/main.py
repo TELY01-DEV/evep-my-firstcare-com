@@ -1,125 +1,308 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import uvicorn
-from datetime import datetime
-import os
-import asyncio
+import logging
+import time
+from typing import Dict, Any
 
-from app.core.config import settings
-from app.socketio_service import socketio_service, socket_app
-from app.api.auth import router as auth_router
-from app.api.screenings import router as screenings_router
-from app.api.patients import router as patients_router
+# Import core modules
+from app.core.module_registry import module_registry
+from app.core.config import Config
+from app.core.event_bus import event_bus
+
+# Import modules
+from app.modules.auth import AuthModule
+from app.modules.database import DatabaseModule
+from app.modules.patient_management import PatientManagementModule
+from app.modules.screening import ScreeningModule
+from app.modules.reporting import ReportingModule
+from app.modules.notifications import NotificationsModule
+from app.modules.ai_ml import AIMLModule
+# from app.modules.line_integration import LineIntegrationModule
+
+# Import admin API
 from app.api.admin import router as admin_router
-from app.api.dashboard import router as dashboard_router
+from app.api.auth import router as auth_router
+from app.api.evep import router as evep_router
+from app.api.patients import router as patients_router
+from app.api.screenings import router as screenings_router
 from app.api.ai_insights import router as ai_insights_router
-from app.api.analytics import router as analytics_router
+from app.api.appointments import router as appointments_router
+from app.api.line_notifications import router as line_notifications_router
+from app.api.patient_registration import router as patient_registration_router
+from app.api.va_screening import router as va_screening_router
+from app.api.glasses_inventory import router as glasses_inventory_router
+from app.api.delivery_management import router as delivery_management_router
+from app.api.insights import router as insights_router
+
+# Import medical security API
+from app.api.medical_security import get_medical_security_events, get_medical_security_stats
+from app.api.auth import get_current_user
+
+# Import Socket.IO service
+from app.socketio_service import socketio_service, socket_app
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
-    title="EVEP API",
-    description="EYE Vision Evaluation Platform API",
+    title="EVEP Platform API",
+    description="Modular EVEP Platform API with hardcoded configuration",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
 
-# Mount Socket.IO app
-app.mount("/socket.io", socket_app)
-
-# Include API routers
-app.include_router(auth_router, prefix="/api/v1")
-app.include_router(screenings_router, prefix="/api/v1")
-app.include_router(patients_router, prefix="/api/v1")
-app.include_router(admin_router, prefix="/api/v1")
-app.include_router(dashboard_router, prefix="/api/v1")
-app.include_router(ai_insights_router, prefix="/api/v1")
-app.include_router(analytics_router, prefix="/api/v1")
-
-# CORS middleware
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3013"],
+    allow_origins=["*"],  # Configure this properly for production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Request timing middleware
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+
+# Global exception handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Global exception: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"}
+    )
+
+async def initialize_modules():
+    """Initialize all enabled modules"""
+    enabled_modules = Config.get_enabled_modules()
+    logger.info(f"Initializing enabled modules: {enabled_modules}")
+    
+    # Initialize core modules first
+    core_modules = ["auth", "database"]
+    for module_name in core_modules:
+        if module_name in enabled_modules:
+            await initialize_module(module_name)
+    
+    # Initialize feature modules
+    feature_modules = [m for m in enabled_modules if m not in core_modules]
+    for module_name in feature_modules:
+        await initialize_module(module_name)
+
+async def initialize_module(module_name: str):
+    """Initialize a specific module"""
+    logger.info(f"Initializing module: {module_name}")
+    module = None
+    
+    if module_name == "auth":
+        module = AuthModule()
+    elif module_name == "database":
+        module = DatabaseModule()
+    elif module_name == "patient_management":
+        module = PatientManagementModule()
+    elif module_name == "screening":
+        module = ScreeningModule()
+    elif module_name == "reporting":
+        module = ReportingModule()
+    elif module_name == "notifications":
+        module = NotificationsModule()
+    elif module_name == "ai_ml":
+        module = AIMLModule()
+    elif module_name == "line_integration":
+        module = LineIntegrationModule()
+    
+    if module:
+        await module.initialize()
+        app.include_router(
+            module.get_router(),
+            prefix=f"/api/v1/{module_name}",
+            tags=[module_name]
+        )
+        logger.info(f"Module {module_name} initialized successfully")
+
 @app.on_event("startup")
 async def startup_event():
-    """Initialize services on startup"""
+    """Application startup event"""
+    logger.info("Starting EVEP Platform API...")
+    await initialize_modules()
+    
+    # Include admin API router
+    app.include_router(admin_router, prefix="/api/v1", tags=["admin"])
+    logger.info("Admin API router included successfully!")
+    
+    # Include auth API router
+    app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
+    logger.info("Auth API router included successfully!")
+    
+    # Include EVEP API router
+    app.include_router(evep_router, prefix="/api/v1/evep", tags=["evep"])
+    logger.info("EVEP API router included successfully!")
+    
+    # Include patient registration API router (must be before patients router to avoid route conflicts)
+    app.include_router(patient_registration_router, prefix="/api/v1", tags=["patient_registration"])
+    logger.info("Patient Registration API router included successfully!")
+    
+    # Include patients API router
+    app.include_router(patients_router, prefix="/api/v1", tags=["patients"])
+    logger.info("Patients API router included successfully!")
+    
+    # Include screenings API router
+    app.include_router(screenings_router, prefix="/api/v1", tags=["screenings"])
+    logger.info("Screenings API router included successfully!")
+    
+    # Include AI insights API router
+    app.include_router(ai_insights_router, prefix="/api/v1", tags=["ai_insights"])
+    logger.info("AI Insights API router included successfully!")
+    
+    # Include insights API router (for /insights endpoints)
+    app.include_router(insights_router, prefix="/api/v1", tags=["insights"])
+    logger.info("Insights API router included successfully!")
+    
+    # Include appointments API router
+    app.include_router(appointments_router, prefix="/api/v1", tags=["appointments"])
+    logger.info("Appointments API router included successfully!")
+    
+    # Include LINE notifications API router
+    app.include_router(line_notifications_router, prefix="/api/v1", tags=["line_notifications"])
+    logger.info("LINE Notifications API router included successfully!")
+    
+    # Include VA screening API router
+    app.include_router(va_screening_router, prefix="/api/v1", tags=["va_screening"])
+    logger.info("VA Screening API router included successfully!")
+    
+    # Include glasses inventory API router
+    app.include_router(glasses_inventory_router, prefix="/api/v1", tags=["glasses_inventory"])
+    logger.info("Glasses Inventory API router included successfully!")
+    
+    # Include delivery management API router
+    app.include_router(delivery_management_router, prefix="/api/v1", tags=["delivery_management"])
+    logger.info("Delivery Management API router included successfully!")
+    
+    # Add medical portal security endpoints
+    @app.get("/api/v1/medical/security/events", tags=["medical-security"])
+    async def medical_security_events(request: Request, current_user: dict = Depends(get_current_user)):
+        return await get_medical_security_events(request, current_user)
+    
+    @app.get("/api/v1/medical/security/stats", tags=["medical-security"])
+    async def medical_security_stats(request: Request, current_user: dict = Depends(get_current_user)):
+        return await get_medical_security_stats(request, current_user)
+    
+    logger.info("Medical Portal security endpoints included successfully!")
+    
     # Initialize Socket.IO service
     await socketio_service.initialize()
-    print("Socket.IO service initialized")
+    logger.info("Socket.IO service initialized successfully!")
+    
+    logger.info("EVEP Platform API started successfully!")
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Cleanup on shutdown"""
-    print("Shutting down EVEP API...")
+    """Application shutdown event"""
+    logger.info("Shutting down EVEP Platform API...")
 
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    enabled_modules = Config.get_enabled_modules()
+    return {
+        "status": "healthy",
+        "version": "1.0.0",
+        "environment": Config.get_environment(),
+        "enabled_modules": enabled_modules,
+        "total_modules": len(enabled_modules)
+    }
+
+# Module information endpoint
+@app.get("/modules")
+async def get_modules():
+    """Get all modules information"""
+    modules_info = {}
+    for module_name in Config.get_enabled_modules():
+        module_info = module_registry.get_module_info(module_name)
+        if module_info:
+            modules_info[module_name] = module_info
+    
+    return {
+        "modules": modules_info,
+        "total_modules": len(modules_info),
+        "enabled_modules": Config.get_enabled_modules()
+    }
+
+# Feature flags endpoint
+@app.get("/features")
+async def get_features():
+    """Get feature flags information"""
+    from app.core.feature_flags import feature_flags
+    return {
+        "enabled_features": feature_flags.get_enabled_features(),
+        "disabled_features": feature_flags.get_disabled_features(),
+        "all_features": feature_flags.get_all_flags()
+    }
+
+# Event bus information endpoint
+@app.get("/events")
+async def get_events():
+    """Get event bus information"""
+    return {
+        "registered_events": event_bus.get_all_events(),
+        "total_events": len(event_bus.get_all_events()),
+        "event_subscribers": {
+            event: event_bus.get_subscriber_count(event)
+            for event in event_bus.get_all_events()
+        }
+    }
+
+# Mount Socket.IO app
+app.mount("/socket.io", socket_app)
+
+# Root endpoint
 @app.get("/")
 async def root():
     """Root endpoint"""
     return {
-        "message": "EVEP API - EYE Vision Evaluation Platform",
+        "message": "Welcome to EVEP Platform API",
         "version": "1.0.0",
-        "status": "running",
-        "timestamp": settings.get_current_timestamp()
+        "docs": "/docs",
+        "health": "/health",
+        "modules": "/modules",
+        "features": "/features",
+        "events": "/events",
+        "socketio": "/socket.io"
     }
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "timestamp": settings.get_current_timestamp(),
-        "environment": os.getenv("ENVIRONMENT", "development")
-    }
-
+# API status endpoint
 @app.get("/api/v1/status")
 async def api_status():
     """API status endpoint"""
     return {
-        "api_version": "v1",
         "status": "operational",
-        "services": {
-            "database": "connected",
-            "redis": "connected",
-            "ai_services": "available"
-        },
-        "timestamp": settings.get_current_timestamp()
+        "version": "1.0.0",
+        "modules": {
+            module_name: {
+                "status": "active" if module_registry.get_module(module_name) else "inactive",
+                "version": module_registry.get_module_version(module_name),
+                "dependencies": module_registry.get_module_dependencies(module_name)
+            }
+            for module_name in Config.get_enabled_modules()
+        }
     }
 
-@app.exception_handler(404)
-async def not_found_handler(request, exc):
-    """Handle 404 errors"""
-    return JSONResponse(
-        status_code=404,
-        content={
-            "error": "Not Found",
-            "message": "The requested resource was not found",
-            "path": str(request.url.path)
-        }
-    )
-
-@app.exception_handler(500)
-async def internal_error_handler(request, exc):
-    """Handle 500 errors"""
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": "Internal Server Error",
-            "message": "An internal server error occurred",
-            "timestamp": settings.get_current_timestamp()
-        }
-    )
-
 if __name__ == "__main__":
+    import uvicorn
     uvicorn.run(
-        "app.main:app",
+        "main:app",
         host="0.0.0.0",
-        port=8000,
+        port=8013,
         reload=True,
         log_level="info"
     )

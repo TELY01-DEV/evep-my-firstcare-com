@@ -1,368 +1,416 @@
+"""
+AI Insights API endpoints for EVEP Platform
+
+This module provides API endpoints for generating and managing AI-powered insights.
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel
-import json
-import asyncio
-from datetime import datetime, timedelta
-
-from app.core.config import settings
-from app.core.database import get_database
+from typing import Dict, Any, List, Optional
+from datetime import datetime
 from app.api.auth import get_current_user
-from app.utils.blockchain import generate_blockchain_hash
-from app.utils.timezone import get_current_thailand_time
+from app.modules.ai_insights import InsightGenerator
+from app.models.evep_models import PyObjectId
+from pydantic import BaseModel
 
-router = APIRouter()
+router = APIRouter(prefix="/ai-insights", tags=["AI Insights"])
 
-# Pydantic models for AI insights
-class InsightRequest(BaseModel):
-    insight_type: str  # 'patient_analysis', 'screening_trends', 'risk_assessment', 'recommendations'
-    patient_id: Optional[str] = None
-    date_range: Optional[str] = None  # '7d', '30d', '90d', '1y'
-    context: Optional[Dict[str, Any]] = None
+# Initialize insight generator
+insight_generator = InsightGenerator()
 
-class AIInsight(BaseModel):
-    insight_id: str
-    insight_type: str
-    title: str
-    description: str
-    confidence_score: float
-    recommendations: List[str]
-    risk_level: Optional[str] = None
-    data_points: Dict[str, Any]
-    generated_at: str
-    expires_at: Optional[str] = None
+class ScreeningInsightRequest(BaseModel):
+    """Request model for generating screening insights"""
+    screening_data: Dict[str, Any]
+    patient_info: Optional[Dict[str, Any]] = None
+    role: str = "doctor"
+    insight_type: str = "screening_analysis"
 
-class InsightResponse(BaseModel):
-    insights: List[AIInsight]
-    summary: str
-    next_actions: List[str]
+class BatchInsightRequest(BaseModel):
+    """Request model for generating batch insights"""
+    screening_data_list: List[Dict[str, Any]]
+    role: str = "doctor"
+    insight_type: str = "screening_analysis"
 
-# Mock LLM integration (replace with actual OpenAI/Claude API)
-class MockLLMService:
-    def __init__(self):
-        self.model_name = "gpt-4"  # or "claude-3-sonnet"
-        self.api_key = settings.OPENAI_API_KEY if hasattr(settings, 'OPENAI_API_KEY') else "mock_key"
-    
-    async def generate_insight(self, prompt: str, context: Dict[str, Any]) -> Dict[str, Any]:
-        """Generate AI insight using LLM"""
-        # Simulate API call delay
-        await asyncio.sleep(0.5)
-        
-        # Mock responses based on insight type
-        if "patient_analysis" in prompt.lower():
-            return {
-                "insight": "Patient shows consistent vision improvement over the last 3 screenings",
-                "confidence": 0.85,
-                "recommendations": [
-                    "Continue current treatment plan",
-                    "Schedule follow-up in 6 months",
-                    "Monitor for any regression"
-                ],
-                "risk_level": "low"
-            }
-        elif "screening_trends" in prompt.lower():
-            return {
-                "insight": "Class 3A shows 15% improvement in average vision scores",
-                "confidence": 0.92,
-                "recommendations": [
-                    "Continue current screening program",
-                    "Consider expanding to other classes",
-                    "Share best practices with other schools"
-                ],
-                "risk_level": "none"
-            }
-        elif "risk_assessment" in prompt.lower():
-            return {
-                "insight": "Patient shows early signs of myopia progression",
-                "confidence": 0.78,
-                "recommendations": [
-                    "Increase outdoor activity time",
-                    "Limit screen time to 2 hours per day",
-                    "Schedule comprehensive eye exam"
-                ],
-                "risk_level": "medium"
-            }
-        else:
-            return {
-                "insight": "General recommendation based on screening data",
-                "confidence": 0.75,
-                "recommendations": [
-                    "Continue regular screenings",
-                    "Maintain healthy eye habits"
-                ],
-                "risk_level": "low"
-            }
+class TrendAnalysisRequest(BaseModel):
+    """Request model for generating trend analysis"""
+    program_data: Dict[str, Any]
+    role: str = "executive"
 
-# Initialize LLM service
-llm_service = MockLLMService()
+class InsightSearchRequest(BaseModel):
+    """Request model for searching insights"""
+    query: str
+    role: Optional[str] = None
+    insight_type: Optional[str] = None
+    n_results: int = 5
 
-@router.post("/insights/generate", response_model=InsightResponse)
-async def generate_insights(
-    request: InsightRequest,
-    current_user: Dict = Depends(get_current_user),
-    db = Depends(get_database)
+class MobileUnitInsightRequest(BaseModel):
+    """Request model for mobile unit insights"""
+    mobile_screening_data: Dict[str, Any]
+    patient_info: Optional[Dict[str, Any]] = None
+
+@router.post("/generate-screening-insight")
+async def generate_screening_insight(
+    request: ScreeningInsightRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Generate AI insights based on request type and context"""
+    """
+    Generate AI insight for a screening result
+    
+    This endpoint generates role-based insights for vision screening results.
+    """
     try:
         # Validate user permissions
-        if current_user["role"] not in ["admin", "doctor", "teacher"]:
+        user_role = current_user.get("role", "")
+        if user_role not in ["admin", "doctor", "medical_staff", "teacher"]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions to generate AI insights"
             )
         
-        # Get relevant data based on insight type
-        data_context = await get_data_context(request, current_user, db)
-        
-        # Generate prompt based on insight type and user role
-        prompt = generate_prompt(request.insight_type, current_user["role"], data_context)
-        
-        # Get AI insight
-        ai_response = await llm_service.generate_insight(prompt, data_context)
-        
-        # Create insight object
-        insight = AIInsight(
-            insight_id=generate_blockchain_hash(f"insight_{request.insight_type}_{current_user['user_id']}"),
-            insight_type=request.insight_type,
-            title=f"{request.insight_type.replace('_', ' ').title()} Analysis",
-            description=ai_response["insight"],
-            confidence_score=ai_response["confidence"],
-            recommendations=ai_response["recommendations"],
-            risk_level=ai_response.get("risk_level"),
-            data_points=data_context,
-            generated_at=get_current_thailand_time().isoformat(),
-            expires_at=(get_current_thailand_time() + timedelta(days=30)).isoformat()
+        # Generate insight
+        insight = await insight_generator.generate_screening_insight(
+            screening_data=request.screening_data,
+            patient_info=request.patient_info,
+            role=request.role,
+            insight_type=request.insight_type
         )
         
-        # Store insight in database
-        await store_insight(insight, current_user["user_id"], db)
-        
-        # Generate summary and next actions
-        summary = f"Generated {request.insight_type.replace('_', ' ')} insight with {ai_response['confidence']:.0%} confidence"
-        next_actions = ai_response["recommendations"][:3]  # Top 3 recommendations
-        
-        return InsightResponse(
-            insights=[insight],
-            summary=summary,
-            next_actions=next_actions
-        )
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate insights: {str(e)}"
-        )
-
-@router.get("/insights/history", response_model=List[AIInsight])
-async def get_insight_history(
-    insight_type: Optional[str] = None,
-    limit: int = 10,
-    current_user: Dict = Depends(get_current_user),
-    db = Depends(get_database)
-):
-    """Get historical AI insights"""
-    try:
-        # Build query
-        query = {"user_id": current_user["user_id"]}
-        if insight_type:
-            query["insight_type"] = insight_type
-        
-        # Get insights from database
-        insights_collection = db["ai_insights"]
-        cursor = insights_collection.find(query).sort("generated_at", -1).limit(limit)
-        
-        insights = []
-        async for doc in cursor:
-            insights.append(AIInsight(**doc))
-        
-        return insights
-        
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve insight history: {str(e)}"
-        )
-
-@router.get("/insights/analytics")
-async def get_insight_analytics(
-    current_user: Dict = Depends(get_current_user),
-    db = Depends(get_database)
-):
-    """Get analytics about AI insights usage"""
-    try:
-        insights_collection = db["ai_insights"]
-        
-        # Get insights by type
-        pipeline = [
-            {"$match": {"user_id": current_user["user_id"]}},
-            {"$group": {
-                "_id": "$insight_type",
-                "count": {"$sum": 1},
-                "avg_confidence": {"$avg": "$confidence_score"}
-            }}
-        ]
-        
-        analytics = []
-        async for doc in insights_collection.aggregate(pipeline):
-            analytics.append({
-                "insight_type": doc["_id"],
-                "count": doc["count"],
-                "avg_confidence": round(doc["avg_confidence"], 2)
-            })
+        if not insight.get("success", False):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate insight: {insight.get('error', 'Unknown error')}"
+            )
         
         return {
-            "total_insights": sum(a["count"] for a in analytics),
-            "insights_by_type": analytics,
-            "user_role": current_user["role"]
+            "success": True,
+            "insight": insight,
+            "generated_by": current_user.get("user_id"),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating screening insight: {str(e)}"
+        )
+
+@router.post("/generate-batch-insights")
+async def generate_batch_insights(
+    request: BatchInsightRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Generate AI insights for multiple screening results
+    
+    This endpoint generates insights for a batch of screening results.
+    """
+    try:
+        # Validate user permissions
+        user_role = current_user.get("role", "")
+        if user_role not in ["admin", "doctor", "medical_staff"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to generate batch insights"
+            )
+        
+        # Generate batch insights
+        insights = await insight_generator.generate_batch_insights(
+            screening_data_list=request.screening_data_list,
+            role=request.role,
+            insight_type=request.insight_type
+        )
+        
+        successful_insights = [insight for insight in insights if insight.get("success", False)]
+        failed_insights = [insight for insight in insights if not insight.get("success", False)]
+        
+        return {
+            "success": True,
+            "total_insights": len(insights),
+            "successful_insights": len(successful_insights),
+            "failed_insights": len(failed_insights),
+            "insights": insights,
+            "generated_by": current_user.get("user_id"),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating batch insights: {str(e)}"
+        )
+
+@router.post("/generate-trend-analysis")
+async def generate_trend_analysis(
+    request: TrendAnalysisRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Generate trend analysis for program data
+    
+    This endpoint generates strategic insights for program data analysis.
+    """
+    try:
+        # Validate user permissions
+        user_role = current_user.get("role", "")
+        if user_role not in ["admin", "executive"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to generate trend analysis"
+            )
+        
+        # Generate trend analysis
+        analysis = await insight_generator.generate_trend_analysis(
+            program_data=request.program_data,
+            role=request.role
+        )
+        
+        if not analysis.get("success", False):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate trend analysis: {analysis.get('error', 'Unknown error')}"
+            )
+        
+        return {
+            "success": True,
+            "analysis": analysis,
+            "generated_by": current_user.get("user_id"),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating trend analysis: {str(e)}"
+        )
+
+@router.post("/search-insights")
+async def search_insights(
+    request: InsightSearchRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Search for existing AI insights
+    
+    This endpoint searches for previously generated insights.
+    """
+    try:
+        # Validate user permissions
+        user_role = current_user.get("role", "")
+        if user_role not in ["admin", "doctor", "medical_staff", "teacher"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to search insights"
+            )
+        
+        # Search insights
+        results = await insight_generator.search_insights(
+            query=request.query,
+            role=request.role,
+            insight_type=request.insight_type,
+            n_results=request.n_results
+        )
+        
+        return {
+            "success": True,
+            "query": request.query,
+            "results_count": len(results),
+            "results": results,
+            "searched_by": current_user.get("user_id"),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error searching insights: {str(e)}"
+        )
+
+@router.post("/generate-mobile-unit-insight")
+async def generate_mobile_unit_insight(
+    request: MobileUnitInsightRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Generate AI insight for mobile unit screening
+    
+    This endpoint generates insights specifically for mobile unit screenings.
+    """
+    try:
+        # Validate user permissions
+        user_role = current_user.get("role", "")
+        if user_role not in ["admin", "medical_staff", "doctor"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to generate mobile unit insights"
+            )
+        
+        # Generate mobile unit insight
+        insight = await insight_generator.generate_mobile_unit_insight(
+            mobile_screening_data=request.mobile_screening_data,
+            patient_info=request.patient_info
+        )
+        
+        if not insight.get("success", False):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate mobile unit insight: {insight.get('error', 'Unknown error')}"
+            )
+        
+        return {
+            "success": True,
+            "insight": insight,
+            "generated_by": current_user.get("user_id"),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating mobile unit insight: {str(e)}"
+        )
+
+@router.get("/statistics")
+async def get_insight_statistics(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Get AI insights statistics
+    
+    This endpoint provides statistics about generated insights and system usage.
+    """
+    try:
+        # Validate user permissions
+        user_role = current_user.get("role", "")
+        if user_role not in ["admin", "executive"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to view insight statistics"
+            )
+        
+        # Get statistics
+        stats = insight_generator.get_insight_statistics()
+        
+        return {
+            "success": True,
+            "statistics": stats,
+            "requested_by": current_user.get("user_id"),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting insight statistics: {str(e)}"
+        )
+
+@router.get("/templates")
+async def get_prompt_templates(
+    role: Optional[str] = None,
+    insight_type: Optional[str] = None,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Get available prompt templates
+    
+    This endpoint returns available prompt templates for AI insights.
+    """
+    try:
+        # Validate user permissions
+        user_role = current_user.get("role", "")
+        if user_role not in ["admin", "doctor", "medical_staff", "teacher"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to view prompt templates"
+            )
+        
+        # Get templates based on filters
+        if role:
+            templates = insight_generator.prompt_manager.get_templates_by_role(role)
+        elif insight_type:
+            templates = insight_generator.prompt_manager.get_templates_by_insight_type(insight_type)
+        else:
+            templates = list(insight_generator.prompt_manager.templates.values())
+        
+        # Convert to serializable format
+        template_data = []
+        for template in templates:
+            template_dict = template.dict()
+            template_dict["created_at"] = template_dict["created_at"].isoformat()
+            template_dict["updated_at"] = template_dict["updated_at"].isoformat()
+            template_data.append(template_dict)
+        
+        return {
+            "success": True,
+            "templates": template_data,
+            "total_templates": len(template_data),
+            "filters": {
+                "role": role,
+                "insight_type": insight_type
+            },
+            "requested_by": current_user.get("user_id"),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting prompt templates: {str(e)}"
+        )
+
+@router.get("/health")
+async def ai_insights_health_check(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Health check for AI insights system
+    
+    This endpoint checks the health of the AI insights components.
+    """
+    try:
+        # Check LLM service
+        llm_healthy = (
+            insight_generator.llm_service.openai_client is not None or
+            insight_generator.llm_service.claude_client is not None
+        )
+        
+        # Check prompt manager
+        prompt_healthy = len(insight_generator.prompt_manager.templates) > 0
+        
+        # Check vector store
+        vector_healthy = insight_generator.vector_store.chroma_client is not None
+        
+        overall_healthy = llm_healthy and prompt_healthy and vector_healthy
+        
+        return {
+            "success": True,
+            "healthy": overall_healthy,
+            "components": {
+                "llm_service": llm_healthy,
+                "prompt_manager": prompt_healthy,
+                "vector_store": vector_healthy
+            },
+            "checked_by": current_user.get("user_id"),
+            "timestamp": datetime.utcnow().isoformat()
         }
         
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to retrieve analytics: {str(e)}"
-        )
-
-async def get_data_context(request: InsightRequest, user: Dict, db) -> Dict[str, Any]:
-    """Get relevant data context for AI analysis"""
-    context = {
-        "user_role": user["role"],
-        "organization": user.get("organization"),
-        "date_range": request.date_range or "30d"
-    }
-    
-    if request.patient_id:
-        # Get patient-specific data
-        patients_collection = db["patients"]
-        screenings_collection = db["screenings"]
-        
-        # Get patient info
-        patient = await patients_collection.find_one({"_id": request.patient_id})
-        if patient:
-            context["patient"] = {
-                "name": f"{patient['first_name']} {patient['last_name']}",
-                "age": calculate_age(patient["date_of_birth"]),
-                "school": patient["school"],
-                "grade": patient["grade"]
-            }
-        
-        # Get patient screenings
-        screenings = []
-        async for screening in screenings_collection.find({"patient_id": request.patient_id}):
-            screenings.append({
-                "date": screening["created_at"],
-                "results": screening.get("results", {}),
-                "status": screening["status"]
-            })
-        context["patient_screenings"] = screenings
-    
-    # Get general statistics based on user role
-    if user["role"] in ["admin", "doctor"]:
-        context["statistics"] = await get_general_statistics(db, user)
-    
-    return context
-
-async def get_general_statistics(db, user: Dict) -> Dict[str, Any]:
-    """Get general statistics for AI context"""
-    patients_collection = db["patients"]
-    screenings_collection = db["screenings"]
-    
-    # Get counts
-    total_patients = await patients_collection.count_documents({})
-    total_screenings = await screenings_collection.count_documents({})
-    
-    # Get recent screenings
-    recent_screenings = []
-    async for screening in screenings_collection.find().sort("created_at", -1).limit(10):
-        recent_screenings.append({
-            "patient_id": screening["patient_id"],
-            "status": screening["status"],
-            "date": screening["created_at"]
-        })
-    
-    return {
-        "total_patients": total_patients,
-        "total_screenings": total_screenings,
-        "recent_screenings": recent_screenings
-    }
-
-def generate_prompt(insight_type: str, user_role: str, context: Dict[str, Any]) -> str:
-    """Generate appropriate prompt for LLM based on insight type and user role"""
-    
-    base_prompts = {
-        "patient_analysis": """
-        Analyze the patient's vision screening history and provide insights about:
-        1. Vision trends and progression
-        2. Risk factors and potential issues
-        3. Recommendations for care and follow-up
-        4. Comparison with age-appropriate benchmarks
-        
-        Patient context: {patient_info}
-        Screening history: {screenings}
-        """,
-        
-        "screening_trends": """
-        Analyze screening trends and patterns to identify:
-        1. Overall vision health trends
-        2. Common issues or improvements
-        3. Effectiveness of screening programs
-        4. Recommendations for program optimization
-        
-        Statistics: {statistics}
-        Recent screenings: {recent_screenings}
-        """,
-        
-        "risk_assessment": """
-        Assess potential vision health risks and provide:
-        1. Risk level assessment
-        2. Contributing factors
-        3. Preventive measures
-        4. Monitoring recommendations
-        
-        Patient data: {patient_info}
-        Screening results: {screenings}
-        """,
-        
-        "recommendations": """
-        Generate personalized recommendations for:
-        1. Patient care and treatment
-        2. Screening frequency
-        3. Lifestyle modifications
-        4. Follow-up actions
-        
-        Context: {context}
-        User role: {user_role}
-        """
-    }
-    
-    prompt_template = base_prompts.get(insight_type, base_prompts["recommendations"])
-    
-    return prompt_template.format(
-        patient_info=context.get("patient", "No patient data"),
-        screenings=context.get("patient_screenings", []),
-        statistics=context.get("statistics", {}),
-        recent_screenings=context.get("statistics", {}).get("recent_screenings", []),
-        context=context,
-        user_role=user_role
-    )
-
-async def store_insight(insight: AIInsight, user_id: str, db):
-    """Store AI insight in database"""
-    insights_collection = db["ai_insights"]
-    
-    insight_data = insight.dict()
-    insight_data["user_id"] = user_id
-    insight_data["created_at"] = get_current_thailand_time().isoformat()
-    
-    await insights_collection.insert_one(insight_data)
-
-def calculate_age(date_of_birth: str) -> int:
-    """Calculate age from date of birth"""
-    try:
-        birth_date = datetime.fromisoformat(date_of_birth.replace('Z', '+00:00'))
-        today = datetime.now(birth_date.tzinfo)
-        age = today.year - birth_date.year
-        if today.month < birth_date.month or (today.month == birth_date.month and today.day < birth_date.day):
-            age -= 1
-        return age
-    except:
-        return 0
+        return {
+            "success": False,
+            "healthy": False,
+            "error": str(e),
+            "checked_by": current_user.get("user_id"),
+            "timestamp": datetime.utcnow().isoformat()
+        }
