@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-         from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Dict, Any, Optional
 import json
@@ -9,7 +9,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.api.auth import get_current_user
-from app.core.rbac import require_permission
+from app.core.rbac import check_permission
 
 router = APIRouter()
 security = HTTPBearer()
@@ -52,8 +52,7 @@ class PanelSettings(BaseModel):
     patientDataRetention: int = 7
     medicalAlerts: bool = True
 
-class SettingsRequest(BaseModel):
-    settings: PanelSettings
+
 
 # File path for storing panel settings
 SETTINGS_FILE = "panel_settings.json"
@@ -83,7 +82,7 @@ def save_settings(settings: PanelSettings) -> bool:
         return False
 
 @router.get("/")
-@require_permission("view_panel_settings")
+@check_permission("view_panel_settings")
 async def get_panel_settings(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)
@@ -103,17 +102,14 @@ async def get_panel_settings(
         )
 
 @router.put("/")
-@require_permission("manage_panel_settings")
+@check_permission("manage_panel_settings")
 async def update_panel_settings(
-    request: SettingsRequest,
+    settings: PanelSettings,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Update panel settings"""
     try:
-        # Validate settings
-        settings = request.settings
-        
         # Save settings
         if save_settings(settings):
             return {
@@ -134,7 +130,7 @@ async def update_panel_settings(
         )
 
 @router.post("/reset")
-@require_permission("manage_panel_settings")
+@check_permission("manage_panel_settings")
 async def reset_panel_settings(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)

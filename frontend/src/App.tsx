@@ -20,6 +20,7 @@ import SecurityAudit from './components/SecurityAudit';
 import MedicalStaff from './pages/MedicalStaff';
 import GeneralPanelSettings from './pages/GeneralPanelSettings';
 import RBACManagement from './pages/RBACManagement';
+import UserManagement from './pages/UserManagement';
 
 // Admin Pages
 import Admin from './pages/Admin';
@@ -157,6 +158,9 @@ function App() {
                       {/* Panel Settings Routes */}
                       <Route path="panel-settings/general" element={<GeneralPanelSettings />} />
                       <Route path="panel-settings/rbac" element={<RBACManagement />} />
+                      
+                      {/* User Management Routes */}
+                      <Route path="user-management" element={<UserManagement />} />
                     </Route>
 
                     {/* Admin routes */}

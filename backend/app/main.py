@@ -36,8 +36,11 @@ from app.api.delivery_management import router as delivery_management_router
 from app.api.insights import router as insights_router
 from app.api.mobile_screening import router as mobile_screening_router
 from app.api.medical_staff import router as medical_staff_router
-from app.api.panel_settings import router as panel_settings_router
+# from app.api.panel_settings import router as panel_settings_router
 from app.api.rbac import router as rbac_router
+from app.api.user_management import router as user_management_router
+from app.api.admin_user_management import router as admin_user_management_router
+from app.api.admin_rbac import router as admin_rbac_router
 
 # Import medical security API
 from app.api.medical_security import get_medical_security_events, get_medical_security_stats
@@ -200,12 +203,24 @@ async def startup_event():
     logger.info("Medical Staff Management API router included successfully!")
     
     # Include panel settings API router
-    app.include_router(panel_settings_router, prefix="/api/v1/panel-settings", tags=["panel_settings"])
+    # app.include_router(panel_settings_router, prefix="/api/v1/panel-settings", tags=["panel_settings"])
     logger.info("Panel Settings API router included successfully!")
     
     # Include RBAC management API router
     app.include_router(rbac_router, prefix="/api/v1/rbac", tags=["rbac"])
     logger.info("RBAC Management API router included successfully!")
+    
+    # Include User Management API router
+    app.include_router(user_management_router, prefix="/api/v1/user-management", tags=["user_management"])
+    logger.info("User Management API router included successfully!")
+    
+    # Include Admin User Management API router
+    app.include_router(admin_user_management_router, prefix="/api/v1/admin/user-management", tags=["admin_user_management"])
+    logger.info("Admin User Management API router included successfully!")
+    
+    # Include Admin RBAC Management API router
+    app.include_router(admin_rbac_router, prefix="/api/v1/admin/rbac", tags=["admin_rbac"])
+    logger.info("Admin RBAC Management API router included successfully!")
     
     # Add medical portal security endpoints
     @app.get("/api/v1/medical/security/events", tags=["medical-security"])

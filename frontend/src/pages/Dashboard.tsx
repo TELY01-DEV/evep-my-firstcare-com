@@ -39,6 +39,7 @@ import {
   Info,
   Home,
   Dashboard as DashboardIcon,
+  AccessTime as AccessTimeIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -62,9 +63,40 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Debug: Log user data
+  useEffect(() => {
+    console.log('Dashboard - User data:', user);
+  }, [user]);
+
   useEffect(() => {
     fetchDashboardData();
+    fetchUserProfile();
   }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const token = localStorage.getItem('evep_token');
+      if (!token) return;
+
+      const response = await fetch('http://localhost:8014/api/v1/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const profileData = await response.json();
+        console.log('User profile data:', profileData);
+        // Update localStorage with complete user data
+        const currentUser = JSON.parse(localStorage.getItem('evep_user') || '{}');
+        const updatedUser = { ...currentUser, ...profileData };
+        localStorage.setItem('evep_user', JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -285,9 +317,9 @@ const Dashboard: React.FC = () => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
-            Welcome back, {user?.first_name}!
+            Welcome back, {user?.first_name || 'Admin'} {user?.last_name || ''}!
           </Typography>
-          <Box display="flex" alignItems="center" gap={1}>
+          <Box display="flex" alignItems="center" gap={2} mb={1}>
             <Chip
               icon={getRoleIcon()}
               label={user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User'}
@@ -298,6 +330,19 @@ const Dashboard: React.FC = () => {
               {user?.organization || 'EVEP Platform'}
             </Typography>
           </Box>
+          {user?.last_login && (
+            <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <AccessTimeIcon sx={{ fontSize: '1rem' }} />
+              Last login: {new Date(user.last_login).toLocaleString('th-TH', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+              })}
+            </Typography>
+          )}
         </Box>
         <Box display="flex" gap={2}>
           <Tooltip title="Refresh Dashboard">

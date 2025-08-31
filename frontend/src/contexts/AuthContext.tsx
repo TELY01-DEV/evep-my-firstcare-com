@@ -9,6 +9,7 @@ interface User {
   organization?: string;
   permissions?: string[];
   portal_access?: string[];
+  last_login?: string;
 }
 
 interface AuthContextType {
@@ -72,12 +73,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return false;
       }
 
-      // Store token and user data
-      localStorage.setItem('evep_token', data.access_token);
-      localStorage.setItem('evep_user', JSON.stringify(data.user));
-      
-      setToken(data.access_token);
-      setUser(data.user);
+      // Fetch complete user profile including last_login
+      const profileResponse = await fetch('http://localhost:8014/api/v1/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${data.access_token}`,
+        },
+      });
+
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        const completeUserData = { ...data.user, ...profileData };
+        
+        // Store token and complete user data
+        localStorage.setItem('evep_token', data.access_token);
+        localStorage.setItem('evep_user', JSON.stringify(completeUserData));
+        
+        setToken(data.access_token);
+        setUser(completeUserData);
+      } else {
+        // Fallback to basic user data if profile fetch fails
+        localStorage.setItem('evep_token', data.access_token);
+        localStorage.setItem('evep_user', JSON.stringify(data.user));
+        
+        setToken(data.access_token);
+        setUser(data.user);
+      }
       
       return true;
     } catch (error) {

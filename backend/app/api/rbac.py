@@ -7,7 +7,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.api.auth import get_current_user
-from app.core.rbac import require_permission
+from app.core.rbac import check_permission
 
 router = APIRouter()
 security = HTTPBearer()
@@ -327,7 +327,7 @@ def get_default_permissions() -> List[Permission]:
 
 # Roles endpoints
 @router.get("/roles/")
-@require_permission("view_panel_settings")
+@check_permission("view_panel_settings")
 async def get_roles(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)
@@ -346,7 +346,7 @@ async def get_roles(
         )
 
 @router.post("/roles/")
-@require_permission("manage_panel_settings")
+@check_permission("manage_panel_settings")
 async def create_role(
     role_data: RoleCreate,
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -395,7 +395,7 @@ async def create_role(
         )
 
 @router.put("/roles/{role_id}")
-@require_permission("manage_panel_settings")
+@check_permission("manage_panel_settings")
 async def update_role(
     role_id: str,
     role_data: RoleUpdate,
@@ -447,7 +447,7 @@ async def update_role(
         )
 
 @router.delete("/roles/{role_id}")
-@require_permission("manage_panel_settings")
+@check_permission("manage_panel_settings")
 async def delete_role(
     role_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -495,7 +495,7 @@ async def delete_role(
 
 # Permissions endpoints
 @router.get("/permissions/")
-@require_permission("view_panel_settings")
+@check_permission("view_panel_settings")
 async def get_permissions(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)
@@ -515,7 +515,7 @@ async def get_permissions(
 
 # User roles endpoints
 @router.get("/user-roles/")
-@require_permission("view_panel_settings")
+@check_permission("view_panel_settings")
 async def get_user_roles(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)
@@ -534,7 +534,7 @@ async def get_user_roles(
         )
 
 @router.post("/user-roles/")
-@require_permission("manage_panel_settings")
+@check_permission("manage_panel_settings")
 async def assign_user_role(
     assignment: UserRoleAssignment,
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -595,7 +595,7 @@ async def assign_user_role(
         )
 
 @router.delete("/user-roles/{user_id}/{role_id}")
-@require_permission("manage_panel_settings")
+@check_permission("manage_panel_settings")
 async def remove_user_role(
     user_id: str,
     role_id: str,

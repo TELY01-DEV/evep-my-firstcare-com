@@ -41,6 +41,10 @@ import {
   Assignment as AssignmentIcon,
   Schedule as ScheduleIcon,
   Chat as ChatIcon,
+  Add as AddIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
@@ -56,6 +60,8 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set(['Medical Screening']));
+  const [isDrawerHovered, setIsDrawerHovered] = useState(false);
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -85,6 +91,33 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
     localStorage.removeItem('evep_token');
     localStorage.removeItem('evep_user');
     navigate('/login');
+  };
+
+  // Handle menu expansion/collapse
+  const handleMenuToggle = (menuText: string) => {
+    setExpandedMenus(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(menuText)) {
+        newSet.delete(menuText);
+      } else {
+        newSet.add(menuText);
+      }
+      return newSet;
+    });
+  };
+
+  // Handle drawer hover
+  const handleDrawerMouseEnter = () => {
+    setIsDrawerHovered(true);
+  };
+
+  const handleDrawerMouseLeave = () => {
+    setIsDrawerHovered(false);
+  };
+
+  // Check if menu is expanded
+  const isMenuExpanded = (menuText: string) => {
+    return expandedMenus.has(menuText);
   };
 
   const menuItems = [
@@ -223,6 +256,30 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
       ],
     },
     {
+      text: 'User Management',
+      icon: <PersonIcon />,
+      path: '/dashboard/user-management',
+      badge: 'Admin',
+      description: 'Manage all users',
+      priority: 'high',
+      children: [
+        {
+          text: 'User Directory',
+          icon: <PersonIcon />,
+          path: '/dashboard/user-management',
+          badge: null,
+          description: 'View all users',
+        },
+        {
+          text: 'Create User',
+          icon: <AddIcon />,
+          path: '/dashboard/user-management',
+          badge: 'New',
+          description: 'Add new user',
+        },
+      ],
+    },
+    {
       text: 'Medical Staff Management',
       icon: <PersonIcon />,
       path: '/dashboard/medical-staff',
@@ -357,8 +414,13 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
 
       {/* Navigation Menu */}
       <List sx={{ padding: theme.spacing(2, 0) }}>
-        {menuItems.map((item) => (
-          <React.Fragment key={item.text}>
+        {menuItems.map((item) => {
+          // Debug: Log items with children
+          if (item.children) {
+            console.log('Menu item with children:', item.text, 'Children count:', item.children.length);
+          }
+          return (
+            <React.Fragment key={item.text}>
             <ListItem disablePadding>
               <ListItemButton
                 selected={location.pathname === item.path || (item.children && item.children.some(child => location.pathname === child.path))}
@@ -367,8 +429,8 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                     // Open external link in new tab
                     window.open(item.path, '_blank');
                   } else if (item.children) {
-                    // Handle nested menu - for now just navigate to first child
-                    navigate(item.children[0].path);
+                    // Toggle menu expansion
+                    handleMenuToggle(item.text);
                   } else {
                     navigate(item.path);
                   }
@@ -388,7 +450,8 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                     },
                     '& .MuiListItemText-secondary': {
                       color: theme.palette.primary.contrastText,
-                      opacity: 0.8,
+                      opacity: 0.9,
+                      fontWeight: 500,
                     },
                   },
                   '&:hover': {
@@ -407,7 +470,23 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText 
-                  primary={item.text}
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {item.text}
+                      {item.children && (
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: theme.palette.text.secondary,
+                            fontSize: '0.7rem',
+                            opacity: 0.7,
+                          }}
+                        >
+                          ({item.children.length})
+                        </Typography>
+                      )}
+                    </Box>
+                  }
                   secondary={item.description}
                   primaryTypographyProps={{
                     fontWeight: (location.pathname === item.path || (item.children && item.children.some(child => location.pathname === child.path))) ? 600 : 500,
@@ -416,6 +495,8 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                   secondaryTypographyProps={{
                     fontSize: '0.75rem',
                     lineHeight: 1.2,
+                    color: theme.palette.text.secondary,
+                    fontWeight: 500,
                   }}
                 />
                 {item.badge && (
@@ -439,11 +520,49 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                     }}
                   />
                 )}
+                {item.children && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        fontSize: '0.7rem',
+                        opacity: 0.7,
+                      }}
+                    >
+                      {isMenuExpanded(item.text) ? '▼' : '▶'}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMenuToggle(item.text);
+                      }}
+                      sx={{
+                        color: (location.pathname === item.path || (item.children && item.children.some(child => location.pathname === child.path)))
+                          ? theme.palette.primary.contrastText 
+                          : theme.palette.text.secondary,
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                        borderRadius: '50%',
+                        width: 28,
+                        height: 28,
+                        '&:hover': {
+                          backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                        },
+                        '& .MuiSvgIcon-root': {
+                          fontSize: '1.2rem',
+                        },
+                      }}
+                    >
+                      {isMenuExpanded(item.text) ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    </IconButton>
+                  </Box>
+                )}
               </ListItemButton>
             </ListItem>
             
             {/* Render nested menu items */}
-            {item.children && (
+            {item.children && isMenuExpanded(item.text) && (
               <Box sx={{ pl: 2, pr: 2 }}>
                 {item.children.map((child) => (
                   <ListItem key={child.text} disablePadding>
@@ -467,11 +586,21 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                           },
                           '& .MuiListItemText-secondary': {
                             color: theme.palette.primary.main,
-                            opacity: 0.8,
+                            opacity: 0.9,
+                            fontWeight: 500,
                           },
                         },
                         '&:hover': {
                           backgroundColor: theme.palette.action.hover,
+                          '& .MuiListItemText-primary': {
+                            color: theme.palette.primary.main,
+                          },
+                          '& .MuiListItemText-secondary': {
+                            color: theme.palette.primary.main,
+                          },
+                          '& .MuiListItemIcon-root': {
+                            color: theme.palette.primary.main,
+                          },
                         },
                       }}
                     >
@@ -480,7 +609,7 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                           minWidth: 32,
                           color: location.pathname === child.path 
                             ? theme.palette.primary.main 
-                            : theme.palette.text.secondary,
+                            : theme.palette.text.primary,
                         }}
                       >
                         {child.icon}
@@ -489,12 +618,24 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                         primary={child.text}
                         secondary={child.description}
                         primaryTypographyProps={{
-                          fontWeight: location.pathname === child.path ? 600 : 400,
+                          fontWeight: location.pathname === child.path ? 600 : 500,
                           fontSize: '0.85rem',
+                          color: location.pathname === child.path 
+                            ? theme.palette.primary.main 
+                            : theme.palette.text.primary,
                         }}
                         secondaryTypographyProps={{
                           fontSize: '0.7rem',
                           lineHeight: 1.2,
+                          color: location.pathname === child.path 
+                            ? theme.palette.primary.main 
+                            : theme.palette.text.primary,
+                          fontWeight: 500,
+                        }}
+                        sx={{
+                          '& .MuiListItemText-secondary': {
+                            opacity: 0.8,
+                          },
                         }}
                       />
                       {child.badge && (
@@ -522,7 +663,8 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
               </Box>
             )}
           </React.Fragment>
-        ))}
+        );
+        })}
       </List>
 
       <Divider sx={{ margin: theme.spacing(2, 0) }} />
@@ -647,6 +789,15 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
           >
             <MenuIcon />
           </IconButton>
+          <IconButton
+            color="inherit"
+            aria-label="toggle drawer"
+            edge="start"
+            onClick={() => setIsDrawerHovered(!isDrawerHovered)}
+            sx={{ mr: 2, display: { xs: 'none', sm: 'block' } }}
+          >
+            <MenuIcon />
+          </IconButton>
           
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             {menuItems.find(item => item.path === location.pathname)?.text || 'EVEP Medical Panel'}
@@ -664,39 +815,21 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
               flexDirection: 'column',
               alignItems: 'center',
               mr: 3,
-              minWidth: 120,
-              background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
-              borderRadius: 2,
-              px: 2,
-              py: 1.5,
-              color: '#ffffff',
-              boxShadow: '0 2px 8px rgba(25, 118, 210, 0.3)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              position: 'relative',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-                borderRadius: 2,
-                pointerEvents: 'none',
-              },
+              color: '#1e3a8a',
             }}
           >
+            {/* Time Display */}
             <Typography
-              variant="h6"
+              variant="h5"
               sx={{
-                fontFamily: 'monospace',
-                fontWeight: 'bold',
-                fontSize: '1.1rem',
-                lineHeight: 1.2,
-                color: '#ffffff',
-                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
-                position: 'relative',
-                zIndex: 1,
+                fontFamily: '"JetBrains Mono", "Fira Code", "Roboto Mono", monospace',
+                fontWeight: 900,
+                fontSize: '1.4rem',
+                lineHeight: 1.1,
+                color: '#1e3a8a',
+                letterSpacing: '0.1em',
+                textAlign: 'center',
+                mb: 0.5,
               }}
             >
               {currentTime.toLocaleTimeString('th-TH', {
@@ -706,17 +839,17 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                 hour12: false,
               })}
             </Typography>
+            
+            {/* Date Display */}
             <Typography
-              variant="caption"
+              variant="body2"
               sx={{
-                fontSize: '0.75rem',
-                color: '#ffffff',
+                fontSize: '0.8rem',
+                color: '#1e3a8a',
                 textAlign: 'center',
-                opacity: 0.95,
-                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
-                position: 'relative',
-                zIndex: 1,
-                fontWeight: 500,
+                fontWeight: 600,
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
               }}
             >
               {currentTime.toLocaleDateString('th-TH', {
@@ -726,6 +859,31 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                 day: 'numeric',
               })}
             </Typography>
+            
+            {/* Live Indicator */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: -2,
+                right: -2,
+                width: 12,
+                height: 12,
+                background: 'linear-gradient(45deg, #ef4444, #f97316)',
+                borderRadius: '50%',
+                boxShadow: '0 0 8px rgba(239, 68, 68, 0.6)',
+                animation: 'blink 1.5s ease-in-out infinite',
+                '@keyframes blink': {
+                  '0%, 50%': {
+                    opacity: 1,
+                    transform: 'scale(1)',
+                  },
+                  '25%, 75%': {
+                    opacity: 0.7,
+                    transform: 'scale(0.9)',
+                  },
+                },
+              }}
+            />
           </Box>
 
           {/* Notifications */}
@@ -802,7 +960,13 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
             },
           }}
         >
-          {drawer}
+          <Box
+            onMouseEnter={handleDrawerMouseEnter}
+            onMouseLeave={handleDrawerMouseLeave}
+            sx={{ height: '100%' }}
+          >
+            {drawer}
+          </Box>
         </Drawer>
         <Drawer
           variant="permanent"
@@ -810,12 +974,19 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
             display: { xs: 'none', sm: 'block' },
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
-              width: drawerWidth,
+              width: isDrawerHovered ? drawerWidth + 50 : drawerWidth,
+              transition: 'width 0.3s ease-in-out',
             },
           }}
           open
         >
-          {drawer}
+          <Box
+            onMouseEnter={handleDrawerMouseEnter}
+            onMouseLeave={handleDrawerMouseLeave}
+            sx={{ height: '100%' }}
+          >
+            {drawer}
+          </Box>
         </Drawer>
       </Box>
 
