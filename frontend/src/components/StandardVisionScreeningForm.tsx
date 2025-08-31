@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Card,
@@ -40,6 +40,10 @@ import {
   TableRow,
   IconButton,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   Visibility,
@@ -105,6 +109,40 @@ interface VisionResults {
     right_eye_axis?: string;
     pupillary_distance?: string;
   };
+  // Enhanced screening fields for medical-grade forms
+  comprehensive_ophthalmic?: {
+    va_right: string;
+    va_left: string;
+    va_binocular: string;
+    cover_test_result: 'normal' | 'esotropia' | 'exotropia';
+    ocular_motility: 'full' | 'restricted' | 'limited';
+    near_point_of_convergence: number;
+    pupil_response: 'normal' | 'sluggish' | 'non-reactive';
+    red_reflex_result: 'normal' | 'abnormal';
+    recommendation: string;
+  };
+  visual_acuity_screening?: {
+    va_right: string;
+    va_left: string;
+    va_pass_fail: 'pass' | 'fail' | 'refer';
+    screening_method: 'Snellen' | 'LEA' | 'Tumbling E';
+    test_distance_m: number;
+    glasses_used: boolean;
+  };
+  color_vision_deficiency?: {
+    test_type: 'Ishihara' | 'HRR' | 'D-15' | 'Farnsworth';
+    total_plates: number;
+    correct_answers: number;
+    color_deficiency: 'normal' | 'red-green' | 'blue-yellow' | 'total';
+    test_result_notes: string;
+  };
+  stereoacuity_test?: {
+    test_type: 'Stereo Fly' | 'Randot' | 'Titmus' | 'Lang';
+    stereoacuity_arcsec: number;
+    pass_fail: 'pass' | 'fail' | 'inconclusive';
+    patient_response: string;
+    test_distance_cm: number;
+  };
 }
 
 interface StandardVisionScreeningFormProps {
@@ -148,7 +186,7 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
   });
 
   // Screening states
-  const [screeningType, setScreeningType] = useState('comprehensive');
+  const [screeningType, setScreeningType] = useState('comprehensive_ophthalmic');
   const [equipmentUsed, setEquipmentUsed] = useState('');
   const [screeningResults, setScreeningResults] = useState<VisionResults>({
     left_eye_distance: '',
@@ -160,7 +198,41 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
     notes: '',
     recommendations: '',
     follow_up_required: false,
-    follow_up_date: ''
+    follow_up_date: '',
+    // Enhanced screening fields
+    comprehensive_ophthalmic: {
+      va_right: '',
+      va_left: '',
+      va_binocular: '',
+      cover_test_result: 'normal',
+      ocular_motility: 'full',
+      near_point_of_convergence: 0,
+      pupil_response: 'normal',
+      red_reflex_result: 'normal',
+      recommendation: '',
+    },
+    visual_acuity_screening: {
+      va_right: '',
+      va_left: '',
+      va_pass_fail: 'pass',
+      screening_method: 'Snellen',
+      test_distance_m: 6,
+      glasses_used: false,
+    },
+    color_vision_deficiency: {
+      test_type: 'Ishihara',
+      total_plates: 0,
+      correct_answers: 0,
+      color_deficiency: 'normal',
+      test_result_notes: '',
+    },
+    stereoacuity_test: {
+      test_type: 'Stereo Fly',
+      stereoacuity_arcsec: 0,
+      pass_fail: 'pass',
+      patient_response: '',
+      test_distance_cm: 40,
+    },
   });
 
   const steps = [
@@ -178,7 +250,7 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
   const fetchPatients = async () => {
     try {
       const token = localStorage.getItem('evep_token');
-      const response = await fetch('http://localhost:8013/api/v1/patient_management/api/v1/patients/', {
+              const response = await fetch('http://localhost:8013/api/v1/evep/students', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -315,31 +387,93 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
     }
   };
 
-  const handlePhotoCapture = () => {
-    // This would integrate with device camera
-    // For now, we'll simulate with a file input
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'environment';
-    input.onchange = (e) => {
-      const target = e.target as HTMLInputElement;
-      if (target.files && target.files.length > 0) {
-        const file = target.files[0];
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const result = e.target?.result as string;
-          if (newPatientData.photos.length < 3) {
-            setNewPatientData({
-              ...newPatientData,
-              photos: [...newPatientData.photos, result]
-            });
-          }
-        };
-        reader.readAsDataURL(file);
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const handlePhotoCapture = async () => {
+    try {
+      // Request camera access
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'environment', // Use back camera on mobile
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        } 
+      });
+      
+      setCameraStream(stream);
+      setShowCamera(true);
+      
+      // Set video stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
       }
-    };
-    input.click();
+    } catch (error) {
+      console.error('Camera access error:', error);
+      // Fallback to file input if camera access fails
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.capture = 'environment';
+      input.onchange = (e) => {
+        const target = e.target as HTMLInputElement;
+        if (target.files && target.files.length > 0) {
+          const file = target.files[0];
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const result = e.target?.result as string;
+            if (newPatientData.photos.length < 3) {
+              setNewPatientData({
+                ...newPatientData,
+                photos: [...newPatientData.photos, result]
+              });
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+      input.click();
+    }
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      
+      if (context) {
+        // Set canvas size to match video
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw video frame to canvas
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Convert to base64
+        const photoData = canvas.toDataURL('image/jpeg', 0.8);
+        
+        if (newPatientData.photos.length < 3) {
+          setNewPatientData({
+            ...newPatientData,
+            photos: [...newPatientData.photos, photoData]
+          });
+        }
+      }
+    }
+    
+    // Stop camera and close
+    closeCamera();
+  };
+
+  const closeCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+    setShowCamera(false);
   };
 
   const removePhoto = (index: number) => {
@@ -350,12 +484,23 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
   };
 
   const renderPhotoUploadSection = () => (
-    <Card sx={{ mb: 3 }}>
-      <CardContent>
-        <Typography variant="h6" gutterBottom>
+    <Card sx={{ 
+      mb: 3,
+      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+      borderRadius: 2,
+      border: '1px solid rgba(0, 0, 0, 0.05)',
+      backdropFilter: 'blur(10px)'
+    }}>
+      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+        <Typography variant="h6" gutterBottom sx={{ 
+          color: 'primary.main',
+          fontWeight: 'bold',
+          mb: 1
+        }}>
           Patient Photos (Max 3)
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Upload or capture photos to help identify the patient during screening
         </Typography>
         
@@ -363,7 +508,12 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
           {/* Photo Display */}
           {newPatientData.photos.map((photo, index) => (
             <Grid item xs={12} sm={4} key={index}>
-              <Card sx={{ position: 'relative' }}>
+              <Card sx={{ 
+                position: 'relative',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                borderRadius: 2,
+                overflow: 'hidden'
+              }}>
                 <CardContent sx={{ p: 1 }}>
                   <img 
                     src={photo} 
@@ -380,9 +530,13 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
                     color="error"
                     sx={{ 
                       position: 'absolute', 
-                      top: 4, 
-                      right: 4,
-                      bgcolor: 'rgba(255,255,255,0.8)'
+                      top: 8, 
+                      right: 8,
+                      bgcolor: 'rgba(255,255,255,0.9)',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                      '&:hover': {
+                        bgcolor: 'rgba(255,255,255,1)'
+                      }
                     }}
                     onClick={() => removePhoto(index)}
                   >
@@ -439,17 +593,32 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
                 justifyContent: 'center',
                 border: '2px dashed',
                 borderColor: 'secondary.main',
-                bgcolor: 'secondary.50'
+                bgcolor: 'secondary.50',
+                borderRadius: 2,
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  borderColor: 'secondary.dark',
+                  bgcolor: 'secondary.100',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                }
               }}>
                 <CardContent sx={{ textAlign: 'center' }}>
                   <IconButton
                     color="secondary"
-                    sx={{ mb: 1 }}
+                    sx={{ 
+                      mb: 1,
+                      bgcolor: 'secondary.main',
+                      color: 'white',
+                      '&:hover': {
+                        bgcolor: 'secondary.dark'
+                      }
+                    }}
                     onClick={handlePhotoCapture}
                   >
                     <PhotoCamera />
                   </IconButton>
-                  <Typography variant="body2" color="secondary">
+                  <Typography variant="body2" color="secondary" sx={{ fontWeight: 'bold' }}>
                     Take Photo
                   </Typography>
                 </CardContent>
@@ -465,6 +634,7 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
         )}
       </CardContent>
     </Card>
+
   );
 
   const renderPatientProfile = () => {
@@ -493,13 +663,15 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
     return (
       <Card sx={{ 
         mb: 3, 
-        bgcolor: 'primary.50', 
-        border: '2px solid', 
+        background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.1) 0%, rgba(25, 118, 210, 0.05) 100%)',
+        border: '2px solid',
         borderColor: 'primary.main',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-        borderRadius: 2
+        boxShadow: '0 6px 25px rgba(25, 118, 210, 0.15)',
+        borderRadius: 3,
+        overflow: 'hidden',
+        backdropFilter: 'blur(10px)'
       }}>
-        <CardContent sx={{ p: 3 }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
@@ -674,6 +846,712 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
 
   const renderScreeningForm = () => {
     switch (screeningType) {
+      // New Medical-Grade Screening Types
+      case 'comprehensive_ophthalmic':
+        return (
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Card sx={{ 
+                mb: 3, 
+                background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.15) 0%, rgba(25, 118, 210, 0.05) 100%)',
+                border: '2px solid',
+                borderColor: 'primary.main',
+                boxShadow: '0 4px 20px rgba(25, 118, 210, 0.2)',
+                backdropFilter: 'blur(10px)'
+              }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="h5" gutterBottom sx={{ 
+                    color: 'primary.main',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    🧾 Comprehensive Ophthalmic Examination
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary">
+                    Full visual function including acuity, binocular vision, eye movements, and red reflex
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            
+            {/* Visual Acuity */}
+            <Grid item xs={12} md={6}>
+              <Card sx={{ 
+                height: '100%',
+                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                borderRadius: 2,
+                border: '1px solid rgba(0, 0, 0, 0.05)',
+                backdropFilter: 'blur(10px)',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)'
+                }
+              }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="h6" gutterBottom sx={{ 
+                    color: 'primary.main',
+                    fontWeight: 'bold',
+                    mb: 2
+                  }}>
+                    Visual Acuity
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={4}>
+                      <TextField
+                        fullWidth
+                        label="Right Eye"
+                        value={screeningResults.comprehensive_ophthalmic?.va_right || ''}
+                        onChange={(e) => setScreeningResults({
+                          ...screeningResults,
+                          comprehensive_ophthalmic: {
+                            ...screeningResults.comprehensive_ophthalmic!,
+                            va_right: e.target.value
+                          }
+                        })}
+                        placeholder="e.g., 6/6, 20/20"
+                      />
+                    </Grid>
+                    <Grid item xs={4}>
+                      <TextField
+                        fullWidth
+                        label="Left Eye"
+                        value={screeningResults.comprehensive_ophthalmic?.va_left || ''}
+                        onChange={(e) => setScreeningResults({
+                          ...screeningResults,
+                          comprehensive_ophthalmic: {
+                            ...screeningResults.comprehensive_ophthalmic!,
+                            va_left: e.target.value
+                          }
+                        })}
+                        placeholder="e.g., 6/6, 20/20"
+                      />
+                    </Grid>
+                    <Grid item xs={4}>
+                      <TextField
+                        fullWidth
+                        label="Binocular"
+                        value={screeningResults.comprehensive_ophthalmic?.va_binocular || ''}
+                        onChange={(e) => setScreeningResults({
+                          ...screeningResults,
+                          comprehensive_ophthalmic: {
+                            ...screeningResults.comprehensive_ophthalmic!,
+                            va_binocular: e.target.value
+                          }
+                        })}
+                        placeholder="e.g., 6/6, 20/20"
+                      />
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Cover Test & Ocular Motility */}
+            <Grid item xs={12} md={6}>
+              <Card sx={{ 
+                height: '100%',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                borderRadius: 2
+              }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="h6" gutterBottom sx={{ 
+                    color: 'primary.main',
+                    fontWeight: 'bold',
+                    mb: 2
+                  }}>
+                    Eye Alignment & Movement
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Cover Test Result</InputLabel>
+                        <Select
+                          value={screeningResults.comprehensive_ophthalmic?.cover_test_result || 'normal'}
+                          label="Cover Test Result"
+                          onChange={(e) => setScreeningResults({
+                            ...screeningResults,
+                            comprehensive_ophthalmic: {
+                              ...screeningResults.comprehensive_ophthalmic!,
+                              cover_test_result: e.target.value as 'normal' | 'esotropia' | 'exotropia'
+                            }
+                          })}
+                        >
+                          <MenuItem value="normal">Normal</MenuItem>
+                          <MenuItem value="esotropia">Esotropia</MenuItem>
+                          <MenuItem value="exotropia">Exotropia</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Ocular Motility</InputLabel>
+                        <Select
+                          value={screeningResults.comprehensive_ophthalmic?.ocular_motility || 'full'}
+                          label="Ocular Motility"
+                          onChange={(e) => setScreeningResults({
+                            ...screeningResults,
+                            comprehensive_ophthalmic: {
+                              ...screeningResults.comprehensive_ophthalmic!,
+                              ocular_motility: e.target.value as 'full' | 'restricted' | 'limited'
+                            }
+                          })}
+                        >
+                          <MenuItem value="full">Full</MenuItem>
+                          <MenuItem value="restricted">Restricted</MenuItem>
+                          <MenuItem value="limited">Limited</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Near Point & Pupil Response */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Convergence & Pupil Response
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Near Point of Convergence (cm)"
+                        value={screeningResults.comprehensive_ophthalmic?.near_point_of_convergence || ''}
+                        onChange={(e) => setScreeningResults({
+                          ...screeningResults,
+                          comprehensive_ophthalmic: {
+                            ...screeningResults.comprehensive_ophthalmic!,
+                            near_point_of_convergence: parseFloat(e.target.value) || 0
+                          }
+                        })}
+                        inputProps={{ min: 0, max: 20, step: 0.5 }}
+                        placeholder="e.g., 6.5"
+                      />
+                    </Grid>
+                    <Grid item xs={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Pupil Response</InputLabel>
+                        <Select
+                          value={screeningResults.comprehensive_ophthalmic?.pupil_response || 'normal'}
+                          label="Pupil Response"
+                          onChange={(e) => setScreeningResults({
+                            ...screeningResults,
+                            comprehensive_ophthalmic: {
+                              ...screeningResults.comprehensive_ophthalmic!,
+                              pupil_response: e.target.value as 'normal' | 'sluggish' | 'non-reactive'
+                            }
+                          })}
+                        >
+                          <MenuItem value="normal">Normal</MenuItem>
+                          <MenuItem value="sluggish">Sluggish</MenuItem>
+                          <MenuItem value="non-reactive">Non-Reactive</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Red Reflex */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Red Reflex Assessment
+                  </Typography>
+                  <FormControl fullWidth>
+                    <InputLabel>Red Reflex Result</InputLabel>
+                    <Select
+                                                value={screeningResults.comprehensive_ophthalmic?.red_reflex_result || 'normal'}
+                          label="Red Reflex Result"
+                          onChange={(e) => setScreeningResults({
+                            ...screeningResults,
+                            comprehensive_ophthalmic: {
+                              ...screeningResults.comprehensive_ophthalmic!,
+                              red_reflex_result: e.target.value as 'normal' | 'abnormal'
+                            }
+                          })}
+                    >
+                      <MenuItem value="normal">Normal</MenuItem>
+                      <MenuItem value="abnormal">Abnormal</MenuItem>
+                    </Select>
+                  </FormControl>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        );
+
+      case 'visual_acuity':
+        return (
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Card sx={{ 
+                mb: 3, 
+                background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.05) 100%)',
+                border: '2px solid',
+                borderColor: 'success.main',
+                boxShadow: '0 4px 20px rgba(76, 175, 80, 0.2)',
+                backdropFilter: 'blur(10px)'
+              }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="h5" gutterBottom sx={{ 
+                    color: 'success.main',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    🧾 Visual Acuity Screening
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary">
+                    Routine checks for schools or community health settings
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            
+            {/* Visual Acuity */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Visual Acuity
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        label="Right Eye"
+                        value={screeningResults.visual_acuity_screening?.va_right || ''}
+                        onChange={(e) => setScreeningResults({
+                          ...screeningResults,
+                          visual_acuity_screening: {
+                            ...screeningResults.visual_acuity_screening!,
+                            va_right: e.target.value
+                          }
+                        })}
+                        placeholder="e.g., 20/20"
+                      />
+                    </Grid>
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        label="Left Eye"
+                        value={screeningResults.visual_acuity_screening?.va_left || ''}
+                        onChange={(e) => setScreeningResults({
+                          ...screeningResults,
+                          visual_acuity_screening: {
+                            ...screeningResults.visual_acuity_screening!,
+                            va_left: e.target.value
+                          }
+                        })}
+                        placeholder="e.g., 20/20"
+                      />
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Screening Method & Results */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Screening Method & Results
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Screening Method</InputLabel>
+                        <Select
+                          value={screeningResults.visual_acuity_screening?.screening_method || 'Snellen'}
+                          label="Screening Method"
+                          onChange={(e) => setScreeningResults({
+                            ...screeningResults,
+                            visual_acuity_screening: {
+                              ...screeningResults.visual_acuity_screening!,
+                              screening_method: e.target.value as 'Snellen' | 'LEA' | 'Tumbling E'
+                            }
+                          })}
+                        >
+                          <MenuItem value="Snellen">Snellen</MenuItem>
+                          <MenuItem value="LEA">LEA</MenuItem>
+                          <MenuItem value="Tumbling E">Tumbling E</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Pass/Fail</InputLabel>
+                        <Select
+                          value={screeningResults.visual_acuity_screening?.va_pass_fail || 'pass'}
+                          label="Pass/Fail"
+                          onChange={(e) => setScreeningResults({
+                            ...screeningResults,
+                            visual_acuity_screening: {
+                              ...screeningResults.visual_acuity_screening!,
+                              va_pass_fail: e.target.value as 'pass' | 'fail' | 'refer'
+                            }
+                          })}
+                        >
+                          <MenuItem value="pass">Pass</MenuItem>
+                          <MenuItem value="fail">Fail</MenuItem>
+                          <MenuItem value="refer">Refer</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Test Distance (m)"
+                        value={screeningResults.visual_acuity_screening?.test_distance_m || ''}
+                        onChange={(e) => setScreeningResults({
+                          ...screeningResults,
+                          visual_acuity_screening: {
+                            ...screeningResults.visual_acuity_screening!,
+                            test_distance_m: parseFloat(e.target.value) || 0
+                          }
+                        })}
+                        inputProps={{ min: 1, max: 10, step: 0.5 }}
+                        placeholder="e.g., 6"
+                      />
+                    </Grid>
+                    <Grid item xs={6}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={screeningResults.visual_acuity_screening?.glasses_used || false}
+                            onChange={(e) => setScreeningResults({
+                              ...screeningResults,
+                              visual_acuity_screening: {
+                                ...screeningResults.visual_acuity_screening!,
+                                glasses_used: e.target.checked
+                              }
+                            })}
+                          />
+                        }
+                        label="Glasses Used"
+                      />
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        );
+
+      case 'color_vision_deficiency':
+        return (
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Card sx={{ 
+                mb: 3, 
+                background: 'linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 152, 0, 0.05) 100%)',
+                border: '2px solid',
+                borderColor: 'warning.main',
+                boxShadow: '0 4px 20px rgba(255, 152, 0, 0.2)',
+                backdropFilter: 'blur(10px)'
+              }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="h5" gutterBottom sx={{ 
+                    color: 'warning.main',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    🧾 Color Vision Deficiency Assessment
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary">
+                    Checks for red-green and blue-yellow color deficiencies
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            
+            {/* Test Configuration */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Test Configuration
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Test Type</InputLabel>
+                        <Select
+                          value={screeningResults.color_vision_deficiency?.test_type || 'Ishihara'}
+                          label="Test Type"
+                          onChange={(e) => setScreeningResults({
+                            ...screeningResults,
+                            color_vision_deficiency: {
+                              ...screeningResults.color_vision_deficiency!,
+                              test_type: e.target.value as 'Ishihara' | 'HRR' | 'D-15' | 'Farnsworth'
+                            }
+                          })}
+                        >
+                          <MenuItem value="Ishihara">Ishihara</MenuItem>
+                          <MenuItem value="HRR">HRR</MenuItem>
+                          <MenuItem value="D-15">D-15</MenuItem>
+                          <MenuItem value="Farnsworth">Farnsworth</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Total Plates"
+                        value={screeningResults.color_vision_deficiency?.total_plates || ''}
+                        onChange={(e) => setScreeningResults({
+                          ...screeningResults,
+                          color_vision_deficiency: {
+                            ...screeningResults.color_vision_deficiency!,
+                            total_plates: parseInt(e.target.value) || 0
+                          }
+                        })}
+                        inputProps={{ min: 0, max: 100 }}
+                        placeholder="e.g., 14"
+                      />
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Test Results */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Test Results
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Correct Answers"
+                        value={screeningResults.color_vision_deficiency?.correct_answers || ''}
+                        onChange={(e) => setScreeningResults({
+                          ...screeningResults,
+                          color_vision_deficiency: {
+                            ...screeningResults.color_vision_deficiency!,
+                            correct_answers: parseInt(e.target.value) || 0
+                          }
+                        })}
+                        inputProps={{ min: 0, max: 100 }}
+                        placeholder="e.g., 12"
+                      />
+                    </Grid>
+                    <Grid item xs={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Color Deficiency</InputLabel>
+                        <Select
+                          value={screeningResults.color_vision_deficiency?.color_deficiency || 'normal'}
+                          label="Color Deficiency"
+                          onChange={(e) => setScreeningResults({
+                            ...screeningResults,
+                            color_vision_deficiency: {
+                              ...screeningResults.color_vision_deficiency!,
+                              color_deficiency: e.target.value as 'normal' | 'red-green' | 'blue-yellow' | 'total'
+                            }
+                          })}
+                        >
+                          <MenuItem value="normal">Normal</MenuItem>
+                          <MenuItem value="red-green">Red-Green</MenuItem>
+                          <MenuItem value="blue-yellow">Blue-Yellow</MenuItem>
+                          <MenuItem value="total">Total</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={3}
+                        label="Test Result Notes"
+                        value={screeningResults.color_vision_deficiency?.test_result_notes || ''}
+                        onChange={(e) => setScreeningResults({
+                          ...screeningResults,
+                          color_vision_deficiency: {
+                            ...screeningResults.color_vision_deficiency!,
+                            test_result_notes: e.target.value
+                          }
+                        })}
+                        placeholder="Additional notes about the color vision test..."
+                      />
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        );
+
+      case 'stereoacuity':
+        return (
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Card sx={{ 
+                mb: 3, 
+                background: 'linear-gradient(135deg, rgba(156, 39, 176, 0.15) 0%, rgba(156, 39, 176, 0.05) 100%)',
+                border: '2px solid',
+                borderColor: 'secondary.main',
+                boxShadow: '0 4px 20px rgba(156, 39, 176, 0.2)',
+                backdropFilter: 'blur(10px)'
+              }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="h5" gutterBottom sx={{ 
+                    color: 'secondary.main',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    🧾 Stereoacuity (Depth Perception) Test
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary">
+                    Tests stereopsis (3D vision) via Stereo Fly, Randot, or Titmus
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            
+            {/* Test Configuration */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Test Configuration
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Test Type</InputLabel>
+                        <Select
+                          value={screeningResults.stereoacuity_test?.test_type || 'Stereo Fly'}
+                          label="Test Type"
+                          onChange={(e) => setScreeningResults({
+                            ...screeningResults,
+                            stereoacuity_test: {
+                              ...screeningResults.stereoacuity_test!,
+                              test_type: e.target.value as 'Stereo Fly' | 'Randot' | 'Titmus' | 'Lang'
+                            }
+                          })}
+                        >
+                          <MenuItem value="Stereo Fly">Stereo Fly</MenuItem>
+                          <MenuItem value="Randot">Randot</MenuItem>
+                          <MenuItem value="Titmus">Titmus</MenuItem>
+                          <MenuItem value="Lang">Lang</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Test Distance (cm)"
+                        value={screeningResults.stereoacuity_test?.test_distance_cm || ''}
+                        onChange={(e) => setScreeningResults({
+                          ...screeningResults,
+                          stereoacuity_test: {
+                            ...screeningResults.stereoacuity_test!,
+                            test_distance_cm: parseFloat(e.target.value) || 0
+                          }
+                        })}
+                        inputProps={{ min: 20, max: 100, step: 1 }}
+                        placeholder="e.g., 40"
+                      />
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* Test Results */}
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Test Results
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Stereoacuity (arc sec)"
+                        value={screeningResults.stereoacuity_test?.stereoacuity_arcsec || ''}
+                        onChange={(e) => setScreeningResults({
+                          ...screeningResults,
+                          stereoacuity_test: {
+                            ...screeningResults.stereoacuity_test!,
+                            stereoacuity_arcsec: parseInt(e.target.value) || 0
+                          }
+                        })}
+                        inputProps={{ min: 0, max: 3000 }}
+                        placeholder="e.g., 40"
+                      />
+                    </Grid>
+                    <Grid item xs={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Pass/Fail</InputLabel>
+                        <Select
+                          value={screeningResults.stereoacuity_test?.pass_fail || 'pass'}
+                          label="Pass/Fail"
+                          onChange={(e) => setScreeningResults({
+                            ...screeningResults,
+                            stereoacuity_test: {
+                              ...screeningResults.stereoacuity_test!,
+                              pass_fail: e.target.value as 'pass' | 'fail' | 'inconclusive'
+                            }
+                          })}
+                        >
+                          <MenuItem value="pass">Pass</MenuItem>
+                          <MenuItem value="fail">Fail</MenuItem>
+                          <MenuItem value="inconclusive">Inconclusive</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={3}
+                        label="Patient Response"
+                        value={screeningResults.stereoacuity_test?.patient_response || ''}
+                        onChange={(e) => setScreeningResults({
+                          ...screeningResults,
+                          stereoacuity_test: {
+                            ...screeningResults.stereoacuity_test!,
+                            patient_response: e.target.value
+                          }
+                        })}
+                        placeholder="Patient's responses during the test..."
+                      />
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        );
+
+      // Legacy screening types (keeping for backward compatibility)
       case 'comprehensive':
         return (
           <Grid container spacing={3}>
@@ -1030,6 +1908,8 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
               <Tab label="Add New Patient" />
             </Tabs>
 
+
+
             {patientTab === 0 && (
               <Box>
                 <Grid container spacing={2} sx={{ mb: 3 }}>
@@ -1051,6 +1931,7 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
                         value={filterStatus}
                         label="Filter by Status"
                         onChange={(e) => setFilterStatus(e.target.value)}
+
                       >
                         <MenuItem value="all">All Patients</MenuItem>
                         <MenuItem value="active">Active</MenuItem>
@@ -1121,6 +2002,7 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
                       label="First Name"
                       value={newPatientData.first_name}
                       onChange={(e) => setNewPatientData({...newPatientData, first_name: e.target.value})}
+
                     />
                   </Grid>
                   <Grid item xs={12} md={6}>
@@ -1197,6 +2079,7 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
                       onClick={handleAddNewPatient}
                       startIcon={<Add />}
                       fullWidth
+
                     >
                       Add New Patient
                     </Button>
@@ -1241,10 +2124,14 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
                     label="Screening Type"
                     onChange={(e) => setScreeningType(e.target.value)}
                   >
-                    <MenuItem value="comprehensive">Comprehensive Vision Screening</MenuItem>
-                    <MenuItem value="basic">Basic Vision Screening</MenuItem>
-                    <MenuItem value="color">Color Vision Test</MenuItem>
-                    <MenuItem value="depth">Depth Perception Test</MenuItem>
+                    <MenuItem value="comprehensive_ophthalmic">Comprehensive Ophthalmic Examination</MenuItem>
+                    <MenuItem value="visual_acuity">Visual Acuity Screening</MenuItem>
+                    <MenuItem value="color_vision_deficiency">Color Vision Deficiency Assessment</MenuItem>
+                    <MenuItem value="stereoacuity">Stereoacuity (Depth Perception) Test</MenuItem>
+                    <MenuItem value="legacy_comprehensive">Legacy Comprehensive</MenuItem>
+                    <MenuItem value="legacy_basic">Legacy Basic</MenuItem>
+                    <MenuItem value="legacy_color">Legacy Color</MenuItem>
+                    <MenuItem value="legacy_depth">Legacy Depth</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -1566,40 +2453,14 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
   };
 
   return (
-    <Box sx={{ 
-      maxWidth: 1200, 
-      mx: 'auto', 
-      p: { xs: 2, md: 3 },
-      minHeight: '100vh',
-      bgcolor: 'background.default'
-    }}>
-      {/* Header Section */}
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: { xs: 'column', md: 'row' },
-        justifyContent: 'space-between', 
-        alignItems: { xs: 'flex-start', md: 'center' }, 
-        mb: 4,
-        gap: 2
-      }}>
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Box>
-          <Typography 
-            variant="h4" 
-            component="h1" 
-            gutterBottom
-            sx={{ 
-              color: 'primary.main',
-              fontWeight: 'bold',
-              fontSize: { xs: '1.75rem', md: '2.125rem' }
-            }}
-          >
+          <Typography variant="h4" component="h1" gutterBottom>
             Standard Vision Screening Workflow
           </Typography>
-          <Typography 
-            variant="body1" 
-            color="text.secondary"
-            sx={{ fontSize: { xs: '0.875rem', md: '1rem' } }}
-          >
+          <Typography variant="body1" color="text.secondary">
             Complete standard vision screening with customizable test types
           </Typography>
         </Box>
@@ -1608,117 +2469,63 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
             variant="outlined"
             startIcon={<ArrowBack />}
             onClick={onCancel}
-            sx={{ 
-              minWidth: { xs: '100%', md: 'auto' },
-              mt: { xs: 2, md: 0 }
-            }}
           >
             Cancel
           </Button>
         )}
       </Box>
 
-      {/* Progress Stepper */}
-      <Card sx={{ mb: 4, p: 2, bgcolor: 'primary.50' }}>
-        <Stepper 
-          activeStep={activeStep} 
-          sx={{ 
-            mb: 2,
-            '& .MuiStepLabel-root .Mui-completed': {
-              color: 'success.main',
-            },
-            '& .MuiStepLabel-root .Mui-active': {
-              color: 'primary.main',
-            }
-          }}
-        >
-          {steps.map((label, index) => (
-            <Step key={label}>
-              <StepLabel 
-                sx={{
-                  '& .MuiStepLabel-label': {
-                    fontSize: { xs: '0.75rem', md: '0.875rem' },
-                    fontWeight: activeStep === index ? 'bold' : 'normal'
-                  }
-                }}
-              >
-                {label}
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-        <Typography variant="body2" color="text.secondary" align="center">
-          Step {activeStep + 1} of {steps.length}
-        </Typography>
+      {/* Workflow Stepper */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Stepper activeStep={activeStep} alternativeLabel>
+            {steps.map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        </CardContent>
       </Card>
 
-      <Box sx={{ mb: 4 }}>
-        {renderWorkflowStep()}
-      </Box>
+      {/* Step Content */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          {renderWorkflowStep()}
+        </CardContent>
+      </Card>
 
-      {/* Navigation Buttons */}
-      <Card sx={{ p: 3, bgcolor: 'grey.50', border: '1px solid', borderColor: 'grey.200' }}>
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: { xs: 'column', sm: 'row' },
-          justifyContent: 'space-between',
-          gap: 2
-        }}>
+      {/* Navigation */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Box>
           <Button
-            variant="outlined"
             disabled={activeStep === 0}
             onClick={handleBack}
-            sx={{ 
-              minWidth: { xs: '100%', sm: '120px' },
-              order: { xs: 2, sm: 1 }
-            }}
           >
             Back
           </Button>
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: { xs: 'center', sm: 'flex-end' },
-            order: { xs: 1, sm: 2 }
-          }}>
-            {activeStep === steps.length - 1 ? (
-              <Button
-                variant="contained"
-                color="success"
-                size="large"
-                onClick={handleScreeningComplete}
-                disabled={loading}
-                startIcon={loading ? <CircularProgress size={20} /> : <CheckCircle />}
-                sx={{ 
-                  minWidth: { xs: '100%', sm: '200px' },
-                  py: 1.5,
-                  px: 3,
-                  fontSize: '1.1rem',
-                  fontWeight: 'bold'
-                }}
-              >
-                {loading ? 'Processing...' : 'Complete Screening'}
-              </Button>
-            ) : (
-              <Button
-                variant="contained"
-                size="large"
-                onClick={handleNext}
-                disabled={loading || (activeStep === 3 && !selectedPatient)}
-                startIcon={loading ? <CircularProgress size={20} /> : undefined}
-                sx={{ 
-                  minWidth: { xs: '100%', sm: '150px' },
-                  py: 1.5,
-                  px: 3,
-                  fontSize: '1.1rem',
-                  fontWeight: 'bold'
-                }}
-              >
-                {loading ? 'Processing...' : 'Next'}
-              </Button>
-            )}
-          </Box>
         </Box>
-      </Card>
+        <Box>
+          {activeStep === steps.length - 1 ? (
+            <Button
+              variant="contained"
+              onClick={handleScreeningComplete}
+              disabled={loading}
+              startIcon={loading ? <CircularProgress size={20} /> : <CheckCircle />}
+            >
+              Complete Screening
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              disabled={loading || (activeStep === 3 && !selectedPatient)}
+            >
+              Next
+            </Button>
+          )}
+        </Box>
+      </Box>
 
       <Snackbar
         open={snackbar.open}
@@ -1733,6 +2540,85 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Camera Dialog */}
+      {showCamera && (
+        <Dialog 
+          open={showCamera} 
+          onClose={closeCamera}
+          maxWidth="md"
+          fullWidth
+          PaperProps={{
+            sx: {
+              bgcolor: 'black',
+              color: 'white'
+            }
+          }}
+        >
+          <DialogTitle sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            bgcolor: 'black',
+            color: 'white'
+          }}>
+            <Typography variant="h6">Take Photo</Typography>
+            <IconButton onClick={closeCamera} sx={{ color: 'white' }}>
+              <Cancel />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent sx={{ 
+            p: 0, 
+            bgcolor: 'black',
+            position: 'relative',
+            minHeight: '400px'
+          }}>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              style={{
+                width: '100%',
+                height: 'auto',
+                maxHeight: '500px',
+                objectFit: 'cover'
+              }}
+            />
+            <canvas
+              ref={canvasRef}
+              style={{ display: 'none' }}
+            />
+            <Box sx={{
+              position: 'absolute',
+              bottom: 20,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              display: 'flex',
+              gap: 2
+            }}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={capturePhoto}
+                sx={{
+                  borderRadius: '50%',
+                  width: 80,
+                  height: 80,
+                  minWidth: 'unset',
+                  bgcolor: 'white',
+                  color: 'black',
+                  '&:hover': {
+                    bgcolor: 'grey.100'
+                  }
+                }}
+              >
+                <PhotoCamera sx={{ fontSize: 32 }} />
+              </Button>
+            </Box>
+          </DialogContent>
+        </Dialog>
+      )}
     </Box>
   );
 };

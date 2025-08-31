@@ -121,7 +121,7 @@ const Patients: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-              const response = await fetch('http://localhost:8013/api/v1/patient_management/patients/', {
+              const response = await fetch('http://localhost:8013/api/v1/patients/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

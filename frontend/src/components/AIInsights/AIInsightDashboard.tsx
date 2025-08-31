@@ -109,33 +109,51 @@ const AIInsightDashboard: React.FC<AIInsightDashboardProps> = ({
     setError(null);
 
     try {
-      // Load statistics
-      const statsResponse = await axios.get('/api/v1/ai-insights/statistics', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+      // Load statistics (with fallback for permission issues)
+      try {
+        const statsResponse = await axios.get('http://localhost:8013/api/v1/ai-insights/statistics', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('evep_token')}`,
+          },
+        });
 
-      if (statsResponse.data.success) {
-        setStatistics(statsResponse.data.statistics);
+        if (statsResponse.data.success) {
+          setStatistics(statsResponse.data.statistics);
+        }
+      } catch (statsErr: any) {
+        // If statistics fails due to permissions, use default statistics
+        console.warn('Statistics endpoint failed, using defaults:', statsErr.response?.data?.detail);
+        setStatistics({
+          total_insights: 0,
+          insights_today: 0,
+          average_confidence: 0,
+          top_insight_types: [],
+          recent_activity: []
+        });
       }
 
       // Load recent insights
-      const insightsResponse = await axios.post(
-        '/api/v1/ai-insights/search-insights',
-        {
-          query: '',
-          n_results: 5,
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      try {
+        const insightsResponse = await axios.post(
+          'http://localhost:8013/api/v1/ai-insights/search-insights',
+          {
+            query: '',
+            n_results: 5,
           },
-        }
-      );
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('evep_token')}`,
+            },
+          }
+        );
 
-      if (insightsResponse.data.success) {
-        setRecentInsights(insightsResponse.data.results);
+        if (insightsResponse.data.success) {
+          setRecentInsights(insightsResponse.data.results);
+        }
+      } catch (insightsErr: any) {
+        // If insights search fails, use empty results
+        console.warn('Insights search failed:', insightsErr.response?.data?.detail);
+        setRecentInsights([]);
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Error loading dashboard data');

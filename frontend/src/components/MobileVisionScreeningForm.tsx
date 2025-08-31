@@ -245,7 +245,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8013/api/v1/patient_management/api/v1/patients/', {
+              const response = await fetch('http://localhost:8013/api/v1/evep/students', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -339,7 +339,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
         delivery_scheduled: deliveryScheduled,
       };
 
-      const response = await fetch('http://localhost:8013/api/v1/screening/api/v1/screenings/', {
+              const response = await fetch('http://localhost:8013/api/v1/screenings/sessions/', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

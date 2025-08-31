@@ -874,8 +874,14 @@ async def seed_comprehensive_screening_data(db):
                 "results": results,
                 "conclusion": generate_conclusion(results),
                 "recommendations": generate_recommendations(results),
-                "follow_up_required": results.get('follow_up_required', False),
-                "follow_up_date": generate_follow_up_date(results) if results.get('follow_up_required') else None,
+                "follow_up_required": any(
+                    result.get('distance_acuity') in ["20/40", "20/50", "20/60", "20/80"] 
+                    for result in results
+                ),
+                "follow_up_date": generate_follow_up_date(results) if any(
+                    result.get('distance_acuity') in ["20/40", "20/50", "20/60", "20/80"] 
+                    for result in results
+                ) else None,
                 "notes": generate_screening_notes(screening_type, results),
                 "created_at": screening_date.isoformat(),
                 "completed_at": completed_at.isoformat() if completed_at else None,
@@ -908,17 +914,23 @@ def generate_standard_screening_results():
         near_right in ["20/40"]
     )
     
-    return {
-        "left_eye_distance": distance_left,
-        "right_eye_distance": distance_right,
-        "left_eye_near": near_left,
-        "right_eye_near": near_right,
-        "color_vision": random.choice(["normal", "deficient", "failed"]),
-        "depth_perception": random.choice(["normal", "impaired", "failed"]),
-        "follow_up_required": follow_up_required,
-        "notes": "Standard vision screening completed",
-        "recommendations": "Continue regular eye care" if not follow_up_required else "Schedule follow-up with optometrist"
-    }
+    # Return results in the correct format for ScreeningResult model
+    return [
+        {
+            "eye": "left",
+            "distance_acuity": distance_left,
+            "near_acuity": near_left,
+            "color_vision": random.choice(["normal", "deficient", "failed"]),
+            "depth_perception": random.choice(["normal", "impaired", "failed"])
+        },
+        {
+            "eye": "right", 
+            "distance_acuity": distance_right,
+            "near_acuity": near_right,
+            "color_vision": random.choice(["normal", "deficient", "failed"]),
+            "depth_perception": random.choice(["normal", "impaired", "failed"])
+        }
+    ]
 
 def generate_mobile_screening_results():
     """Generate realistic mobile vision screening results"""
@@ -939,37 +951,37 @@ def generate_mobile_screening_results():
     # Determine if glasses prescription is needed
     needs_glasses = abs(sphere_left) > 0.5 or abs(sphere_right) > 0.5 or abs(cylinder_left) > 0.5 or abs(cylinder_right) > 0.5
     
-    return {
-        "left_eye_distance": distance_left,
-        "right_eye_distance": distance_right,
-        "left_eye_near": near_left,
-        "right_eye_near": near_right,
-        "color_vision": random.choice(["normal", "deficient", "failed"]),
-        "depth_perception": random.choice(["normal", "impaired", "failed"]),
-        "auto_refractor": {
-            "left_eye": {
-                "sphere": round(sphere_left, 2),
-                "cylinder": round(cylinder_left, 2),
-                "axis": random.randint(0, 180)
-            },
-            "right_eye": {
-                "sphere": round(sphere_right, 2),
-                "cylinder": round(cylinder_right, 2),
-                "axis": random.randint(0, 180)
+    # Return results in the correct format for ScreeningResult model
+    return [
+        {
+            "eye": "left",
+            "distance_acuity": distance_left,
+            "near_acuity": near_left,
+            "color_vision": random.choice(["normal", "deficient", "failed"]),
+            "depth_perception": random.choice(["normal", "impaired", "failed"]),
+            "additional_tests": {
+                "auto_refractor": {
+                    "sphere": round(sphere_left, 2),
+                    "cylinder": round(cylinder_left, 2),
+                    "axis": random.randint(0, 180)
+                }
             }
         },
-        "glasses_prescription": {
-            "left_eye_sphere": round(sphere_left, 2) if needs_glasses else None,
-            "right_eye_sphere": round(sphere_right, 2) if needs_glasses else None,
-            "left_eye_cylinder": round(cylinder_left, 2) if needs_glasses else None,
-            "right_eye_cylinder": round(cylinder_right, 2) if needs_glasses else None,
-            "left_eye_axis": random.randint(0, 180) if needs_glasses else None,
-            "right_eye_axis": random.randint(0, 180) if needs_glasses else None
-        },
-        "follow_up_required": needs_glasses or distance_left in ["20/40", "20/50", "20/60"] or distance_right in ["20/40", "20/50", "20/60"],
-        "notes": "Mobile vision screening with auto-refractor completed",
-        "recommendations": "No glasses needed" if not needs_glasses else "Glasses prescription recommended"
-    }
+        {
+            "eye": "right",
+            "distance_acuity": distance_right,
+            "near_acuity": near_right,
+            "color_vision": random.choice(["normal", "deficient", "failed"]),
+            "depth_perception": random.choice(["normal", "impaired", "failed"]),
+            "additional_tests": {
+                "auto_refractor": {
+                    "sphere": round(sphere_right, 2),
+                    "cylinder": round(cylinder_right, 2),
+                    "axis": random.randint(0, 180)
+                }
+            }
+        }
+    ]
 
 def generate_enhanced_screening_results():
     """Generate realistic enhanced vision screening results"""
@@ -1012,30 +1024,50 @@ def generate_enhanced_screening_results():
         color_vision in ["moderate_deficiency", "severe_deficiency"]
     )
     
-    return {
-        "left_eye_distance": distance_left,
-        "right_eye_distance": distance_right,
-        "left_eye_near": near_left,
-        "right_eye_near": near_right,
-        "color_vision": color_vision,
-        "depth_perception": depth_perception,
-        "contrast_sensitivity": contrast_sensitivity,
-        "visual_field": visual_field,
-        "digital_analysis": digital_analysis,
-        "follow_up_required": needs_specialist,
-        "notes": "Enhanced vision screening with digital analysis completed",
-        "recommendations": "Continue regular eye care" if not needs_specialist else "Refer to ophthalmologist for further evaluation"
-    }
+    # Return results in the correct format for ScreeningResult model
+    return [
+        {
+            "eye": "left",
+            "distance_acuity": distance_left,
+            "near_acuity": near_left,
+            "color_vision": color_vision,
+            "depth_perception": depth_perception,
+            "contrast_sensitivity": contrast_sensitivity,
+            "additional_tests": {
+                "digital_analysis": {
+                    "pupil_size": digital_analysis["pupil_size"]["left"],
+                    "reaction_time": digital_analysis["reaction_time"]["left"],
+                    "accommodation": digital_analysis["accommodation"]
+                }
+            }
+        },
+        {
+            "eye": "right",
+            "distance_acuity": distance_right,
+            "near_acuity": near_right,
+            "color_vision": color_vision,
+            "depth_perception": depth_perception,
+            "contrast_sensitivity": contrast_sensitivity,
+            "additional_tests": {
+                "digital_analysis": {
+                    "pupil_size": digital_analysis["pupil_size"]["right"],
+                    "reaction_time": digital_analysis["reaction_time"]["right"],
+                    "accommodation": digital_analysis["accommodation"]
+                }
+            }
+        }
+    ]
 
 def generate_conclusion(results):
     """Generate screening conclusion based on results"""
-    if results.get('follow_up_required'):
-        if results.get('glasses_prescription'):
-            return "Vision correction needed - glasses prescription recommended"
-        elif results.get('digital_analysis'):
-            return "Advanced evaluation required - specialist referral recommended"
-        else:
-            return "Follow-up screening recommended"
+    # Check if any eye has poor vision
+    poor_vision = any(
+        result.get('distance_acuity') in ["20/40", "20/50", "20/60", "20/80"] 
+        for result in results
+    )
+    
+    if poor_vision:
+        return "Vision correction needed - follow-up recommended"
     else:
         return "Vision screening normal - no immediate action required"
 
@@ -1043,15 +1075,23 @@ def generate_recommendations(results):
     """Generate recommendations based on screening results"""
     recommendations = []
     
-    if results.get('glasses_prescription'):
-        recommendations.append("Schedule glasses fitting appointment")
-        recommendations.append("Follow up in 6 months for vision check")
+    # Check for poor vision
+    poor_vision = any(
+        result.get('distance_acuity') in ["20/40", "20/50", "20/60", "20/80"] 
+        for result in results
+    )
     
-    if results.get('follow_up_required') and not results.get('glasses_prescription'):
+    if poor_vision:
         recommendations.append("Schedule follow-up screening in 3 months")
-        recommendations.append("Monitor vision changes")
+        recommendations.append("Consider vision correction options")
     
-    if results.get('digital_analysis'):
+    # Check for additional tests
+    has_additional_tests = any(
+        result.get('additional_tests') 
+        for result in results
+    )
+    
+    if has_additional_tests:
         recommendations.append("Consider comprehensive eye examination")
     
     if not recommendations:
@@ -1065,11 +1105,14 @@ def generate_follow_up_date(results):
     import random
     from datetime import datetime, timedelta
     
-    if results.get('glasses_prescription'):
-        # Follow up in 1-2 weeks for glasses
-        days = random.randint(7, 14)
-    elif results.get('follow_up_required'):
-        # Follow up in 1-3 months for monitoring
+    # Check if any eye has poor vision
+    poor_vision = any(
+        result.get('distance_acuity') in ["20/40", "20/50", "20/60", "20/80"] 
+        for result in results
+    )
+    
+    if poor_vision:
+        # Follow up in 1-3 months for poor vision
         days = random.randint(30, 90)
     else:
         # Annual follow up
@@ -1084,13 +1127,17 @@ def generate_screening_notes(screening_type, results):
     
     if screening_type == "standard_vision_screening":
         notes.append("Standard vision screening performed using Snellen chart")
-        notes.append(f"Distance vision: L={results.get('left_eye_distance')}, R={results.get('right_eye_distance')}")
-        notes.append(f"Near vision: L={results.get('left_eye_near')}, R={results.get('right_eye_near')}")
+        # Get vision results from the list
+        left_eye = next((r for r in results if r.get('eye') == 'left'), {})
+        right_eye = next((r for r in results if r.get('eye') == 'right'), {})
+        notes.append(f"Distance vision: L={left_eye.get('distance_acuity')}, R={right_eye.get('distance_acuity')}")
+        notes.append(f"Near vision: L={left_eye.get('near_acuity')}, R={right_eye.get('near_acuity')}")
         
     elif screening_type == "mobile_vision_screening":
         notes.append("Mobile vision screening with auto-refractor")
-        notes.append(f"Auto-refractor results recorded")
-        if results.get('glasses_prescription'):
+        notes.append("Auto-refractor results recorded")
+        # Check if any eye has additional tests
+        if any(r.get('additional_tests') for r in results):
             notes.append("Glasses prescription generated")
             
     else:  # enhanced_vision_screening
@@ -1098,7 +1145,12 @@ def generate_screening_notes(screening_type, results):
         notes.append("Advanced tests performed: contrast sensitivity, visual field, color vision")
         notes.append("Digital analysis completed")
     
-    if results.get('follow_up_required'):
+    # Check if follow-up is needed based on poor vision
+    poor_vision = any(
+        result.get('distance_acuity') in ["20/40", "20/50", "20/60", "20/80"] 
+        for result in results
+    )
+    if poor_vision:
         notes.append("Follow-up recommended")
     
     return "; ".join(notes)

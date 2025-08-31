@@ -151,7 +151,7 @@ const Screenings: React.FC = () => {
       const token = localStorage.getItem('evep_token');
       
       // Fetch screening sessions
-      const sessionsResponse = await fetch('http://localhost:8013/api/v1/screening/api/v1/screenings/', {
+      const sessionsResponse = await fetch('http://localhost:8013/api/v1/screenings/sessions/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -160,14 +160,14 @@ const Screenings: React.FC = () => {
 
       if (sessionsResponse.ok) {
         const sessionsData = await sessionsResponse.json();
-        setSessions(sessionsData.sessions || []);
+        setSessions(sessionsData || []);
       } else {
         console.error('Failed to fetch sessions from API');
         setSessions([]);
       }
 
-      // Fetch patients
-      const patientsResponse = await fetch('http://localhost:8013/api/v1/patient_management/api/v1/patients/', {
+      // Fetch patients (students)
+      const patientsResponse = await fetch('http://localhost:8013/api/v1/evep/students', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -176,7 +176,7 @@ const Screenings: React.FC = () => {
 
       if (patientsResponse.ok) {
         const patientsData = await patientsResponse.json();
-        setPatients(patientsData.patients || []);
+        setPatients(patientsData.students || []);
       }
     } catch (err) {
       console.error('Data fetch error:', err);

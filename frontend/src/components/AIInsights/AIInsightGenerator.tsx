@@ -156,11 +156,11 @@ const AIInsightGenerator: React.FC<AIInsightGeneratorProps> = ({
       };
 
       const response = await axios.post(
-        '/api/v1/ai-insights/generate-screening-insight',
+        'http://localhost:8013/api/v1/ai-insights/generate-screening-insight',
         requestData,
         {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${localStorage.getItem('evep_token')}`,
           },
         }
       );

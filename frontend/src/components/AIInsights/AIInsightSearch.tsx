@@ -99,11 +99,11 @@ const AIInsightSearch: React.FC<AIInsightSearchProps> = ({
 
     try {
       const response = await axios.post(
-        '/api/v1/ai-insights/search-insights',
+        'http://localhost:8013/api/v1/ai-insights/search-insights',
         filters,
         {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${localStorage.getItem('evep_token')}`,
           },
         }
       );

@@ -67,54 +67,83 @@ const Dashboard: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-              const response = await fetch('http://localhost:8013/api/v1/reporting/reports/dashboard/overview', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+      // Fetch data from available endpoints
+      const [patientsResponse, screeningsResponse, schoolsResponse, teachersResponse] = await Promise.all([
+        fetch('http://localhost:8013/api/v1/evep/students', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+        fetch('http://localhost:8013/api/v1/screenings/sessions/', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+        fetch('http://localhost:8013/api/v1/evep/schools/', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }),
+        fetch('http://localhost:8013/api/v1/evep/teachers/', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+      ]);
+
+      // Parse responses
+      const patientsData = await patientsResponse.json();
+      const screeningsData = await screeningsResponse.json();
+      const schoolsData = await schoolsResponse.json();
+      const teachersData = await teachersResponse.json();
+
+      // Calculate statistics
+      const totalPatients = patientsData.students?.length || 0;
+      const totalScreenings = screeningsData.length || 0;
+      const completedScreenings = screeningsData.filter((s: any) => s.status === 'completed').length || 0;
+      const pendingScreenings = screeningsData.filter((s: any) => s.status === 'in_progress').length || 0;
+      const totalSchools = schoolsData.schools?.length || 0;
+      const totalTeachers = teachersData.teachers?.length || 0;
+
+      // Get today's date for recent activity
+      const today = new Date().toISOString().split('T')[0];
+      const screeningsToday = screeningsData.filter((s: any) => 
+        s.created_at?.startsWith(today)
+      ).length || 0;
+
+      setStats({
+        totalPatients,
+        totalScreenings,
+        pendingScreenings,
+        completedScreenings,
+        recentActivity: [
+          {
+            id: '1',
+            type: 'screening',
+            description: `${screeningsToday} new screenings today`,
+            timestamp: new Date().toISOString(),
+            status: 'success' as const,
+          },
+          {
+            id: '2',
+            type: 'school',
+            description: `${totalSchools} schools in the system`,
+            timestamp: new Date().toISOString(),
+            status: 'info' as const,
+          },
+          {
+            id: '3',
+            type: 'teacher',
+            description: `${totalTeachers} teachers/medical staff`,
+            timestamp: new Date().toISOString(),
+            status: 'warning' as const,
+          },
+        ],
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch dashboard data');
-      }
-
-      const responseData = await response.json();
-      
-      // Map API response to component expected format
-      if (responseData.status === 'success' && responseData.data) {
-        const apiData = responseData.data;
-        setStats({
-          totalPatients: apiData.total_patients || 0,
-          totalScreenings: apiData.total_screenings || 0,
-          pendingScreenings: apiData.pending_assessments || 0,
-          completedScreenings: apiData.total_assessments || 0,
-          recentActivity: [
-            {
-              id: '1',
-              type: 'screening',
-              description: `${apiData.screenings_today} new screenings today`,
-              timestamp: apiData.last_updated,
-              status: 'success' as const,
-            },
-            {
-              id: '2',
-              type: 'patient',
-              description: `${apiData.new_patients_today} new patients registered today`,
-              timestamp: apiData.last_updated,
-              status: 'info' as const,
-            },
-            {
-              id: '3',
-              type: 'alert',
-              description: `${apiData.urgent_cases} urgent cases require attention`,
-              timestamp: apiData.last_updated,
-              status: 'warning' as const,
-            },
-          ],
-        });
-      } else {
-        throw new Error('Invalid response format');
-      }
     } catch (err) {
       console.error('Dashboard data fetch error:', err);
       setError('Failed to load dashboard data');

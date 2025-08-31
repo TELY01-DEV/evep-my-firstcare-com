@@ -67,7 +67,7 @@ interface Teacher {
   school: string;
   position?: string;
   school_year?: string;
-  work_address: Address;
+  work_address?: Address;
   created_at: string;
   updated_at: string;
 }
@@ -148,14 +148,14 @@ const EvepTeachers: React.FC = () => {
         position: teacher.position || '',
         school_year: teacher.school_year || '',
         work_address: {
-          house_no: teacher.work_address.house_no || '',
-          village_no: teacher.work_address.village_no || '',
-          soi: teacher.work_address.soi || '',
-          road: teacher.work_address.road || '',
-          subdistrict: teacher.work_address.subdistrict || '',
-          district: teacher.work_address.district || '',
-          province: teacher.work_address.province || '',
-          postal_code: teacher.work_address.postal_code || ''
+          house_no: teacher.work_address?.house_no || '',
+          village_no: teacher.work_address?.village_no || '',
+          soi: teacher.work_address?.soi || '',
+          road: teacher.work_address?.road || '',
+          subdistrict: teacher.work_address?.subdistrict || '',
+          district: teacher.work_address?.district || '',
+          province: teacher.work_address?.province || '',
+          postal_code: teacher.work_address?.postal_code || ''
         }
       });
     } else {
