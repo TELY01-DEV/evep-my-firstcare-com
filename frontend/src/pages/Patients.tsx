@@ -29,6 +29,8 @@ import {
   Tooltip,
   Avatar,
   InputAdornment,
+  Breadcrumbs,
+  Link,
 } from '@mui/material';
 import {
   Add,
@@ -44,6 +46,8 @@ import {
   CalendarToday,
   Phone,
   Email,
+  Home,
+  People,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -121,7 +125,7 @@ const Patients: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-              const response = await fetch('http://localhost:8013/api/v1/patients/', {
+              const response = await fetch('http://localhost:8014/api/v1/patients/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -204,8 +208,8 @@ const Patients: React.FC = () => {
       
       const token = localStorage.getItem('evep_token');
       const url = editingPatient 
-        ? `http://localhost:8013/api/v1/patients/${editingPatient._id}`
-        : 'http://localhost:8013/api/v1/patients';
+        ? `http://localhost:8014/api/v1/patients/${editingPatient._id}`
+        : 'http://localhost:8014/api/v1/patients';
       
       const response = await fetch(url, {
         method: editingPatient ? 'PUT' : 'POST',
@@ -239,7 +243,7 @@ const Patients: React.FC = () => {
     try {
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch(`http://localhost:8013/api/v1/patients/${patientId}`, {
+      const response = await fetch(`http://localhost:8014/api/v1/patients/${patientId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -304,6 +308,28 @@ const Patients: React.FC = () => {
 
   return (
     <Box p={3}>
+      {/* Breadcrumbs */}
+      <Box sx={{ mb: 3 }}>
+        <Breadcrumbs aria-label="breadcrumb">
+          <Link
+            underline="hover"
+            color="inherit"
+            href="/dashboard"
+            sx={{ display: 'flex', alignItems: 'center' }}
+          >
+            <Home sx={{ mr: 0.5 }} fontSize="inherit" />
+            Dashboard
+          </Link>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center' }}
+            color="text.primary"
+          >
+            <People sx={{ mr: 0.5 }} fontSize="inherit" />
+            Patient Management
+          </Typography>
+        </Breadcrumbs>
+      </Box>
+
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>

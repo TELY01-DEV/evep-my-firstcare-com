@@ -28,6 +28,8 @@ import {
   MenuItem,
   Alert,
   CircularProgress,
+  Breadcrumbs,
+  Link,
 } from '@mui/material';
 import {
   Person,
@@ -42,6 +44,8 @@ import {
   CheckCircle,
   Warning,
   Info,
+  Home,
+  Group,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -78,7 +82,7 @@ const MedicalStaff: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-              const response = await fetch('http://localhost:8013/api/v1/medical_staff/staff/', {
+              const response = await fetch('http://localhost:8014/api/v1/medical-staff/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -162,6 +166,28 @@ const MedicalStaff: React.FC = () => {
 
   return (
     <Box p={3}>
+      {/* Breadcrumbs */}
+      <Box sx={{ mb: 3 }}>
+        <Breadcrumbs aria-label="breadcrumb">
+          <Link
+            underline="hover"
+            color="inherit"
+            href="/dashboard"
+            sx={{ display: 'flex', alignItems: 'center' }}
+          >
+            <Home sx={{ mr: 0.5 }} fontSize="inherit" />
+            Dashboard
+          </Link>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center' }}
+            color="text.primary"
+          >
+            <Group sx={{ mr: 0.5 }} fontSize="inherit" />
+            Medical Staff Management
+          </Typography>
+        </Breadcrumbs>
+      </Box>
+
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>

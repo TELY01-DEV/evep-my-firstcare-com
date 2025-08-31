@@ -97,7 +97,7 @@ const EvepSchools: React.FC = () => {
   const fetchSchools = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8013/api/v1/evep/schools', {
+      const response = await fetch('http://localhost:8014/api/v1/evep/schools', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -174,7 +174,7 @@ const EvepSchools: React.FC = () => {
   const handleSubmit = async () => {
     try {
       if (editingSchool) {
-        const response = await fetch(`http://localhost:8013/api/v1/evep/schools/${editingSchool.id}`, {
+        const response = await fetch(`http://localhost:8014/api/v1/evep/schools/${editingSchool.id}`, {
           method: 'PUT',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -188,7 +188,7 @@ const EvepSchools: React.FC = () => {
           throw new Error('Failed to update school');
         }
       } else {
-        const response = await fetch('http://localhost:8013/api/v1/evep/schools', {
+        const response = await fetch('http://localhost:8014/api/v1/evep/schools', {
           method: 'POST',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -213,7 +213,7 @@ const EvepSchools: React.FC = () => {
   const handleDelete = async (schoolId: string) => {
     if (window.confirm('Are you sure you want to delete this school?')) {
       try {
-        const response = await fetch(`http://localhost:8013/api/v1/evep/schools/${schoolId}`, {
+        const response = await fetch(`http://localhost:8014/api/v1/evep/schools/${schoolId}`, {
           method: 'DELETE',
           headers: { 
             'Authorization': `Bearer ${token}`,

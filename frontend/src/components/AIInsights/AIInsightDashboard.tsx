@@ -111,7 +111,7 @@ const AIInsightDashboard: React.FC<AIInsightDashboardProps> = ({
     try {
       // Load statistics (with fallback for permission issues)
       try {
-        const statsResponse = await axios.get('http://localhost:8013/api/v1/ai-insights/statistics', {
+        const statsResponse = await axios.get('http://localhost:8014/api/v1/ai-insights/statistics', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('evep_token')}`,
           },
@@ -135,7 +135,7 @@ const AIInsightDashboard: React.FC<AIInsightDashboardProps> = ({
       // Load recent insights
       try {
         const insightsResponse = await axios.post(
-          'http://localhost:8013/api/v1/ai-insights/search-insights',
+          'http://localhost:8014/api/v1/ai-insights/search-insights',
           {
             query: '',
             n_results: 5,

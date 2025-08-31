@@ -42,7 +42,7 @@ class Parent(BaseModel):
     first_name: str
     last_name: str
     cid: str
-    birth_date: date
+    birth_date: str  # Changed from date to str to handle frontend string dates
     gender: str
     phone: str
     email: Optional[str] = None
@@ -68,7 +68,7 @@ class Student(BaseModel):
     first_name: str
     last_name: str
     cid: str
-    birth_date: date
+    birth_date: str  # Changed from date to str to handle frontend string dates
     gender: str
     student_code: Optional[str] = None
     school_name: str
@@ -94,7 +94,7 @@ class Teacher(BaseModel):
     first_name: str
     last_name: str
     cid: str
-    birth_date: date
+    birth_date: str  # Changed from date to str to handle frontend string dates
     gender: str
     phone: str
     email: str

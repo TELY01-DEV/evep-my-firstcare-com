@@ -95,7 +95,7 @@ class EVEPLogger {
 
   private async sendToRemoteLogging(logEntry: LogEntry): Promise<void> {
     try {
-      await fetch('http://localhost:8013/api/v1/logs', {
+      await fetch('http://localhost:8014/api/v1/logs', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

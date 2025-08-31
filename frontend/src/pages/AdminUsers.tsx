@@ -94,7 +94,7 @@ const AdminUsers: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8013/api/v1/admin/users', {
+      const response = await fetch('http://localhost:8014/api/v1/admin/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -150,8 +150,8 @@ const AdminUsers: React.FC = () => {
     try {
       const token = localStorage.getItem('evep_token');
       const url = editingUser 
-        ? `http://localhost:8013/api/v1/admin/users/${editingUser.user_id}`
-        : 'http://localhost:8013/api/v1/admin/users';
+        ? `http://localhost:8014/api/v1/admin/users/${editingUser.user_id}`
+        : 'http://localhost:8014/api/v1/admin/users';
       
       const method = editingUser ? 'PUT' : 'POST';
 
@@ -184,7 +184,7 @@ const AdminUsers: React.FC = () => {
     try {
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch(`http://localhost:8013/api/v1/admin/users/${userId}`, {
+      const response = await fetch(`http://localhost:8014/api/v1/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -206,7 +206,7 @@ const AdminUsers: React.FC = () => {
     try {
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch(`http://localhost:8013/api/v1/admin/users/${userId}/status`, {
+      const response = await fetch(`http://localhost:8014/api/v1/admin/users/${userId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

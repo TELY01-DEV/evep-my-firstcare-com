@@ -181,8 +181,8 @@ const PatientForm: React.FC<PatientFormProps> = ({
       }
 
       const url = mode === 'add' 
-        ? 'http://localhost:8013/api/v1/patients/'
-        : `http://localhost:8013/api/v1/patients/${patient?.patient_id}`;
+        ? 'http://localhost:8014/api/v1/patients/'
+        : `http://localhost:8014/api/v1/patients/${patient?.patient_id}`;
 
       const method = mode === 'add' ? 'POST' : 'PUT';
 

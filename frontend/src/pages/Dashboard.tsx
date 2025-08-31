@@ -18,6 +18,8 @@ import {
   Paper,
   IconButton,
   Tooltip,
+  Breadcrumbs,
+  Link,
 } from '@mui/material';
 import {
   Person,
@@ -35,6 +37,8 @@ import {
   CheckCircle,
   Warning,
   Info,
+  Home,
+  Dashboard as DashboardIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -69,25 +73,25 @@ const Dashboard: React.FC = () => {
       
       // Fetch data from available endpoints
       const [patientsResponse, screeningsResponse, schoolsResponse, teachersResponse] = await Promise.all([
-        fetch('http://localhost:8013/api/v1/evep/students', {
+        fetch('http://localhost:8014/api/v1/evep/students', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         }),
-        fetch('http://localhost:8013/api/v1/screenings/sessions/', {
+        fetch('http://localhost:8014/api/v1/screenings/sessions/', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         }),
-        fetch('http://localhost:8013/api/v1/evep/schools/', {
+        fetch('http://localhost:8014/api/v1/evep/schools/', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         }),
-        fetch('http://localhost:8013/api/v1/evep/teachers/', {
+        fetch('http://localhost:8014/api/v1/evep/teachers/', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -264,6 +268,19 @@ const Dashboard: React.FC = () => {
 
   return (
     <Box p={3}>
+      {/* Breadcrumbs */}
+      <Box sx={{ mb: 3 }}>
+        <Breadcrumbs aria-label="breadcrumb">
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center' }}
+            color="text.primary"
+          >
+            <DashboardIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            Dashboard
+          </Typography>
+        </Breadcrumbs>
+      </Box>
+
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>

@@ -123,7 +123,7 @@ const EvepStudents: React.FC = () => {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8013/api/v1/evep/students', {
+      const response = await fetch('http://localhost:8014/api/v1/evep/students', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -146,7 +146,7 @@ const EvepStudents: React.FC = () => {
 
   const fetchParents = async () => {
     try {
-      const response = await fetch('http://localhost:8013/api/v1/evep/parents', {
+      const response = await fetch('http://localhost:8014/api/v1/evep/parents', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -184,18 +184,18 @@ const EvepStudents: React.FC = () => {
         grade_level: student.grade_level,
         grade_number: student.grade_number || '',
         address: {
-          house_no: student.address.house_no || '',
-          village_no: student.address.village_no || '',
-          soi: student.address.soi || '',
-          road: student.address.road || '',
-          subdistrict: student.address.subdistrict || '',
-          district: student.address.district || '',
-          province: student.address.province || '',
-          postal_code: student.address.postal_code || ''
+          house_no: student.address?.house_no || '',
+          village_no: student.address?.village_no || '',
+          soi: student.address?.soi || '',
+          road: student.address?.road || '',
+          subdistrict: student.address?.subdistrict || '',
+          district: student.address?.district || '',
+          province: student.address?.province || '',
+          postal_code: student.address?.postal_code || ''
         },
         disease: student.disease || '',
         parent_id: student.parent_id,
-        consent_document: student.consent_document
+        consent_document: student.consent_document || false
       });
     } else {
       setEditingStudent(null);
@@ -237,7 +237,7 @@ const EvepStudents: React.FC = () => {
   const handleSubmit = async () => {
     try {
       if (editingStudent) {
-        const response = await fetch(`http://localhost:8013/api/v1/evep/students/${editingStudent.id}`, {
+        const response = await fetch(`http://localhost:8014/api/v1/evep/students/${editingStudent.id}`, {
           method: 'PUT',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -251,7 +251,7 @@ const EvepStudents: React.FC = () => {
           throw new Error('Failed to update student');
         }
       } else {
-        const response = await fetch('http://localhost:8013/api/v1/evep/students', {
+        const response = await fetch('http://localhost:8014/api/v1/evep/students', {
           method: 'POST',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -276,7 +276,7 @@ const EvepStudents: React.FC = () => {
   const handleDelete = async (studentId: string) => {
     if (window.confirm('Are you sure you want to delete this student?')) {
       try {
-        const response = await fetch(`http://localhost:8013/api/v1/evep/students/${studentId}`, {
+        const response = await fetch(`http://localhost:8014/api/v1/evep/students/${studentId}`, {
           method: 'DELETE',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -301,7 +301,9 @@ const EvepStudents: React.FC = () => {
     setOpenDialog(true);
   };
 
-  const formatAddress = (address: Address) => {
+  const formatAddress = (address?: Address) => {
+    if (!address) return 'No address provided';
+    
     const parts = [
       address.house_no,
       address.village_no,
@@ -507,7 +509,7 @@ const EvepStudents: React.FC = () => {
               </Grid>
 
               <Typography variant="h6" gutterBottom>Address</Typography>
-              <Typography gutterBottom>{formatAddress(viewingStudent.address)}</Typography>
+              <Typography gutterBottom>{viewingStudent.address ? formatAddress(viewingStudent.address) : 'No address provided'}</Typography>
 
               {viewingStudent.disease && (
                 <>
@@ -766,7 +768,7 @@ const EvepStudents: React.FC = () => {
                 <FormControl fullWidth margin="normal">
                   <InputLabel>Consent Document</InputLabel>
                   <Select
-                    value={formData.consent_document.toString()}
+                    value={formData.consent_document?.toString() || 'false'}
                     onChange={(e) => setFormData({ ...formData, consent_document: e.target.value === 'true' })}
                     label="Consent Document"
                   >

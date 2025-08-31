@@ -115,7 +115,7 @@ export default function AdminSettings() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8013/api/v1/admin/settings', {
+      const response = await fetch('http://localhost:8014/api/v1/admin/settings', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -141,7 +141,7 @@ export default function AdminSettings() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('http://localhost:8013/api/v1/admin/settings/categories', {
+      const response = await fetch('http://localhost:8014/api/v1/admin/settings/categories', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -163,7 +163,7 @@ export default function AdminSettings() {
 
   const handleAddSetting = async () => {
     try {
-      const response = await fetch('http://localhost:8013/api/v1/admin/settings', {
+      const response = await fetch('http://localhost:8014/api/v1/admin/settings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -189,7 +189,7 @@ export default function AdminSettings() {
     if (!selectedSetting) return;
 
     try {
-      const response = await fetch(`http://localhost:8013/api/v1/admin/settings/${selectedSetting.key}`, {
+      const response = await fetch(`http://localhost:8014/api/v1/admin/settings/${selectedSetting.key}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -219,7 +219,7 @@ export default function AdminSettings() {
     if (!selectedSetting) return;
 
     try {
-      const response = await fetch(`http://localhost:8013/api/v1/admin/settings/${selectedSetting.key}`, {
+      const response = await fetch(`http://localhost:8014/api/v1/admin/settings/${selectedSetting.key}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -241,7 +241,7 @@ export default function AdminSettings() {
 
   const handleInitializeSettings = async () => {
     try {
-      const response = await fetch('http://localhost:8013/api/v1/admin/settings/initialize', {
+      const response = await fetch('http://localhost:8014/api/v1/admin/settings/initialize', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

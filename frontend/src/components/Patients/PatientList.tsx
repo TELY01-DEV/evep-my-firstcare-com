@@ -99,7 +99,7 @@ const PatientList: React.FC<PatientListProps> = ({
         throw new Error('Authentication required');
       }
 
-      const response = await fetch('http://localhost:8013/api/v1/patients/search', {
+      const response = await fetch('http://localhost:8014/api/v1/patients/search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -219,7 +219,7 @@ const PatientList: React.FC<PatientListProps> = ({
         throw new Error('Authentication required');
       }
 
-      const response = await fetch(`http://localhost:8013/api/v1/patients/${patientToDelete}`, {
+      const response = await fetch(`http://localhost:8014/api/v1/patients/${patientToDelete}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

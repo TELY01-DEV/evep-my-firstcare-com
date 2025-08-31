@@ -7,6 +7,8 @@ interface User {
   last_name: string;
   role: string;
   organization?: string;
+  permissions?: string[];
+  portal_access?: string[];
 }
 
 interface AuthContextType {
@@ -16,6 +18,10 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   loading: boolean;
+  hasPermission: (permission: string) => boolean;
+  hasPortalAccess: (portal: string) => boolean;
+  isMedicalAdmin: () => boolean;
+  isSystemAdmin: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -51,7 +57,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await fetch('http://localhost:8013/api/v1/auth/login', {
+      const response = await fetch('http://localhost:8014/api/v1/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -90,6 +96,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
   };
 
+  // Role-based access control functions
+  const hasPermission = (permission: string): boolean => {
+    if (!user || !user.permissions) return false;
+    return user.permissions.includes(permission) || user.permissions.includes('full_access');
+  };
+
+  const hasPortalAccess = (portal: string): boolean => {
+    if (!user || !user.portal_access) return false;
+    return user.portal_access.includes(portal);
+  };
+
+  const isMedicalAdmin = (): boolean => {
+    return user?.role === 'medical_admin';
+  };
+
+  const isSystemAdmin = (): boolean => {
+    return user?.role === 'system_admin';
+  };
+
   const value: AuthContextType = {
     user,
     token,
@@ -97,6 +122,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     loading,
+    hasPermission,
+    hasPortalAccess,
+    isMedicalAdmin,
+    isSystemAdmin,
   };
 
   return (

@@ -126,14 +126,14 @@ const AdminUserManagement: React.FC = () => {
       const token = localStorage.getItem('evep_token');
       
       // Fetch users
-      const usersResponse = await fetch('http://localhost:8013/api/v1/admin/users', {
+      const usersResponse = await fetch('http://localhost:8014/api/v1/admin/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
       // Fetch user stats
-      const statsResponse = await fetch('http://localhost:8013/api/v1/admin/users/stats', {
+      const statsResponse = await fetch('http://localhost:8014/api/v1/admin/users/stats', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -285,7 +285,7 @@ const AdminUserManagement: React.FC = () => {
   const handleToggleUserStatus = async (userId: string, isActive: boolean) => {
     try {
       const token = localStorage.getItem('evep_token');
-      const response = await fetch(`http://localhost:8013/api/v1/admin/users/${userId}/status`, {
+      const response = await fetch(`http://localhost:8014/api/v1/admin/users/${userId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

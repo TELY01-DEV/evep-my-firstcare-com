@@ -35,6 +35,8 @@ import {
   Tabs,
   Tab,
   Fab,
+  Breadcrumbs,
+  Link,
 } from '@mui/material';
 import {
   Add,
@@ -54,6 +56,8 @@ import {
   LocalHospital,
   Inventory,
   DeliveryDining,
+  Home,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import MobileVisionScreeningForm from '../components/MobileVisionScreeningForm';
@@ -151,7 +155,7 @@ const Screenings: React.FC = () => {
       const token = localStorage.getItem('evep_token');
       
       // Fetch screening sessions
-      const sessionsResponse = await fetch('http://localhost:8013/api/v1/screenings/sessions/', {
+      const sessionsResponse = await fetch('http://localhost:8014/api/v1/screenings/sessions/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -167,7 +171,7 @@ const Screenings: React.FC = () => {
       }
 
       // Fetch patients (students)
-      const patientsResponse = await fetch('http://localhost:8013/api/v1/evep/students', {
+      const patientsResponse = await fetch('http://localhost:8014/api/v1/evep/students', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -246,7 +250,7 @@ const Screenings: React.FC = () => {
         status: 'completed'
       };
 
-      const response = await fetch('http://localhost:8013/api/v1/screenings/sessions', {
+      const response = await fetch('http://localhost:8014/api/v1/screenings/sessions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -364,6 +368,28 @@ const Screenings: React.FC = () => {
 
   return (
     <Box p={3}>
+      {/* Breadcrumbs */}
+      <Box sx={{ mb: 3 }}>
+        <Breadcrumbs aria-label="breadcrumb">
+          <Link
+            underline="hover"
+            color="inherit"
+            href="/dashboard"
+            sx={{ display: 'flex', alignItems: 'center' }}
+          >
+            <Home sx={{ mr: 0.5 }} fontSize="inherit" />
+            Dashboard
+          </Link>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center' }}
+            color="text.primary"
+          >
+            <VisibilityIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            Vision Screening
+          </Typography>
+        </Breadcrumbs>
+      </Box>
+
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>

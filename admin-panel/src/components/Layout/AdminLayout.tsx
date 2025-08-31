@@ -101,7 +101,7 @@ const AdminLayout: React.FC = () => {
       badge: null,
     },
     {
-      text: 'EVEP Management',
+      text: 'School Management',
       icon: <SchoolIcon />,
       path: '/evep',
       badge: 'New',

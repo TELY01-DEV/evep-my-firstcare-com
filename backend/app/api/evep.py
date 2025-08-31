@@ -24,7 +24,7 @@ async def get_parents(
 ):
     """Get all parents with pagination"""
     db = get_database()
-    if current_user["role"] not in ["admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view parents")
     parents = await db.evep.parents.find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
     result = []
@@ -48,7 +48,7 @@ async def get_parent(
 ):
     """Get a specific parent by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view parent details")
     parent = await db.evep.parents.find_one({"_id": ObjectId(parent_id)})
     if not parent:
@@ -63,6 +63,110 @@ async def get_parent(
         "status": parent.get("status", "")
     }
 
+@router.post("/parents")
+async def create_parent(
+    parent_data: Parent,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new parent"""
+    db = get_database()
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to create parent")
+    
+    # Prepare parent data
+    parent_dict = parent_data.model_dump()
+    parent_dict["created_at"] = get_current_thailand_time()
+    parent_dict["updated_at"] = get_current_thailand_time()
+    parent_dict["status"] = "active"
+    
+    # Insert parent
+    result = await db.evep.parents.insert_one(parent_dict)
+    
+    if not result.inserted_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create parent")
+    
+    # Log security event
+    log_security_event(
+        request=None,
+        event_type="parent_created",
+        description=f"Parent created by user {current_user.get('email', 'unknown')}",
+        portal="medical"
+    )
+    
+    return {"message": "Parent created successfully", "parent_id": str(result.inserted_id)}
+
+@router.put("/parents/{parent_id}")
+async def update_parent(
+    parent_id: str,
+    parent_data: Parent,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a specific parent by ID"""
+    db = get_database()
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to update parent")
+    
+    # Check if parent exists
+    existing_parent = await db.evep.parents.find_one({"_id": ObjectId(parent_id)})
+    if not existing_parent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent not found")
+    
+    # Update parent data
+    update_data = parent_data.model_dump()
+    update_data["updated_at"] = get_current_thailand_time()
+    
+    result = await db.evep.parents.update_one(
+        {"_id": ObjectId(parent_id)},
+        {"$set": update_data}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to update parent")
+    
+    # Log security event
+    log_security_event(
+        request=None,
+        event_type="parent_updated",
+        description=f"Parent {parent_id} updated by user {current_user.get('email', 'unknown')}",
+        portal="medical"
+    )
+    
+    return {"message": "Parent updated successfully", "parent_id": parent_id}
+
+@router.delete("/parents/{parent_id}")
+async def delete_parent(
+    parent_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a specific parent by ID"""
+    db = get_database()
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to delete parent")
+    
+    # Check if parent exists
+    existing_parent = await db.evep.parents.find_one({"_id": ObjectId(parent_id)})
+    if not existing_parent:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent not found")
+    
+    # Soft delete by setting status to inactive
+    result = await db.evep.parents.update_one(
+        {"_id": ObjectId(parent_id)},
+        {"$set": {"status": "inactive", "updated_at": get_current_thailand_time()}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete parent")
+    
+    # Log security event
+    log_security_event(
+        request=None,
+        event_type="parent_deleted",
+        description=f"Parent {parent_id} deleted by user {current_user.get('email', 'unknown')}",
+        portal="medical"
+    )
+    
+    return {"message": "Parent deleted successfully", "parent_id": parent_id}
+
 # ==================== STUDENTS CRUD ENDPOINTS ====================
 
 @router.get("/students")
@@ -73,7 +177,7 @@ async def get_students(
 ):
     """Get all students with pagination"""
     db = get_database()
-    if current_user["role"] not in ["admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view students")
     students = await db.evep.students.find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
     result = []
@@ -100,7 +204,7 @@ async def get_student(
 ):
     """Get a specific student by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view student details")
     student = await db.evep.students.find_one({"_id": ObjectId(student_id)})
     if not student:
@@ -118,6 +222,110 @@ async def get_student(
         "status": student.get("status", "")
     }
 
+@router.post("/students")
+async def create_student(
+    student_data: Student,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new student"""
+    db = get_database()
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to create student")
+    
+    # Prepare student data
+    student_dict = student_data.model_dump()
+    student_dict["created_at"] = get_current_thailand_time()
+    student_dict["updated_at"] = get_current_thailand_time()
+    student_dict["status"] = "active"
+    
+    # Insert student
+    result = await db.evep.students.insert_one(student_dict)
+    
+    if not result.inserted_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create student")
+    
+    # Log security event
+    log_security_event(
+        request=None,
+        event_type="student_created",
+        description=f"Student created by user {current_user.get('email', 'unknown')}",
+        portal="medical"
+    )
+    
+    return {"message": "Student created successfully", "student_id": str(result.inserted_id)}
+
+@router.put("/students/{student_id}")
+async def update_student(
+    student_id: str,
+    student_data: Student,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a specific student by ID"""
+    db = get_database()
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to update student")
+    
+    # Check if student exists
+    existing_student = await db.evep.students.find_one({"_id": ObjectId(student_id)})
+    if not existing_student:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
+    
+    # Update student data
+    update_data = student_data.model_dump()
+    update_data["updated_at"] = get_current_thailand_time()
+    
+    result = await db.evep.students.update_one(
+        {"_id": ObjectId(student_id)},
+        {"$set": update_data}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to update student")
+    
+    # Log security event
+    log_security_event(
+        request=None,
+        event_type="student_updated",
+        description=f"Student {student_id} updated by user {current_user.get('email', 'unknown')}",
+        portal="medical"
+    )
+    
+    return {"message": "Student updated successfully", "student_id": student_id}
+
+@router.delete("/students/{student_id}")
+async def delete_student(
+    student_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a specific student by ID"""
+    db = get_database()
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to delete student")
+    
+    # Check if student exists
+    existing_student = await db.evep.students.find_one({"_id": ObjectId(student_id)})
+    if not existing_student:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
+    
+    # Soft delete by setting status to inactive
+    result = await db.evep.students.update_one(
+        {"_id": ObjectId(student_id)},
+        {"$set": {"status": "inactive", "updated_at": get_current_thailand_time()}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete student")
+    
+    # Log security event
+    log_security_event(
+        request=None,
+        event_type="student_deleted",
+        description=f"Student {student_id} deleted by user {current_user.get('email', 'unknown')}",
+        portal="medical"
+    )
+    
+    return {"message": "Student deleted successfully", "student_id": student_id}
+
 # ==================== TEACHERS CRUD ENDPOINTS ====================
 
 @router.get("/teachers")
@@ -128,7 +336,7 @@ async def get_teachers(
 ):
     """Get all teachers with pagination"""
     db = get_database()
-    if current_user["role"] not in ["admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view teachers")
     teachers = await db.evep.teachers.find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
     result = []
@@ -153,7 +361,7 @@ async def get_teacher(
 ):
     """Get a specific teacher by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view teacher details")
     teacher = await db.evep.teachers.find_one({"_id": ObjectId(teacher_id)})
     if not teacher:
@@ -169,6 +377,110 @@ async def get_teacher(
         "status": teacher.get("status", "")
     }
 
+@router.put("/teachers/{teacher_id}")
+async def update_teacher(
+    teacher_id: str,
+    teacher_data: Teacher,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a specific teacher by ID"""
+    db = get_database()
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to update teacher")
+    
+    # Check if teacher exists
+    existing_teacher = await db.evep.teachers.find_one({"_id": ObjectId(teacher_id)})
+    if not existing_teacher:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Teacher not found")
+    
+    # Update teacher data
+    update_data = teacher_data.model_dump()
+    update_data["updated_at"] = get_current_thailand_time()
+    
+    result = await db.evep.teachers.update_one(
+        {"_id": ObjectId(teacher_id)},
+        {"$set": update_data}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to update teacher")
+    
+    # Log security event
+    log_security_event(
+        request=None,
+        event_type="teacher_updated",
+        description=f"Teacher {teacher_id} updated by user {current_user.get('email', 'unknown')}",
+        portal="medical"
+    )
+    
+    return {"message": "Teacher updated successfully", "teacher_id": teacher_id}
+
+@router.post("/teachers")
+async def create_teacher(
+    teacher_data: Teacher,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new teacher"""
+    db = get_database()
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to create teacher")
+    
+    # Prepare teacher data
+    teacher_dict = teacher_data.model_dump()
+    teacher_dict["created_at"] = get_current_thailand_time()
+    teacher_dict["updated_at"] = get_current_thailand_time()
+    teacher_dict["status"] = "active"
+    
+    # Insert teacher
+    result = await db.evep.teachers.insert_one(teacher_dict)
+    
+    if not result.inserted_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create teacher")
+    
+    # Log security event
+    log_security_event(
+        request=None,
+        event_type="teacher_created",
+        description=f"Teacher created by user {current_user.get('email', 'unknown')}",
+        portal="medical"
+    )
+    
+    return {"message": "Teacher created successfully", "teacher_id": str(result.inserted_id)}
+
+@router.delete("/teachers/{teacher_id}")
+async def delete_teacher(
+    teacher_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a specific teacher by ID"""
+    db = get_database()
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to delete teacher")
+    
+    # Check if teacher exists
+    existing_teacher = await db.evep.teachers.find_one({"_id": ObjectId(teacher_id)})
+    if not existing_teacher:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Teacher not found")
+    
+    # Soft delete by setting status to inactive
+    result = await db.evep.teachers.update_one(
+        {"_id": ObjectId(teacher_id)},
+        {"$set": {"status": "inactive", "updated_at": get_current_thailand_time()}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete teacher")
+    
+    # Log security event
+    log_security_event(
+        request=None,
+        event_type="teacher_deleted",
+        description=f"Teacher {teacher_id} deleted by user {current_user.get('email', 'unknown')}",
+        portal="medical"
+    )
+    
+    return {"message": "Teacher deleted successfully", "teacher_id": teacher_id}
+
 # ==================== SCHOOLS CRUD ENDPOINTS ====================
 
 @router.get("/schools")
@@ -179,7 +491,7 @@ async def get_schools(
 ):
     """Get all schools with pagination"""
     db = get_database()
-    if current_user["role"] not in ["admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view schools")
     schools = await db.evep.schools.find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
     result = []
@@ -207,7 +519,7 @@ async def get_school(
 ):
     """Get a specific school by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view school details")
     school = await db.evep.schools.find_one({"_id": ObjectId(school_id)})
     if not school:
@@ -225,6 +537,110 @@ async def get_school(
         "principal_name": school.get("principal_name", ""),
         "status": school.get("status", "")
     }
+
+@router.post("/schools")
+async def create_school(
+    school_data: School,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new school"""
+    db = get_database()
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to create school")
+    
+    # Prepare school data
+    school_dict = school_data.model_dump()
+    school_dict["created_at"] = get_current_thailand_time()
+    school_dict["updated_at"] = get_current_thailand_time()
+    school_dict["status"] = "active"
+    
+    # Insert school
+    result = await db.evep.schools.insert_one(school_dict)
+    
+    if not result.inserted_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create school")
+    
+    # Log security event
+    log_security_event(
+        request=None,
+        event_type="school_created",
+        description=f"School created by user {current_user.get('email', 'unknown')}",
+        portal="medical"
+    )
+    
+    return {"message": "School created successfully", "school_id": str(result.inserted_id)}
+
+@router.put("/schools/{school_id}")
+async def update_school(
+    school_id: str,
+    school_data: School,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a specific school by ID"""
+    db = get_database()
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to update school")
+    
+    # Check if school exists
+    existing_school = await db.evep.schools.find_one({"_id": ObjectId(school_id)})
+    if not existing_school:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="School not found")
+    
+    # Update school data
+    update_data = school_data.model_dump()
+    update_data["updated_at"] = get_current_thailand_time()
+    
+    result = await db.evep.schools.update_one(
+        {"_id": ObjectId(school_id)},
+        {"$set": update_data}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to update school")
+    
+    # Log security event
+    log_security_event(
+        request=None,
+        event_type="school_updated",
+        description=f"School {school_id} updated by user {current_user.get('email', 'unknown')}",
+        portal="medical"
+    )
+    
+    return {"message": "School updated successfully", "school_id": school_id}
+
+@router.delete("/schools/{school_id}")
+async def delete_school(
+    school_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a specific school by ID"""
+    db = get_database()
+    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to delete school")
+    
+    # Check if school exists
+    existing_school = await db.evep.schools.find_one({"_id": ObjectId(school_id)})
+    if not existing_school:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="School not found")
+    
+    # Soft delete by setting status to inactive
+    result = await db.evep.schools.update_one(
+        {"_id": ObjectId(school_id)},
+        {"$set": {"status": "inactive", "updated_at": get_current_thailand_time()}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete school")
+    
+    # Log security event
+    log_security_event(
+        request=None,
+        event_type="school_deleted",
+        description=f"School {school_id} deleted by user {current_user.get('email', 'unknown')}",
+        portal="medical"
+    )
+    
+    return {"message": "School deleted successfully", "school_id": school_id}
 
 # ==================== TEACHER-STUDENT RELATIONSHIP MANAGEMENT ====================
 

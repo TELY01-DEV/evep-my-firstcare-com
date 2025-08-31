@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AppBar,
   Box,
@@ -44,6 +44,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
+import { useAuth } from '../../contexts/AuthContext';
 
 const drawerWidth = 280;
 
@@ -54,9 +55,19 @@ interface MedicalLayoutProps {
 const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, isSystemAdmin, isMedicalAdmin } = useAuth();
+
+  // Live clock update
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -84,37 +95,63 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
       badge: null,
     },
     {
-      text: 'Patient Management',
-      icon: <PeopleIcon />,
-      path: '/dashboard/patients',
-      badge: null,
-    },
-    {
-      text: 'Vision Screenings',
-      icon: <VisibilityIcon />,
-      path: '/dashboard/screenings',
-      badge: 'New',
-    },
-    {
-      text: 'Medical Reports',
-      icon: <AssessmentIcon />,
-      path: '/dashboard/reports',
-      badge: null,
-    },
-    {
       text: 'Health Analytics',
       icon: <HealthIcon />,
       path: '/dashboard/analytics',
       badge: null,
     },
     {
-      text: 'Security Audit',
-      icon: <SecurityIcon />,
-      path: '/dashboard/security',
-      badge: null,
+      text: 'Medical Screening',
+      icon: <MedicalServicesIcon />,
+      path: '/dashboard/medical-screening',
+      badge: 'New',
+      children: [
+        {
+          text: 'Medical Reports',
+          icon: <AssessmentIcon />,
+          path: '/dashboard/reports',
+          badge: null,
+        },
+        {
+          text: 'Patient Management',
+          icon: <PeopleIcon />,
+          path: '/dashboard/patients',
+          badge: null,
+        },
+        {
+          text: 'Vision Screening',
+          icon: <VisibilityIcon />,
+          path: '/dashboard/screenings',
+          badge: 'New',
+        },
+        {
+          text: 'Patient Registration',
+          icon: <PersonIcon />,
+          path: '/dashboard/medical-screening/patient-registration',
+          badge: 'New',
+        },
+        {
+          text: 'VA Screening Interface',
+          icon: <VisibilityIcon />,
+          path: '/dashboard/medical-screening/va-screening',
+          badge: 'New',
+        },
+        {
+          text: 'Diagnosis & Treatment',
+          icon: <AssessmentIcon />,
+          path: '/dashboard/medical-screening/diagnosis',
+          badge: 'New',
+        },
+        {
+          text: 'Schedule Hospital Screening Appointment',
+          icon: <ScheduleIcon />,
+          path: '/dashboard/evep/appointments',
+          badge: 'New',
+        },
+      ],
     },
     {
-      text: 'EVEP Management',
+      text: 'School Management',
       icon: <SchoolIcon />,
       path: '/dashboard/evep',
       badge: 'New',
@@ -149,60 +186,28 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
           path: '/dashboard/evep/school-screenings',
           badge: 'New',
         },
-      ],
-    },
-    {
-      text: 'Medical Screening',
-      icon: <MedicalServicesIcon />,
-      path: '/dashboard/medical-screening',
-      badge: 'New',
-      children: [
         {
-          text: 'Patient Registration',
-          icon: <PersonIcon />,
-          path: '/dashboard/medical-screening/patient-registration',
-          badge: 'New',
-        },
-        {
-          text: 'VA Screening Interface',
-          icon: <VisibilityIcon />,
-          path: '/dashboard/medical-screening/va-screening',
-          badge: 'New',
-        },
-        {
-          text: 'Diagnosis & Treatment',
-          icon: <AssessmentIcon />,
-          path: '/dashboard/medical-screening/diagnosis',
-          badge: 'New',
-        },
-        {
-          text: 'Schedule Hospital Screening Appointment',
-          icon: <ScheduleIcon />,
-          path: '/dashboard/evep/appointments',
-          badge: 'New',
-        },
-      ],
-    },
-    {
-      text: 'Glasses Management',
-      icon: <InventoryIcon />,
-      path: '/dashboard/glasses-management',
-      badge: 'New',
-      children: [
-        {
-          text: 'Inventory Check',
+          text: 'Glasses Inventory',
           icon: <InventoryIcon />,
           path: '/dashboard/glasses-management/inventory',
           badge: 'New',
         },
-                {
-          text: 'Delivery Tracking',
+        {
+          text: 'Glasses Delivery',
           icon: <DeliveryIcon />,
           path: '/dashboard/glasses-management/delivery',
           badge: 'New',
         },
       ],
     },
+
+    {
+      text: 'Security Audit',
+      icon: <SecurityIcon />,
+      path: '/dashboard/security',
+      badge: null,
+    },
+
     {
       text: 'Medical Staff Management',
       icon: <PersonIcon />,
@@ -224,11 +229,59 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
       ],
     },
     {
+      text: 'Inventory',
+      icon: <InventoryIcon />,
+      path: '/dashboard/inventory',
+      badge: 'New',
+      children: [
+        {
+          text: 'Glasses Inventory Management',
+          icon: <InventoryIcon />,
+          path: '/dashboard/glasses-management/inventory',
+          badge: 'New',
+        },
+        {
+          text: 'Glasses Delivery Management',
+          icon: <DeliveryIcon />,
+          path: '/dashboard/glasses-management/delivery',
+          badge: 'New',
+        },
+      ],
+    },
+    {
+      text: 'Panel Settings',
+      icon: <SettingsIcon />,
+      path: '/dashboard/panel-settings',
+      badge: 'New',
+      children: [
+        {
+          text: 'General Panel Settings',
+          icon: <SettingsIcon />,
+          path: '/dashboard/panel-settings/general',
+          badge: 'New',
+        },
+        {
+          text: 'RBAC Management',
+          icon: <SecurityIcon />,
+          path: '/dashboard/panel-settings/rbac',
+          badge: 'New',
+        },
+      ],
+    },
+    {
       text: 'LINE Notifications',
       icon: <ChatIcon />,
       path: '/dashboard/line-notifications',
       badge: 'New',
     },
+    // Admin Panel Access (System Admin Only)
+    ...(isSystemAdmin() ? [{
+      text: 'Admin Panel',
+      icon: <SettingsIcon />,
+      path: 'http://localhost:3015',
+      badge: 'System',
+      external: true,
+    }] : []),
   ];
 
   const drawer = (
@@ -282,7 +335,10 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
               <ListItemButton
                 selected={location.pathname === item.path || (item.children && item.children.some(child => location.pathname === child.path))}
                 onClick={() => {
-                  if (item.children) {
+                  if (item.external) {
+                    // Open external link in new tab
+                    window.open(item.path, '_blank');
+                  } else if (item.children) {
                     // Handle nested menu - for now just navigate to first child
                     navigate(item.children[0].path);
                   } else {
@@ -456,7 +512,60 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
           
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             {menuItems.find(item => item.path === location.pathname)?.text || 'EVEP Medical Panel'}
+            {user && (
+              <Typography variant="caption" display="block" color="text.secondary">
+                {user.first_name} {user.last_name} ({user.role === 'medical_admin' ? 'Medical Admin' : 'System Admin'})
+              </Typography>
+            )}
           </Typography>
+
+          {/* Live Clock */}
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              mr: 3,
+              minWidth: 120,
+              backgroundColor: theme.palette.primary.light,
+              borderRadius: 2,
+              px: 2,
+              py: 1,
+              color: theme.palette.primary.contrastText,
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{
+                fontFamily: 'monospace',
+                fontWeight: 'bold',
+                fontSize: '1.1rem',
+                lineHeight: 1.2,
+              }}
+            >
+              {currentTime.toLocaleTimeString('th-TH', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false,
+              })}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: '0.75rem',
+                opacity: 0.9,
+                textAlign: 'center',
+              }}
+            >
+              {currentTime.toLocaleDateString('th-TH', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              })}
+            </Typography>
+          </Box>
 
           {/* Notifications */}
           <IconButton color="inherit" sx={{ mr: 1 }}>

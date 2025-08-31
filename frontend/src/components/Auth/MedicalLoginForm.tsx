@@ -80,7 +80,7 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8013/api/v1/auth/login', {
+      const response = await fetch('http://localhost:8014/api/v1/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,7 +123,7 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
     const credentials = demoCredentials[role as keyof typeof demoCredentials];
     
     try {
-      const response = await fetch('http://localhost:8013/api/v1/auth/login', {
+      const response = await fetch('http://localhost:8014/api/v1/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

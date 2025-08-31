@@ -33,7 +33,7 @@ export const AdminAuthProvider: React.FC<AdminAuthProviderProps> = ({ children }
   const [loading, setLoading] = useState(true);
 
   // Configure axios for admin panel
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8013';
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8014';
   axios.defaults.baseURL = apiUrl;
   console.log('🌐 Admin Panel API URL configured:', apiUrl);
   

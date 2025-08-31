@@ -36,6 +36,8 @@ from app.api.delivery_management import router as delivery_management_router
 from app.api.insights import router as insights_router
 from app.api.mobile_screening import router as mobile_screening_router
 from app.api.medical_staff import router as medical_staff_router
+from app.api.panel_settings import router as panel_settings_router
+from app.api.rbac import router as rbac_router
 
 # Import medical security API
 from app.api.medical_security import get_medical_security_events, get_medical_security_stats
@@ -196,6 +198,14 @@ async def startup_event():
     # Include medical staff management API router
     app.include_router(medical_staff_router, prefix="/api/v1", tags=["medical_staff"])
     logger.info("Medical Staff Management API router included successfully!")
+    
+    # Include panel settings API router
+    app.include_router(panel_settings_router, prefix="/api/v1/panel-settings", tags=["panel_settings"])
+    logger.info("Panel Settings API router included successfully!")
+    
+    # Include RBAC management API router
+    app.include_router(rbac_router, prefix="/api/v1/rbac", tags=["rbac"])
+    logger.info("RBAC Management API router included successfully!")
     
     # Add medical portal security endpoints
     @app.get("/api/v1/medical/security/events", tags=["medical-security"])

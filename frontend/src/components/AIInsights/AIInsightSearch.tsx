@@ -99,7 +99,7 @@ const AIInsightSearch: React.FC<AIInsightSearchProps> = ({
 
     try {
       const response = await axios.post(
-        'http://localhost:8013/api/v1/ai-insights/search-insights',
+        'http://localhost:8014/api/v1/ai-insights/search-insights',
         filters,
         {
           headers: {

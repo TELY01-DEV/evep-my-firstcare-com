@@ -129,7 +129,7 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
     try {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
-      const response = await fetch('http://localhost:8013/api/v1/inventory/glasses', {
+      const response = await fetch('http://localhost:8014/api/v1/inventory/glasses', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -203,8 +203,8 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
     try {
       const token = localStorage.getItem('evep_token');
       const url = editingItem 
-        ? `http://localhost:8013/api/v1/inventory/glasses/${editingItem._id}`
-        : 'http://localhost:8013/api/v1/inventory/glasses';
+        ? `http://localhost:8014/api/v1/inventory/glasses/${editingItem._id}`
+        : 'http://localhost:8014/api/v1/inventory/glasses';
       
       const response = await fetch(url, {
         method: editingItem ? 'PUT' : 'POST',
@@ -240,7 +240,7 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
     if (window.confirm('Are you sure you want to delete this item?')) {
       try {
         const token = localStorage.getItem('evep_token');
-        const response = await fetch(`http://localhost:8013/api/v1/inventory/glasses/${itemId}`, {
+        const response = await fetch(`http://localhost:8014/api/v1/inventory/glasses/${itemId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,

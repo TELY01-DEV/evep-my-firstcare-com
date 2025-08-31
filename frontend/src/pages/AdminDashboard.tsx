@@ -55,7 +55,7 @@ const AdminDashboard: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8013/api/v1/admin/stats', {
+      const response = await fetch('http://localhost:8014/api/v1/admin/stats', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

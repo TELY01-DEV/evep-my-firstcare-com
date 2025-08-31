@@ -14,9 +14,12 @@ import Auth from './pages/Auth';
 import Patients from './pages/Patients';
 import Screenings from './pages/Screenings';
 import Reports from './pages/Reports';
+import MedicalReports from './pages/MedicalReports';
 import AIInsights from './pages/AIInsights';
 import SecurityAudit from './components/SecurityAudit';
 import MedicalStaff from './pages/MedicalStaff';
+import GeneralPanelSettings from './pages/GeneralPanelSettings';
+import RBACManagement from './pages/RBACManagement';
 
 // Admin Pages
 import Admin from './pages/Admin';
@@ -27,7 +30,7 @@ import AdminPanelUserManagement from './pages/AdminPanelUserManagement';
 import AdminSettings from './pages/AdminSettings';
 import AdminSecurity from './pages/AdminSecurity';
 
-// EVEP Management Pages
+// School Management Pages
 import EvepParents from './pages/EvepParents';
 import EvepStudents from './pages/EvepStudents';
 import EvepTeachers from './pages/EvepTeachers';
@@ -122,12 +125,12 @@ function App() {
                       <Route index element={<Dashboard />} />
                       <Route path="patients" element={<Patients />} />
                       <Route path="screenings" element={<Screenings />} />
-                      <Route path="reports" element={<Reports />} />
+                      <Route path="reports" element={<MedicalReports />} />
                       <Route path="ai-insights" element={<AIInsights />} />
                       <Route path="analytics" element={<AIInsights />} />
                       <Route path="security" element={<SecurityAudit />} />
                       
-                      {/* EVEP Management Routes */}
+                      {/* School Management Routes */}
                       <Route path="evep/parents" element={<EvepParents />} />
                       <Route path="evep/students" element={<EvepStudents />} />
                       <Route path="evep/teachers" element={<EvepTeachers />} />
@@ -150,6 +153,10 @@ function App() {
                       
                       {/* LINE Bot Management Routes */}
                       <Route path="line-notifications" element={<LineNotificationManager />} />
+                      
+                      {/* Panel Settings Routes */}
+                      <Route path="panel-settings/general" element={<GeneralPanelSettings />} />
+                      <Route path="panel-settings/rbac" element={<RBACManagement />} />
                     </Route>
 
                     {/* Admin routes */}
@@ -165,7 +172,7 @@ function App() {
                       <Route path="settings" element={<AdminSettings />} />
                       <Route path="security" element={<AdminSecurity />} />
                       
-                      {/* EVEP Management Routes */}
+                      {/* School Management Routes */}
                       <Route path="evep/parents" element={<EvepParents />} />
                       <Route path="evep/students" element={<EvepStudents />} />
                       <Route path="evep/teachers" element={<EvepTeachers />} />

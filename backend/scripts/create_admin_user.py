@@ -33,7 +33,7 @@ async def create_admin_user():
         "last_name": "User",
         "role": "admin",
         "is_active": True,
-        "created_at": settings.get_current_timestamp(),
+        "created_at": datetime.utcnow().isoformat(),
         "last_login": None,
         "login_attempts": 0,
         "locked_until": None

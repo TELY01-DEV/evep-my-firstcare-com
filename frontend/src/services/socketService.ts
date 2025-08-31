@@ -47,7 +47,7 @@ class SocketService {
   }
 
   private initializeSocket(): void {
-    const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:8013';
+    const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:8014';
     
     this.socket = io(socketUrl, {
       transports: ['websocket', 'polling'],

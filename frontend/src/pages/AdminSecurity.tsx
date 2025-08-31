@@ -84,7 +84,7 @@ const AdminSecurity: React.FC = () => {
       const token = localStorage.getItem('evep_token');
       
       // Fetch security settings
-      const settingsResponse = await fetch('http://localhost:8013/api/v1/admin/security/settings', {
+      const settingsResponse = await fetch('http://localhost:8014/api/v1/admin/security/settings', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -97,7 +97,7 @@ const AdminSecurity: React.FC = () => {
       }
 
       // Fetch security events
-      const eventsResponse = await fetch('http://localhost:8013/api/v1/admin/security/events', {
+      const eventsResponse = await fetch('http://localhost:8014/api/v1/admin/security/events', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -127,7 +127,7 @@ const AdminSecurity: React.FC = () => {
       
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8013/api/v1/admin/security/settings', {
+      const response = await fetch('http://localhost:8014/api/v1/admin/security/settings', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

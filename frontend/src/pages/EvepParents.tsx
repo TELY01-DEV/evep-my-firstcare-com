@@ -119,8 +119,8 @@ const EvepParents: React.FC = () => {
   const fetchParents = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8013/api/v1/evep/parents', {
-        headers: { 
+      const response = await fetch('http://localhost:8014/api/v1/evep/parents', {
+        headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
@@ -168,7 +168,11 @@ const EvepParents: React.FC = () => {
           province: parent.address?.province || '',
           postal_code: parent.address?.postal_code || ''
         },
-        emergency_contact: parent.emergency_contact
+        emergency_contact: {
+          name: parent.emergency_contact?.name || '',
+          phone: parent.emergency_contact?.phone || '',
+          relation: parent.emergency_contact?.relation || ''
+        }
       });
     } else {
       setEditingParent(null);
@@ -212,7 +216,7 @@ const EvepParents: React.FC = () => {
   const handleSubmit = async () => {
     try {
       if (editingParent) {
-        const response = await fetch(`http://localhost:8013/api/v1/evep/parents/${editingParent.id}`, {
+        const response = await fetch(`http://localhost:8014/api/v1/evep/parents/${editingParent.id}`, {
           method: 'PUT',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -226,7 +230,7 @@ const EvepParents: React.FC = () => {
           throw new Error('Failed to update parent');
         }
       } else {
-        const response = await fetch('http://localhost:8013/api/v1/evep/parents', {
+        const response = await fetch('http://localhost:8014/api/v1/evep/parents', {
           method: 'POST',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -251,7 +255,7 @@ const EvepParents: React.FC = () => {
   const handleDelete = async (parentId: string) => {
     if (window.confirm('Are you sure you want to delete this parent?')) {
       try {
-        const response = await fetch(`http://localhost:8013/api/v1/evep/parents/${parentId}`, {
+        const response = await fetch(`http://localhost:8014/api/v1/evep/parents/${parentId}`, {
           method: 'DELETE',
           headers: { 
             'Authorization': `Bearer ${token}`,

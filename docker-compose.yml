@@ -6,8 +6,9 @@ services:
     build: ./backend
     container_name: evep-backend
     ports:
-      - "8013:8000"
+      - "8014:8000"
     environment:
+      - ENVIRONMENT=production
       - MONGODB_URL=mongodb://mongo-primary:27017/evep
       - REDIS_URL=redis://redis-master-1:6379
       - AI_SERVICE_ENABLED=${AI_SERVICE_ENABLED:-false}
@@ -33,7 +34,7 @@ services:
     build: ./ai-service
     container_name: evep-ai-service
     ports:
-      - "8001:8001"
+      - "8015:8001"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
@@ -105,7 +106,7 @@ services:
       - PROMETHEUS_MULTIPROC_DIR=/tmp
       - METRICS_PORT=8002
     ports:
-      - "8002:8002"
+      - "8016:8002"
     volumes:
       - ./ai-service/logs:/app/logs
     networks:
@@ -123,9 +124,11 @@ services:
     ports:
       - "3013:3000"
     environment:
-      - REACT_APP_API_URL=https://admin.evep.my-firstcare.com
+      - REACT_APP_API_URL=http://localhost:8014
       - REACT_APP_ENVIRONMENT=production
       - REACT_APP_PORTAL_TYPE=medical
+      - REACT_APP_SOCKET_URL=http://localhost:9014
+      - NODE_ENV=production
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -144,8 +147,10 @@ services:
     ports:
       - "3015:3000"
     environment:
-      - REACT_APP_API_URL=http://localhost:8013
-      - REACT_APP_ENVIRONMENT=development
+      - REACT_APP_API_URL=http://localhost:8014
+      - REACT_APP_ENVIRONMENT=production
+      - REACT_APP_SOCKET_URL=http://localhost:9014
+      - NODE_ENV=production
     volumes:
       - ./admin-panel:/app
       - /app/node_modules
@@ -301,7 +306,7 @@ services:
       dockerfile: Dockerfile
     container_name: evep-stardust
     ports:
-      - "3014:8000"
+      - "8013:8000"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
@@ -341,7 +346,7 @@ services:
       dockerfile: Dockerfile
     container_name: evep-cdn
     ports:
-      - "8014:8000"
+      - "3014:8000"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
@@ -441,6 +446,37 @@ services:
     networks:
       - evep-network
     restart: unless-stopped
+
+  # Socket.IO Service for Real-time Communication
+  socketio:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: evep-socketio
+    ports:
+      - "9014:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - MONGO_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_DATABASE=${MONGO_DATABASE}
+      - MONGO_REPLICA_SET_NAME=${MONGO_REPLICA_SET_NAME}
+      - REDIS_CLUSTER_ENABLED=${REDIS_CLUSTER_ENABLED}
+      - SOCKETIO_ENABLED=true
+      - SOCKETIO_PORT=8000
+    volumes:
+      - ./backend:/app
+      - ./logs:/app/logs
+    depends_on:
+      - mongo-primary
+      - redis-master-1
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["python", "socketio_standalone.py"]
 
 volumes:
   # MongoDB Replica Set Volumes
