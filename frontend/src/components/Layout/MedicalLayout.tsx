@@ -93,60 +93,73 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
       icon: <DashboardIcon />,
       path: '/dashboard',
       badge: null,
+      description: 'Overview and key metrics',
+      priority: 'high',
     },
     {
       text: 'Health Analytics',
       icon: <HealthIcon />,
       path: '/dashboard/analytics',
       badge: null,
+      description: 'Data insights and trends',
+      priority: 'medium',
     },
     {
       text: 'Medical Screening',
       icon: <MedicalServicesIcon />,
       path: '/dashboard/medical-screening',
-      badge: 'New',
+      badge: 'Core',
+      description: 'Patient care and screening',
+      priority: 'high',
       children: [
         {
           text: 'Medical Reports',
           icon: <AssessmentIcon />,
           path: '/dashboard/reports',
           badge: null,
+          description: 'Generate medical reports',
         },
         {
           text: 'Patient Management',
           icon: <PeopleIcon />,
           path: '/dashboard/patients',
           badge: null,
+          description: 'Manage patient records',
         },
         {
           text: 'Vision Screening',
           icon: <VisibilityIcon />,
           path: '/dashboard/screenings',
-          badge: 'New',
+          badge: 'Active',
+          description: 'Conduct vision screenings',
         },
         {
           text: 'Patient Registration',
           icon: <PersonIcon />,
           path: '/dashboard/medical-screening/patient-registration',
           badge: 'New',
+          description: 'Register new patients',
         },
         {
           text: 'VA Screening Interface',
           icon: <VisibilityIcon />,
           path: '/dashboard/medical-screening/va-screening',
           badge: 'New',
+          description: 'Visual acuity testing',
         },
         {
           text: 'Diagnosis & Treatment',
           icon: <AssessmentIcon />,
           path: '/dashboard/medical-screening/diagnosis',
           badge: 'New',
+          description: 'Medical diagnosis tools',
         },
         {
-          text: 'Schedule Hospital Screening Appointment',
+          text: 'Appointment Scheduling',
           icon: <ScheduleIcon />,
           path: '/dashboard/evep/appointments',
           badge: 'New',
+          description: 'Schedule screenings',
         },
       ],
     },
@@ -154,97 +167,106 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
       text: 'School Management',
       icon: <SchoolIcon />,
       path: '/dashboard/evep',
-      badge: 'New',
+      badge: 'Admin',
+      description: 'School and student data',
+      priority: 'medium',
       children: [
         {
           text: 'Students',
           icon: <ChildIcon />,
           path: '/dashboard/evep/students',
           badge: null,
+          description: 'Student records',
         },
         {
           text: 'Parents',
           icon: <GroupIcon />,
           path: '/dashboard/evep/parents',
           badge: null,
+          description: 'Parent information',
         },
         {
           text: 'Teachers',
           icon: <PersonIcon />,
           path: '/dashboard/evep/teachers',
           badge: null,
+          description: 'Teacher management',
         },
         {
           text: 'Schools',
           icon: <SchoolIcon />,
           path: '/dashboard/evep/schools',
           badge: null,
+          description: 'School information',
         },
         {
           text: 'School-based Screening',
           icon: <AssessmentIcon />,
           path: '/dashboard/evep/school-screenings',
-          badge: 'New',
+          badge: 'Active',
+          description: 'School screening sessions',
         },
         {
           text: 'Glasses Inventory',
           icon: <InventoryIcon />,
           path: '/dashboard/glasses-management/inventory',
           badge: 'New',
+          description: 'Manage glasses stock',
         },
         {
           text: 'Glasses Delivery',
           icon: <DeliveryIcon />,
           path: '/dashboard/glasses-management/delivery',
           badge: 'New',
+          description: 'Track deliveries',
         },
       ],
     },
-
-    {
-      text: 'Security Audit',
-      icon: <SecurityIcon />,
-      path: '/dashboard/security',
-      badge: null,
-    },
-
     {
       text: 'Medical Staff Management',
       icon: <PersonIcon />,
       path: '/dashboard/medical-staff',
-      badge: 'New',
+      badge: 'Admin',
+      description: 'Staff and personnel',
+      priority: 'medium',
       children: [
         {
           text: 'Staff Directory',
           icon: <PersonIcon />,
           path: '/dashboard/medical-staff',
-          badge: 'New',
+          badge: null,
+          description: 'View staff members',
         },
         {
           text: 'Staff Management',
           icon: <PersonIcon />,
           path: '/dashboard/medical-staff/management',
-          badge: 'New',
+          badge: null,
+          description: 'Manage staff assignments',
         },
       ],
     },
     {
-      text: 'Inventory',
+      text: 'Inventory Management',
       icon: <InventoryIcon />,
       path: '/dashboard/inventory',
       badge: 'New',
+      description: 'Glasses and equipment',
+      priority: 'medium',
       children: [
         {
-          text: 'Glasses Inventory Management',
+          text: 'Glasses Inventory',
           icon: <InventoryIcon />,
           path: '/dashboard/glasses-management/inventory',
-          badge: 'New',
+          badge: 'Active',
+          description: 'Manage glasses stock',
         },
         {
-          text: 'Glasses Delivery Management',
+          text: 'Glasses Delivery',
           icon: <DeliveryIcon />,
           path: '/dashboard/glasses-management/delivery',
-          badge: 'New',
+          badge: 'Active',
+          description: 'Track deliveries',
         },
       ],
     },
@@ -252,19 +274,23 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
       text: 'Panel Settings',
       icon: <SettingsIcon />,
       path: '/dashboard/panel-settings',
-      badge: 'New',
+      badge: 'Admin',
+      description: 'System configuration',
+      priority: 'low',
       children: [
         {
-          text: 'General Panel Settings',
+          text: 'General Settings',
           icon: <SettingsIcon />,
           path: '/dashboard/panel-settings/general',
-          badge: 'New',
+          badge: null,
+          description: 'Panel configuration',
         },
         {
           text: 'RBAC Management',
           icon: <SecurityIcon />,
           path: '/dashboard/panel-settings/rbac',
-          badge: 'New',
+          badge: null,
+          description: 'Access control',
         },
       ],
     },
@@ -273,6 +299,8 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
       icon: <ChatIcon />,
       path: '/dashboard/line-notifications',
       badge: 'New',
+      description: 'Communication settings',
+      priority: 'low',
     },
     // Admin Panel Access (System Admin Only)
     ...(isSystemAdmin() ? [{
@@ -346,8 +374,9 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                   }
                 }}
                 sx={{
-                  margin: theme.spacing(0, 2),
+                  margin: theme.spacing(0, 2, 1, 2),
                   borderRadius: 2,
+                  minHeight: 56,
                   '&.Mui-selected': {
                     backgroundColor: theme.palette.primary.main,
                     color: theme.palette.primary.contrastText,
@@ -357,6 +386,13 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                     '& .MuiListItemIcon-root': {
                       color: theme.palette.primary.contrastText,
                     },
+                    '& .MuiListItemText-secondary': {
+                      color: theme.palette.primary.contrastText,
+                      opacity: 0.8,
+                    },
+                  },
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
                   },
                 }}
               >
@@ -372,20 +408,34 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                 </ListItemIcon>
                 <ListItemText 
                   primary={item.text}
+                  secondary={item.description}
                   primaryTypographyProps={{
-                    fontWeight: (location.pathname === item.path || (item.children && item.children.some(child => location.pathname === child.path))) ? 600 : 400,
+                    fontWeight: (location.pathname === item.path || (item.children && item.children.some(child => location.pathname === child.path))) ? 600 : 500,
+                    fontSize: '0.95rem',
+                  }}
+                  secondaryTypographyProps={{
+                    fontSize: '0.75rem',
+                    lineHeight: 1.2,
                   }}
                 />
                 {item.badge && (
                   <Chip
                     label={item.badge}
                     size="small"
-                    color="primary"
+                    color={
+                      item.badge === 'Core' ? 'primary' :
+                      item.badge === 'Active' ? 'success' :
+                      item.badge === 'Admin' ? 'warning' :
+                      item.badge === 'New' ? 'info' :
+                      item.badge === 'System' ? 'error' : 'default'
+                    }
                     sx={{
-                      fontSize: '0.7rem',
-                      height: 20,
-                      backgroundColor: theme.palette.error.main,
-                      color: theme.palette.error.contrastText,
+                      fontSize: '0.65rem',
+                      height: 18,
+                      fontWeight: 600,
+                      '& .MuiChip-label': {
+                        px: 1,
+                      },
                     }}
                   />
                 )}
@@ -393,58 +443,84 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
             </ListItem>
             
             {/* Render nested menu items */}
-            {item.children && item.children.map((child) => (
-              <ListItem key={child.text} disablePadding sx={{ pl: 4 }}>
-                <ListItemButton
-                  selected={location.pathname === child.path}
-                  onClick={() => navigate(child.path)}
-                  sx={{
-                    margin: theme.spacing(0, 2),
-                    borderRadius: 2,
-                    '&.Mui-selected': {
-                      backgroundColor: theme.palette.primary.light,
-                      color: theme.palette.primary.contrastText,
-                      '&:hover': {
-                        backgroundColor: theme.palette.primary.main,
-                      },
-                      '& .MuiListItemIcon-root': {
-                        color: theme.palette.primary.contrastText,
-                      },
-                    },
-                  }}
-                >
-                  <ListItemIcon
-                    sx={{
-                      minWidth: 40,
-                      color: location.pathname === child.path 
-                        ? theme.palette.primary.contrastText 
-                        : theme.palette.text.secondary,
-                    }}
-                  >
-                    {child.icon}
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary={child.text}
-                    primaryTypographyProps={{
-                      fontWeight: location.pathname === child.path ? 600 : 400,
-                    }}
-                  />
-                  {child.badge && (
-                    <Chip
-                      label={child.badge}
-                      size="small"
-                      color="primary"
+            {item.children && (
+              <Box sx={{ pl: 2, pr: 2 }}>
+                {item.children.map((child) => (
+                  <ListItem key={child.text} disablePadding>
+                    <ListItemButton
+                      selected={location.pathname === child.path}
+                      onClick={() => navigate(child.path)}
                       sx={{
-                        fontSize: '0.7rem',
-                        height: 20,
-                        backgroundColor: theme.palette.error.main,
-                        color: theme.palette.error.contrastText,
+                        margin: theme.spacing(0, 0, 0.5, 0),
+                        borderRadius: 1.5,
+                        minHeight: 48,
+                        pl: 3,
+                        '&.Mui-selected': {
+                          backgroundColor: theme.palette.primary.light,
+                          color: theme.palette.primary.main,
+                          '&:hover': {
+                            backgroundColor: theme.palette.primary.main,
+                            color: theme.palette.primary.contrastText,
+                          },
+                          '& .MuiListItemIcon-root': {
+                            color: theme.palette.primary.main,
+                          },
+                          '& .MuiListItemText-secondary': {
+                            color: theme.palette.primary.main,
+                            opacity: 0.8,
+                          },
+                        },
+                        '&:hover': {
+                          backgroundColor: theme.palette.action.hover,
+                        },
                       }}
-                    />
-                  )}
-                </ListItemButton>
-              </ListItem>
-            ))}
+                    >
+                      <ListItemIcon
+                        sx={{
+                          minWidth: 32,
+                          color: location.pathname === child.path 
+                            ? theme.palette.primary.main 
+                            : theme.palette.text.secondary,
+                        }}
+                      >
+                        {child.icon}
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={child.text}
+                        secondary={child.description}
+                        primaryTypographyProps={{
+                          fontWeight: location.pathname === child.path ? 600 : 400,
+                          fontSize: '0.85rem',
+                        }}
+                        secondaryTypographyProps={{
+                          fontSize: '0.7rem',
+                          lineHeight: 1.2,
+                        }}
+                      />
+                      {child.badge && (
+                        <Chip
+                          label={child.badge}
+                          size="small"
+                          color={
+                            child.badge === 'Active' ? 'success' :
+                            child.badge === 'New' ? 'info' :
+                            'default'
+                          }
+                          sx={{
+                            fontSize: '0.6rem',
+                            height: 16,
+                            fontWeight: 600,
+                            '& .MuiChip-label': {
+                              px: 0.5,
+                            },
+                          }}
+                        />
+                      )}
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </Box>
+            )}
           </React.Fragment>
         ))}
       </List>
@@ -453,30 +529,92 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
 
       {/* Quick Actions */}
       <Box sx={{ padding: theme.spacing(2) }}>
-        <Typography variant="overline" color="text.secondary" fontWeight={600}>
+        <Typography 
+          variant="overline" 
+          color="text.secondary" 
+          fontWeight={600}
+          sx={{ 
+            fontSize: '0.75rem',
+            letterSpacing: '0.5px',
+            mb: 1,
+            display: 'block',
+          }}
+        >
           Quick Actions
         </Typography>
         <List sx={{ padding: 0 }}>
           <ListItem disablePadding>
             <ListItemButton
               onClick={() => navigate('/dashboard/patients/new')}
-              sx={{ borderRadius: 2, marginTop: 1 }}
+              sx={{ 
+                borderRadius: 2, 
+                marginBottom: 1,
+                backgroundColor: theme.palette.success.light,
+                color: theme.palette.success.contrastText,
+                '&:hover': {
+                  backgroundColor: theme.palette.success.main,
+                },
+              }}
             >
-              <ListItemIcon sx={{ minWidth: 40 }}>
+              <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}>
                 <MedicalServicesIcon />
               </ListItemIcon>
-              <ListItemText primary="New Patient" />
+              <ListItemText 
+                primary="New Patient" 
+                primaryTypographyProps={{
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                }}
+              />
             </ListItemButton>
           </ListItem>
           <ListItem disablePadding>
             <ListItemButton
-              onClick={() => navigate('/dashboard/screenings/new')}
-              sx={{ borderRadius: 2 }}
+              onClick={() => navigate('/dashboard/screenings')}
+              sx={{ 
+                borderRadius: 2,
+                marginBottom: 1,
+                backgroundColor: theme.palette.info.light,
+                color: theme.palette.info.contrastText,
+                '&:hover': {
+                  backgroundColor: theme.palette.info.main,
+                },
+              }}
             >
-              <ListItemIcon sx={{ minWidth: 40 }}>
+              <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}>
                 <VisibilityIcon />
               </ListItemIcon>
-              <ListItemText primary="New Screening" />
+              <ListItemText 
+                primary="Start Screening" 
+                primaryTypographyProps={{
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={() => navigate('/dashboard/reports')}
+              sx={{ 
+                borderRadius: 2,
+                backgroundColor: theme.palette.warning.light,
+                color: theme.palette.warning.contrastText,
+                '&:hover': {
+                  backgroundColor: theme.palette.warning.main,
+                },
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}>
+                <AssessmentIcon />
+              </ListItemIcon>
+              <ListItemText 
+                primary="View Reports" 
+                primaryTypographyProps={{
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                }}
+              />
             </ListItemButton>
           </ListItem>
         </List>
@@ -527,11 +665,25 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
               alignItems: 'center',
               mr: 3,
               minWidth: 120,
-              backgroundColor: theme.palette.primary.light,
+              background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
               borderRadius: 2,
               px: 2,
-              py: 1,
-              color: theme.palette.primary.contrastText,
+              py: 1.5,
+              color: '#ffffff',
+              boxShadow: '0 2px 8px rgba(25, 118, 210, 0.3)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              position: 'relative',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+                borderRadius: 2,
+                pointerEvents: 'none',
+              },
             }}
           >
             <Typography
@@ -541,6 +693,10 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                 fontWeight: 'bold',
                 fontSize: '1.1rem',
                 lineHeight: 1.2,
+                color: '#ffffff',
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                position: 'relative',
+                zIndex: 1,
               }}
             >
               {currentTime.toLocaleTimeString('th-TH', {
@@ -554,8 +710,13 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
               variant="caption"
               sx={{
                 fontSize: '0.75rem',
-                opacity: 0.9,
+                color: '#ffffff',
                 textAlign: 'center',
+                opacity: 0.95,
+                textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                position: 'relative',
+                zIndex: 1,
+                fontWeight: 500,
               }}
             >
               {currentTime.toLocaleDateString('th-TH', {

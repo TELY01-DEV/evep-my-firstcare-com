@@ -344,11 +344,54 @@ const GeneralPanelSettings: React.FC = () => {
                 {/* Live Clock Display */}
                 {settings.showLiveClock && (
                   <Grid item xs={12}>
-                    <Card sx={{ p: 2, bgcolor: 'primary.light', color: 'white' }}>
-                      <Typography variant="h6" gutterBottom>
+                    <Card 
+                      sx={{ 
+                        p: 3, 
+                        background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+                        color: '#ffffff',
+                        borderRadius: 3,
+                        boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+                          borderRadius: 3,
+                          pointerEvents: 'none',
+                        },
+                      }}
+                    >
+                      <Typography 
+                        variant="h6" 
+                        gutterBottom
+                        sx={{
+                          color: '#ffffff',
+                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                          position: 'relative',
+                          zIndex: 1,
+                          fontWeight: 600,
+                        }}
+                      >
                         Live Clock ({settings.timezone})
                       </Typography>
-                      <Typography variant="h4" fontFamily="monospace">
+                      <Typography 
+                        variant="h4" 
+                        fontFamily="monospace"
+                        sx={{
+                          color: '#ffffff',
+                          textShadow: '0 2px 4px rgba(0, 0, 0, 0.4)',
+                          position: 'relative',
+                          zIndex: 1,
+                          fontWeight: 'bold',
+                          mb: 1,
+                        }}
+                      >
                         {currentTime.toLocaleTimeString(settings.language === 'th' ? 'th-TH' : 'en-US', {
                           timeZone: settings.timezone,
                           hour12: settings.clockFormat === '12h',
@@ -357,7 +400,17 @@ const GeneralPanelSettings: React.FC = () => {
                           second: '2-digit',
                         })}
                       </Typography>
-                      <Typography variant="body2">
+                      <Typography 
+                        variant="body2"
+                        sx={{
+                          color: '#ffffff',
+                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)',
+                          position: 'relative',
+                          zIndex: 1,
+                          opacity: 0.95,
+                          fontWeight: 500,
+                        }}
+                      >
                         {currentTime.toLocaleDateString(settings.language === 'th' ? 'th-TH' : 'en-US', {
                           timeZone: settings.timezone,
                           weekday: 'long',
