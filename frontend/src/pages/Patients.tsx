@@ -31,6 +31,12 @@ import {
   InputAdornment,
   Breadcrumbs,
   Link,
+  Tabs,
+  Tab,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
 } from '@mui/material';
 import {
   Add,
@@ -48,42 +54,66 @@ import {
   Email,
   Home,
   People,
+  CreditCard,
+  Assessment,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Patient {
   _id: string;
+  patient_id: string;
   first_name: string;
   last_name: string;
+  cid: string;  // Citizen ID as primary key
   date_of_birth: string;
   gender: 'male' | 'female' | 'other';
-  parent_name: string;
+  emergency_contact: string;  // Backend uses emergency_contact instead of parent_name
   parent_phone: string;
   parent_email: string;
+  emergency_phone: string;
+  address: string;
   school: string;
   grade: string;
-  medical_history: string;
-  allergies: string[];
-  status: 'active' | 'inactive';
+  medical_history: any;
+  family_vision_history: any;
+  insurance_info: any;
+  consent_forms: any;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
+  created_by: string;
+  audit_hash: string;
+  screening_history: any[];
+  documents: any[];
+  profile_photo: string | null;
+  extra_photos: string[];
+  photo_metadata: any;
 }
 
 interface PatientFormData {
   first_name: string;
   last_name: string;
+  cid: string;  // Citizen ID as primary key
   date_of_birth: string;
   gender: string;
-  parent_name: string;
+  emergency_contact: string;  // Backend uses emergency_contact instead of parent_name
   parent_phone: string;
   parent_email: string;
+  emergency_phone: string;
+  address: string;
   school: string;
   grade: string;
-  medical_history: string;
-  allergies: string[];
+  medical_history: any;
+  family_vision_history: any;
+  insurance_info: any;
+  consent_forms: any;
 }
 
-const Patients: React.FC = () => {
+interface PatientsProps {
+  autoOpenAddDialog?: boolean;
+}
+
+const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
   const { user } = useAuth();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,24 +131,51 @@ const Patients: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [genderFilter, setGenderFilter] = useState('all');
   
+  // Patient selection states
+  const [selectedTab, setSelectedTab] = useState(0);
+  const [filterType, setFilterType] = useState<'all' | 'school' | 'appointment' | 'manual'>('all');
+  
+  // Citizen card reader
+  const [citizenCardDialogOpen, setCitizenCardDialogOpen] = useState(false);
+  const [citizenCardData, setCitizenCardData] = useState({
+    citizen_id: '',
+    first_name: '',
+    last_name: '',
+    date_of_birth: '',
+  });
+  
+  // Manual patient registration
+  const [manualPatientDialogOpen, setManualPatientDialogOpen] = useState(false);
+  
   // Form data
   const [formData, setFormData] = useState<PatientFormData>({
     first_name: '',
     last_name: '',
+    cid: '',  // Citizen ID as primary key
     date_of_birth: '',
     gender: '',
-    parent_name: '',
+    emergency_contact: '',
     parent_phone: '',
     parent_email: '',
+    emergency_phone: '',
+    address: '',
     school: '',
     grade: '',
-    medical_history: '',
-    allergies: [],
+    medical_history: {},
+    family_vision_history: {},
+    insurance_info: {},
+    consent_forms: {},
   });
 
   useEffect(() => {
     fetchPatients();
   }, []);
+
+  useEffect(() => {
+    if (autoOpenAddDialog) {
+      handleOpenDialog();
+    }
+  }, [autoOpenAddDialog]);
 
   const fetchPatients = async () => {
     try {
@@ -134,7 +191,7 @@ const Patients: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setPatients(data.patients || []);
+        setPatients(data || []); // Backend returns direct array, not data.patients
       } else {
         console.error('Failed to fetch patients from API');
         setPatients([]);
@@ -153,30 +210,40 @@ const Patients: React.FC = () => {
       setFormData({
         first_name: patient.first_name,
         last_name: patient.last_name,
+        cid: patient.cid,  // Citizen ID as primary key
         date_of_birth: patient.date_of_birth,
         gender: patient.gender,
-        parent_name: patient.parent_name,
+        emergency_contact: patient.emergency_contact,
         parent_phone: patient.parent_phone,
         parent_email: patient.parent_email,
+        emergency_phone: patient.emergency_phone,
+        address: patient.address,
         school: patient.school,
         grade: patient.grade,
         medical_history: patient.medical_history,
-        allergies: patient.allergies,
+        family_vision_history: patient.family_vision_history,
+        insurance_info: patient.insurance_info,
+        consent_forms: patient.consent_forms,
       });
     } else {
       setEditingPatient(null);
       setFormData({
         first_name: '',
         last_name: '',
+        cid: '',  // Citizen ID as primary key
         date_of_birth: '',
         gender: '',
-        parent_name: '',
+        emergency_contact: '',
         parent_phone: '',
         parent_email: '',
+        emergency_phone: '',
+        address: '',
         school: '',
         grade: '',
-        medical_history: '',
-        allergies: [],
+        medical_history: {},
+        family_vision_history: {},
+        insurance_info: {},
+        consent_forms: {},
       });
     }
     setDialogOpen(true);
@@ -188,16 +255,35 @@ const Patients: React.FC = () => {
     setFormData({
       first_name: '',
       last_name: '',
+      cid: '',  // Citizen ID as primary key
       date_of_birth: '',
       gender: '',
-      parent_name: '',
+      emergency_contact: '',
       parent_phone: '',
       parent_email: '',
+      emergency_phone: '',
+      address: '',
       school: '',
       grade: '',
-      medical_history: '',
-      allergies: [],
+      medical_history: {},
+      family_vision_history: {},
+      insurance_info: {},
+      consent_forms: {},
     });
+  };
+
+
+
+  const handlePatientSelect = (patient: Patient) => {
+    handleOpenDialog(patient);
+  };
+
+  const handleManualPatientAdd = () => {
+    setManualPatientDialogOpen(true);
+  };
+
+  const handleCitizenCardRead = () => {
+    setCitizenCardDialogOpen(true);
   };
 
   const handleSave = async () => {
@@ -289,13 +375,18 @@ const Patients: React.FC = () => {
     const matchesSearch = 
       patient.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.parent_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.school.toLowerCase().includes(searchTerm.toLowerCase());
+      patient.cid?.toLowerCase().includes(searchTerm.toLowerCase()) ||  // Search by CID
+      patient.emergency_contact?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.school?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === 'all' || patient.status === statusFilter;
+    const matchesStatus = statusFilter === 'all' || patient.is_active === (statusFilter === 'active');
     const matchesGender = genderFilter === 'all' || patient.gender === genderFilter;
+    const matchesFilter = filterType === 'all' || 
+      (filterType === 'school' && patient.school) ||
+      (filterType === 'appointment' && patient.is_active) ||
+      (filterType === 'manual' && !patient.school);
     
-    return matchesSearch && matchesStatus && matchesGender;
+    return matchesSearch && matchesStatus && matchesGender && matchesFilter;
   });
 
   if (loading) {
@@ -340,14 +431,32 @@ const Patients: React.FC = () => {
             Manage patient records and information
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => handleOpenDialog()}
-          sx={{ borderRadius: 2 }}
-        >
-          Add Patient
-        </Button>
+        <Box display="flex" gap={2}>
+          <Button
+            variant="outlined"
+            startIcon={<CreditCard />}
+            onClick={handleCitizenCardRead}
+            sx={{ borderRadius: 2 }}
+          >
+            Read Citizen Card
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<Person />}
+            onClick={handleManualPatientAdd}
+            sx={{ borderRadius: 2 }}
+          >
+            Add New Patient
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => handleOpenDialog()}
+            sx={{ borderRadius: 2 }}
+          >
+            Quick Add
+          </Button>
+        </Box>
       </Box>
 
       {/* Alerts */}
@@ -425,106 +534,139 @@ const Patients: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Patients Table */}
+      {/* Patient Selection Tabs */}
+      <Tabs value={selectedTab} onChange={(e, newValue) => setSelectedTab(newValue)} sx={{ mb: 3 }}>
+        <Tab label="School Screening Students" icon={<School />} />
+        <Tab label="Manual Registration" icon={<Person />} />
+        <Tab label="Citizen Card Reader" icon={<CreditCard />} />
+      </Tabs>
+
+      {/* Search and Filter */}
+      <Box sx={{ mb: 3 }}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Search patients"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth>
+              <InputLabel>Filter by type</InputLabel>
+              <Select
+                value={filterType}
+                label="Filter by type"
+                onChange={(e) => setFilterType(e.target.value as any)}
+                startAdornment={<FilterList sx={{ mr: 1, color: 'text.secondary' }} />}
+              >
+                <MenuItem value="all">All Patients</MenuItem>
+                <MenuItem value="school">School Screening Students</MenuItem>
+                <MenuItem value="appointment">Appointment Patients</MenuItem>
+                <MenuItem value="manual">Manual Registration</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+      </Box>
+
+      {/* Patient List */}
       <Card sx={{ borderRadius: 3 }}>
         <CardContent>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Patient</TableCell>
-                  <TableCell>Age</TableCell>
-                  <TableCell>Parent</TableCell>
-                  <TableCell>School</TableCell>
-                  <TableCell>Grade</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredPatients.map((patient) => (
-                  <TableRow key={patient._id} hover>
-                    <TableCell>
-                      <Box display="flex" alignItems="center" gap={2}>
-                        <Avatar sx={{ bgcolor: 'primary.main' }}>
-                          <Person />
-                        </Avatar>
-                        <Box>
-                          <Typography variant="subtitle2">
-                            {patient.first_name} {patient.last_name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1)}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
+          <List>
+            {filteredPatients.map((patient) => (
+              <ListItem
+                key={patient._id}
+                button
+                onClick={() => handlePatientSelect(patient)}
+                sx={{
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                  mb: 1,
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    backgroundColor: 'action.hover',
+                  },
+                }}
+              >
+                <ListItemAvatar>
+                  <Avatar sx={{ bgcolor: 'primary.main' }}>
+                    <Person />
+                  </Avatar>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={`${patient.first_name} ${patient.last_name}`}
+                  secondary={
+                    <Box>
                       <Typography variant="body2">
-                        {getAge(patient.date_of_birth)} years
+                        CID: {patient.cid} • DOB: {new Date(patient.date_of_birth).toLocaleDateString()}
+                        {patient.school && ` • School: ${patient.school}`}
+                        {patient.grade && ` • Grade: ${patient.grade}`}
                       </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="body2">
-                          {patient.parent_name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {patient.parent_phone}
-                        </Typography>
+                      <Box sx={{ mt: 1 }}>
+                        {patient.school && (
+                          <Chip
+                            icon={<School />}
+                            label="School Student"
+                            size="small"
+                            color="primary"
+                            sx={{ mr: 1 }}
+                          />
+                        )}
+                        <Chip
+                          label={patient.is_active ? 'active' : 'inactive'}
+                          color={patient.is_active ? 'success' : 'default'}
+                          size="small"
+                          sx={{ mr: 1 }}
+                        />
                       </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {patient.school}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {patient.grade}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={patient.status}
-                        color={patient.status === 'active' ? 'success' : 'default'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Box display="flex" gap={1}>
-                        <Tooltip title="View Details">
-                          <IconButton
-                            size="small"
-                            onClick={() => setViewingPatient(patient)}
-                          >
-                            <Visibility />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Edit Patient">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleOpenDialog(patient)}
-                          >
-                            <Edit />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete Patient">
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => handleDelete(patient._id)}
-                          >
-                            <Delete />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                    </Box>
+                  }
+                />
+                <Box display="flex" gap={1}>
+                  <Tooltip title="View Details">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setViewingPatient(patient);
+                      }}
+                    >
+                      <Visibility />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Edit Patient">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenDialog(patient);
+                      }}
+                    >
+                      <Edit />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Delete Patient">
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(patient._id);
+                      }}
+                    >
+                      <Delete />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </ListItem>
+            ))}
+          </List>
           
           {filteredPatients.length === 0 && (
             <Box textAlign="center" py={4}>
@@ -535,6 +677,24 @@ const Patients: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Action Buttons */}
+      <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+        <Button
+          variant="outlined"
+          startIcon={<Add />}
+          onClick={handleManualPatientAdd}
+        >
+          Add New Patient
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<CreditCard />}
+          onClick={handleCitizenCardRead}
+        >
+          Read Citizen Card
+        </Button>
+      </Box>
 
       {/* Add/Edit Patient Dialog */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
@@ -566,6 +726,18 @@ const Patients: React.FC = () => {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
+                label="Citizen ID (CID)"
+                value={formData.cid}
+                onChange={handleInputChange('cid')}
+                margin="normal"
+                required
+                placeholder="Enter 13-digit citizen ID"
+                helperText="Citizen ID is used as primary key"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
                 label="Date of Birth"
                 type="date"
                 value={formData.date_of_birth}
@@ -592,9 +764,9 @@ const Patients: React.FC = () => {
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Parent Name"
-                value={formData.parent_name}
-                onChange={handleInputChange('parent_name')}
+                label="Emergency Contact"
+                value={formData.emergency_contact}
+                onChange={handleInputChange('emergency_contact')}
                 margin="normal"
                 required
               />
@@ -643,12 +815,22 @@ const Patients: React.FC = () => {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Medical History"
-                value={formData.medical_history}
-                onChange={handleInputChange('medical_history')}
+                label="Address"
+                value={formData.address}
+                onChange={handleInputChange('address')}
                 margin="normal"
                 multiline
-                rows={3}
+                rows={2}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Emergency Phone"
+                value={formData.emergency_phone}
+                onChange={handleInputChange('emergency_phone')}
+                margin="normal"
+                required
               />
             </Grid>
           </Grid>
@@ -685,6 +867,14 @@ const Patients: React.FC = () => {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="subtitle2" color="text.secondary">
+                    Citizen ID (CID)
+                  </Typography>
+                  <Typography variant="body1">
+                    {viewingPatient.cid}
+                  </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary">
                     Age
                   </Typography>
                   <Typography variant="body1">
@@ -704,20 +894,20 @@ const Patients: React.FC = () => {
                     Status
                   </Typography>
                   <Chip
-                    label={viewingPatient.status}
-                    color={viewingPatient.status === 'active' ? 'success' : 'default'}
+                    label={viewingPatient.is_active ? 'active' : 'inactive'}
+                    color={viewingPatient.is_active ? 'success' : 'default'}
                     size="small"
                   />
                 </Grid>
                 <Grid item xs={12}>
                   <Typography variant="subtitle2" color="text.secondary">
-                    Parent Information
+                    Emergency Contact Information
                   </Typography>
                   <Typography variant="body1">
-                    {viewingPatient.parent_name}
+                    {viewingPatient.emergency_contact}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {viewingPatient.parent_phone} | {viewingPatient.parent_email}
+                    {viewingPatient.emergency_phone} | {viewingPatient.parent_email}
                   </Typography>
                 </Grid>
                 <Grid item xs={12} sm={6}>
@@ -736,29 +926,18 @@ const Patients: React.FC = () => {
                     {viewingPatient.grade}
                   </Typography>
                 </Grid>
-                <Grid item xs={12}>
+
+                                <Grid item xs={12}>
                   <Typography variant="subtitle2" color="text.secondary">
                     Medical History
-      </Typography>
-        <Typography variant="body1">
-                    {viewingPatient.medical_history || 'No medical history recorded'}
                   </Typography>
-                </Grid>
-                <Grid item xs={12}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Allergies
+                  <Typography variant="body1">
+                    {viewingPatient.medical_history ? (
+                      typeof viewingPatient.medical_history === 'object' ? 
+                        JSON.stringify(viewingPatient.medical_history, null, 2) : 
+                        String(viewingPatient.medical_history)
+                    ) : 'No medical history recorded'}
                   </Typography>
-                  <Box display="flex" gap={1} flexWrap="wrap">
-                    {viewingPatient.allergies.length > 0 ? (
-                      viewingPatient.allergies.map((allergy, index) => (
-                        <Chip key={index} label={allergy} size="small" />
-                      ))
-                    ) : (
-                      <Typography variant="body2" color="text.secondary">
-                        No allergies recorded
-        </Typography>
-                    )}
-                  </Box>
                 </Grid>
               </Grid>
             </DialogContent>
@@ -776,6 +955,286 @@ const Patients: React.FC = () => {
             </DialogActions>
           </>
         )}
+      </Dialog>
+
+      {/* Citizen Card Reader Dialog */}
+      <Dialog 
+        open={citizenCardDialogOpen} 
+        onClose={() => setCitizenCardDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <CreditCard />
+            Read Citizen Card
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Please scan or manually enter the Thai citizen ID card information.
+          </Typography>
+          
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Citizen ID Number"
+                value={citizenCardData.citizen_id}
+                onChange={(e) => setCitizenCardData({
+                  ...citizenCardData,
+                  citizen_id: e.target.value
+                })}
+                placeholder="Enter 13-digit citizen ID"
+                inputProps={{ maxLength: 13 }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="First Name"
+                value={citizenCardData.first_name}
+                onChange={(e) => setCitizenCardData({
+                  ...citizenCardData,
+                  first_name: e.target.value
+                })}
+                placeholder="ชื่อ"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Last Name"
+                value={citizenCardData.last_name}
+                onChange={(e) => setCitizenCardData({
+                  ...citizenCardData,
+                  last_name: e.target.value
+                })}
+                placeholder="นามสกุล"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Date of Birth"
+                type="date"
+                value={citizenCardData.date_of_birth}
+                onChange={(e) => setCitizenCardData({
+                  ...citizenCardData,
+                  date_of_birth: e.target.value
+                })}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCitizenCardDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="contained" 
+            onClick={() => {
+              // Auto-fill the patient form with citizen card data
+              setFormData({
+                ...formData,
+                first_name: citizenCardData.first_name,
+                last_name: citizenCardData.last_name,
+                date_of_birth: citizenCardData.date_of_birth,
+              });
+              setCitizenCardDialogOpen(false);
+              setDialogOpen(true);
+            }}
+          >
+            Use This Data
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Manual Patient Registration Dialog */}
+      <Dialog 
+        open={manualPatientDialogOpen} 
+        onClose={() => setManualPatientDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <Person />
+            Manual Patient Registration
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Please fill in all the required patient information manually.
+          </Typography>
+          
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="First Name"
+                value={formData.first_name}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  first_name: e.target.value
+                })}
+                required
+                placeholder="ชื่อ"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Last Name"
+                value={formData.last_name}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  last_name: e.target.value
+                })}
+                required
+                placeholder="นามสกุล"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Date of Birth"
+                type="date"
+                value={formData.date_of_birth}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  date_of_birth: e.target.value
+                })}
+                required
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth required>
+                <InputLabel>Gender</InputLabel>
+                <Select
+                  value={formData.gender}
+                  label="Gender"
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    gender: e.target.value
+                  })}
+                >
+                  <MenuItem value="male">ชาย (Male)</MenuItem>
+                  <MenuItem value="female">หญิง (Female)</MenuItem>
+                  <MenuItem value="other">อื่นๆ (Other)</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Emergency Contact"
+                value={formData.emergency_contact}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  emergency_contact: e.target.value
+                })}
+                required
+                placeholder="ชื่อผู้ติดต่อฉุกเฉิน"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Parent Phone"
+                value={formData.parent_phone}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  parent_phone: e.target.value
+                })}
+                required
+                placeholder="เบอร์โทรผู้ปกครอง"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Parent Email"
+                type="email"
+                value={formData.parent_email}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  parent_email: e.target.value
+                })}
+                required
+                placeholder="อีเมลผู้ปกครอง"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="School"
+                value={formData.school}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  school: e.target.value
+                })}
+                placeholder="โรงเรียน"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Grade"
+                value={formData.grade}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  grade: e.target.value
+                })}
+                placeholder="ระดับชั้น"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Medical History"
+                multiline
+                rows={3}
+                value={formData.medical_history}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  medical_history: e.target.value
+                })}
+                placeholder="ประวัติทางการแพทย์ (ถ้ามี)"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Address"
+                value={formData.address}
+                onChange={(e) => setFormData({
+                  ...formData,
+                  address: e.target.value
+                })}
+                placeholder="ที่อยู่"
+                multiline
+                rows={2}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setManualPatientDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="contained" 
+            onClick={() => {
+              setManualPatientDialogOpen(false);
+              setDialogOpen(true);
+            }}
+          >
+            Continue to Review
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );

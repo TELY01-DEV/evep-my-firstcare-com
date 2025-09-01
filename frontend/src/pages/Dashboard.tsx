@@ -21,6 +21,7 @@ import {
   Breadcrumbs,
   Link,
 } from '@mui/material';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import {
   Person,
   Visibility,
@@ -48,6 +49,13 @@ interface DashboardStats {
   totalScreenings: number;
   pendingScreenings: number;
   completedScreenings: number;
+  totalStudents: number;
+  totalTeachers: number;
+  totalSchools: number;
+  schoolBasedScreenings: number;
+  visionScreenings: number;
+  standardVisionScreenings: number;
+  hospitalMobileUnit: number;
   recentActivity: Array<{
     id: string;
     type: string;
@@ -55,6 +63,12 @@ interface DashboardStats {
     timestamp: string;
     status: 'success' | 'warning' | 'info';
   }>;
+  chartData: {
+    studentGenderBreakdown: Array<{ name: string; value: number }>;
+    gradeLevelBreakdown: Array<{ name: string; value: number }>;
+    patientGenderBreakdown: Array<{ name: string; value: number }>;
+    patientAgeBreakdown: Array<{ name: string; value: number }>;
+  };
 }
 
 const Dashboard: React.FC = () => {
@@ -117,13 +131,13 @@ const Dashboard: React.FC = () => {
             'Content-Type': 'application/json',
           },
         }),
-        fetch('http://localhost:8014/api/v1/evep/schools/', {
+        fetch('http://localhost:8014/api/v1/evep/schools', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         }),
-        fetch('http://localhost:8014/api/v1/evep/teachers/', {
+        fetch('http://localhost:8014/api/v1/evep/teachers', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -138,24 +152,95 @@ const Dashboard: React.FC = () => {
       const teachersData = await teachersResponse.json();
 
       // Calculate statistics
-      const totalPatients = patientsData.students?.length || 0;
-      const totalScreenings = screeningsData.length || 0;
-      const completedScreenings = screeningsData.filter((s: any) => s.status === 'completed').length || 0;
-      const pendingScreenings = screeningsData.filter((s: any) => s.status === 'in_progress').length || 0;
+      const totalPatients = patientsData.students?.length || patientsData.total_count || 0;
+      const totalScreenings = screeningsData.screenings?.length || screeningsData.length || 0;
+      const completedScreenings = (screeningsData.screenings || screeningsData).filter((s: any) => s.status === 'completed').length || 0;
+      const pendingScreenings = (screeningsData.screenings || screeningsData).filter((s: any) => s.status === 'in_progress').length || 0;
       const totalSchools = schoolsData.schools?.length || 0;
       const totalTeachers = teachersData.teachers?.length || 0;
 
       // Get today's date for recent activity
       const today = new Date().toISOString().split('T')[0];
-      const screeningsToday = screeningsData.filter((s: any) => 
+      const screeningsToday = (screeningsData.screenings || screeningsData).filter((s: any) => 
         s.created_at?.startsWith(today)
       ).length || 0;
+
+      // Calculate chart data
+      const students = patientsData.students || [];
+      
+      // Student Gender Breakdown
+      const studentGenderCount = students.reduce((acc: any, student: any) => {
+        const gender = student.gender || 'Unknown';
+        const genderLabel = gender === '1' ? 'Male' : gender === '2' ? 'Female' : gender;
+        acc[genderLabel] = (acc[genderLabel] || 0) + 1;
+        return acc;
+      }, {});
+      
+      const studentGenderBreakdown = Object.entries(studentGenderCount).map(([name, value]) => ({
+        name,
+        value: value as number
+      }));
+
+      // Grade Level Breakdown
+      const gradeLevelCount = students.reduce((acc: any, student: any) => {
+        const grade = student.grade_level || student.grade_number || 'Unknown';
+        acc[grade] = (acc[grade] || 0) + 1;
+        return acc;
+      }, {});
+      
+      const gradeLevelBreakdown = Object.entries(gradeLevelCount).map(([name, value]) => ({
+        name,
+        value: value as number
+      }));
+
+      // Patient Gender Breakdown (same as students for now)
+      const patientGenderBreakdown = [...studentGenderBreakdown];
+
+      // Patient Age Breakdown (calculate from birth_date)
+      const patientAgeCount = students.reduce((acc: any, student: any) => {
+        if (student.birth_date) {
+          const birthYear = new Date(student.birth_date).getFullYear();
+          const currentYear = new Date().getFullYear();
+          const calculatedAge = currentYear - birthYear;
+          const ageKey = `${calculatedAge} years`;
+          acc[ageKey] = (acc[ageKey] || 0) + 1;
+        } else {
+          acc['Unknown'] = (acc['Unknown'] || 0) + 1;
+        }
+        return acc;
+      }, {});
+      
+      const patientAgeBreakdown = Object.entries(patientAgeCount)
+        .sort(([a], [b]) => {
+          if (a === 'Unknown') return 1;
+          if (b === 'Unknown') return -1;
+          const ageA = parseInt(a.split(' ')[0]);
+          const ageB = parseInt(b.split(' ')[0]);
+          return ageA - ageB;
+        })
+        .map(([name, value]) => ({
+          name,
+          value: value as number
+        }));
 
       setStats({
         totalPatients,
         totalScreenings,
         pendingScreenings,
         completedScreenings,
+        totalStudents: totalPatients, // Students are the same as patients in this context
+        totalTeachers,
+        totalSchools,
+        schoolBasedScreenings: totalScreenings, // Using total screenings as school-based for now
+        visionScreenings: totalScreenings, // Using total screenings as vision screenings for now
+        standardVisionScreenings: completedScreenings, // Using completed screenings as standard vision screenings
+        hospitalMobileUnit: 0, // Placeholder - will be updated when API is available
+        chartData: {
+          studentGenderBreakdown,
+          gradeLevelBreakdown,
+          patientGenderBreakdown,
+          patientAgeBreakdown,
+        },
         recentActivity: [
           {
             id: '1',
@@ -188,6 +273,19 @@ const Dashboard: React.FC = () => {
         totalScreenings: 0,
         pendingScreenings: 0,
         completedScreenings: 0,
+        totalStudents: 0,
+        totalTeachers: 0,
+        totalSchools: 0,
+        schoolBasedScreenings: 0,
+        visionScreenings: 0,
+        standardVisionScreenings: 0,
+        hospitalMobileUnit: 0,
+        chartData: {
+          studentGenderBreakdown: [],
+          gradeLevelBreakdown: [],
+          patientGenderBreakdown: [],
+          patientAgeBreakdown: [],
+        },
         recentActivity: [],
       });
     } finally {
@@ -439,6 +537,236 @@ const Dashboard: React.FC = () => {
                     <CheckCircle />
                   </Avatar>
                 </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Additional Statistics Cards */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
+              <CardContent>
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Box>
+                    <Typography color="text.secondary" gutterBottom>
+                      Students
+                    </Typography>
+                    <Typography variant="h4" component="div" color="info.main">
+                      {stats.totalStudents}
+                    </Typography>
+                  </Box>
+                  <Avatar sx={{ bgcolor: 'info.main' }}>
+                    <School />
+                  </Avatar>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
+              <CardContent>
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Box>
+                    <Typography color="text.secondary" gutterBottom>
+                      Teachers
+                    </Typography>
+                    <Typography variant="h4" component="div" color="secondary.main">
+                      {stats.totalTeachers}
+                    </Typography>
+                  </Box>
+                  <Avatar sx={{ bgcolor: 'secondary.main' }}>
+                    <Person />
+                  </Avatar>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
+              <CardContent>
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Box>
+                    <Typography color="text.secondary" gutterBottom>
+                      Schools
+                    </Typography>
+                    <Typography variant="h4" component="div" color="primary.main">
+                      {stats.totalSchools}
+                    </Typography>
+                  </Box>
+                  <Avatar sx={{ bgcolor: 'primary.main' }}>
+                    <School />
+                  </Avatar>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
+              <CardContent>
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Box>
+                    <Typography color="text.secondary" gutterBottom>
+                      School Based Screenings
+                    </Typography>
+                    <Typography variant="h4" component="div" color="warning.main">
+                      {stats.schoolBasedScreenings}
+                    </Typography>
+                  </Box>
+                  <Avatar sx={{ bgcolor: 'warning.main' }}>
+                    <Assessment />
+                  </Avatar>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
+              <CardContent>
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Box>
+                    <Typography color="text.secondary" gutterBottom>
+                      Vision Screenings
+                    </Typography>
+                    <Typography variant="h4" component="div" color="success.main">
+                      {stats.visionScreenings}
+                    </Typography>
+                  </Box>
+                  <Avatar sx={{ bgcolor: 'success.main' }}>
+                    <Visibility />
+                  </Avatar>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
+              <CardContent>
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Box>
+                    <Typography color="text.secondary" gutterBottom>
+                      Standard Vision Screening
+                    </Typography>
+                    <Typography variant="h4" component="div" color="info.main">
+                      {stats.standardVisionScreenings}
+                    </Typography>
+                  </Box>
+                  <Avatar sx={{ bgcolor: 'info.main' }}>
+                    <Assessment />
+                  </Avatar>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3}>
+            <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
+              <CardContent>
+                <Box display="flex" alignItems="center" justifyContent="space-between">
+                  <Box>
+                    <Typography color="text.secondary" gutterBottom>
+                      Hospital Mobile Unit
+                    </Typography>
+                    <Typography variant="h4" component="div" color="error.main">
+                      {stats.hospitalMobileUnit}
+                    </Typography>
+                  </Box>
+                  <Avatar sx={{ bgcolor: 'error.main' }}>
+                    <LocalHospital />
+                  </Avatar>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* Charts Section */}
+      {stats && (
+        <Grid container spacing={3} mb={4}>
+          {/* Student Gender Breakdown */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Student Gender Breakdown
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={stats.chartData.studentGenderBreakdown}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Legend />
+                    <Bar dataKey="value" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Grade Level Breakdown */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Grade Level Breakdown
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={stats.chartData.gradeLevelBreakdown}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Legend />
+                    <Bar dataKey="value" fill="#82ca9d" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Patient Gender Breakdown */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Patient Gender Breakdown
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={stats.chartData.patientGenderBreakdown}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Legend />
+                    <Bar dataKey="value" fill="#ffc658" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Patient Age Breakdown */}
+          <Grid item xs={12} md={6}>
+            <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Patient Age Breakdown
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={stats.chartData.patientAgeBreakdown}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Legend />
+                    <Bar dataKey="value" fill="#ff7300" />
+                  </BarChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
           </Grid>

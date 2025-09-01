@@ -125,6 +125,7 @@ function App() {
                     }>
                       <Route index element={<Dashboard />} />
                       <Route path="patients" element={<Patients />} />
+                      <Route path="patients/new" element={<Patients autoOpenAddDialog={true} />} />
                       <Route path="screenings" element={<Screenings />} />
                       <Route path="reports" element={<MedicalReports />} />
                       <Route path="ai-insights" element={<AIInsights />} />

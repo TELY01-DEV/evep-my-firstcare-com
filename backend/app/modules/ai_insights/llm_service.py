@@ -67,6 +67,7 @@ class LLMService:
             Dictionary containing the generated insight
         """
         try:
+            # Use OpenAI as primary (Claude API key has issues)
             if model.startswith("gpt") and self.openai_client:
                 return await self._generate_openai_insight(
                     prompt, model, max_tokens, temperature, context
@@ -140,14 +141,34 @@ class LLMService:
             # Prepare system prompt
             system_prompt = self._get_system_prompt(context)
             
-            # Make API call
-            response = await self.claude_client.messages.create(
-                model=model,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                system=system_prompt,
-                messages=[{"role": "user", "content": prompt}]
-            )
+            # Make API call using the correct Anthropic API syntax
+            # For Anthropic API v0.7.7, we need to use the correct method
+            try:
+                response = await self.claude_client.messages.create(
+                    model=model,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    system=system_prompt,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+            except AttributeError:
+                # Fallback to older API syntax if messages attribute doesn't exist
+                response = await self.claude_client.completions.create(
+                    model=model,
+                    max_tokens_to_sample=max_tokens,
+                    temperature=temperature,
+                    prompt=f"{system_prompt}\n\nHuman: {prompt}\n\nAssistant:"
+                )
+                return {
+                    "success": True,
+                    "content": response.completion,
+                    "model": model,
+                    "usage": {
+                        "input_tokens": response.stop_reason,
+                        "output_tokens": len(response.completion.split())
+                    },
+                    "timestamp": datetime.utcnow().isoformat()
+                }
             
             return {
                 "success": True,

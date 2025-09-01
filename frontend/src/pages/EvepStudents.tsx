@@ -62,6 +62,26 @@ interface Parent {
   relation: string;
 }
 
+interface Teacher {
+  id: string;
+  title: string;
+  first_name: string;
+  last_name: string;
+  school_name: string;
+}
+
+interface School {
+  id: string;
+  school_code: string;
+  name: string;
+  type: string;
+  address: Address;
+  phone?: string;
+  email?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface Student {
   id: string;
   title: string;
@@ -77,8 +97,18 @@ interface Student {
   address: Address;
   disease?: string;
   parent_id: string;
+  teacher_id?: string;
   parent_info?: Parent;
   consent_document: boolean;
+  profile_photo?: string;
+  extra_photos?: string[];
+  photo_metadata?: {
+    upload_date?: string;
+    file_size?: number;
+    format?: string;
+    uploaded_by?: string;
+  };
+  status?: string;
   created_at: string;
   updated_at: string;
 }
@@ -87,6 +117,8 @@ const EvepStudents: React.FC = () => {
   const { token } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [parents, setParents] = useState<Parent[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
@@ -117,7 +149,9 @@ const EvepStudents: React.FC = () => {
     },
     disease: '',
     parent_id: '',
-    consent_document: false
+    teacher_id: '',
+    consent_document: false,
+    profile_photo: ''
   });
 
   const fetchStudents = async () => {
@@ -164,9 +198,51 @@ const EvepStudents: React.FC = () => {
     }
   };
 
+  const fetchTeachers = async () => {
+    try {
+      const response = await fetch('http://localhost:8014/api/v1/evep/teachers', {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTeachers(data.teachers || []);
+      } else {
+        throw new Error('Failed to fetch teachers');
+      }
+    } catch (error) {
+      console.error('Error fetching teachers:', error);
+      setTeachers([]);
+    }
+  };
+
+  const fetchSchools = async () => {
+    try {
+      const response = await fetch('http://localhost:8014/api/v1/evep/schools', {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSchools(data.schools || []);
+      } else {
+        throw new Error('Failed to fetch schools');
+      }
+    } catch (error) {
+      console.error('Error fetching schools:', error);
+      setSchools([]);
+    }
+  };
+
   useEffect(() => {
     fetchStudents();
     fetchParents();
+    fetchTeachers();
+    fetchSchools();
   }, []);
 
   const handleOpenDialog = (student?: Student) => {
@@ -195,7 +271,9 @@ const EvepStudents: React.FC = () => {
         },
         disease: student.disease || '',
         parent_id: student.parent_id,
-        consent_document: student.consent_document || false
+        teacher_id: student.teacher_id || '',
+        consent_document: student.consent_document || false,
+        profile_photo: student.profile_photo || ''
       });
     } else {
       setEditingStudent(null);
@@ -222,7 +300,9 @@ const EvepStudents: React.FC = () => {
         },
         disease: '',
         parent_id: '',
-        consent_document: false
+        teacher_id: '',
+        consent_document: false,
+        profile_photo: ''
       });
     }
     setOpenDialog(true);
@@ -235,6 +315,55 @@ const EvepStudents: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    // Debug: Log form data to see what's being submitted
+    console.log('Form data being submitted:', formData);
+    
+    // Validate required fields
+    const requiredFields = ['title', 'first_name', 'last_name', 'cid', 'birth_date', 'gender', 'grade_level', 'parent_id', 'teacher_id', 'school_name'];
+    
+    // Special validation for relationships
+    const validationErrors = [];
+    
+    // Check each required field
+    requiredFields.forEach(field => {
+      const value = formData[field as keyof typeof formData];
+      console.log(`Field ${field}:`, value, 'Type:', typeof value);
+      if (!value || value === '') {
+        validationErrors.push(field);
+      }
+    });
+    
+    // Additional validation for relationships
+    if (!formData.parent_id || formData.parent_id === '') {
+      validationErrors.push('parent_id');
+    }
+    
+    if (!formData.teacher_id || formData.teacher_id === '') {
+      validationErrors.push('teacher_id');
+    }
+    
+    if (!formData.school_name || formData.school_name === '') {
+      validationErrors.push('school_name');
+    }
+    
+    if (validationErrors.length > 0) {
+      console.log('Missing fields:', validationErrors);
+      const fieldNames = validationErrors.map(field => {
+        switch(field) {
+          case 'parent_id': return 'Parent';
+          case 'teacher_id': return 'Teacher';
+          case 'school_name': return 'School';
+          default: return field;
+        }
+      });
+      setSnackbar({ 
+        open: true, 
+        message: `Missing required fields: ${fieldNames.join(', ')}. All students must have a Parent, Teacher, and School.`, 
+        severity: 'error' 
+      });
+      return;
+    }
+    
     try {
       if (editingStudent) {
         const response = await fetch(`http://localhost:8014/api/v1/evep/students/${editingStudent.id}`, {
@@ -245,10 +374,13 @@ const EvepStudents: React.FC = () => {
           },
           body: JSON.stringify(formData)
         });
+        
         if (response.ok) {
           setSnackbar({ open: true, message: 'Student updated successfully', severity: 'success' });
         } else {
-          throw new Error('Failed to update student');
+          const errorData = await response.json().catch(() => ({}));
+          const errorMessage = errorData.detail || `HTTP ${response.status}: ${response.statusText}`;
+          throw new Error(errorMessage);
         }
       } else {
         const response = await fetch('http://localhost:8014/api/v1/evep/students', {
@@ -259,17 +391,21 @@ const EvepStudents: React.FC = () => {
           },
           body: JSON.stringify(formData)
         });
+        
         if (response.ok) {
           setSnackbar({ open: true, message: 'Student created successfully', severity: 'success' });
         } else {
-          throw new Error('Failed to create student');
+          const errorData = await response.json().catch(() => ({}));
+          const errorMessage = errorData.detail || `HTTP ${response.status}: ${response.statusText}`;
+          throw new Error(errorMessage);
         }
       }
       handleCloseDialog();
       fetchStudents();
     } catch (error) {
       console.error('Error saving student:', error);
-      setSnackbar({ open: true, message: 'Error saving student', severity: 'error' });
+      const errorMessage = error instanceof Error ? error.message : 'Error saving student';
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
     }
   };
 
@@ -321,6 +457,18 @@ const EvepStudents: React.FC = () => {
     return parent ? `${parent.first_name} ${parent.last_name}` : 'Unknown';
   };
 
+  const getTeacherName = (teacherId: string) => {
+    if (!teacherId) return 'No teacher assigned';
+    const teacher = teachers.find(t => t.id === teacherId);
+    return teacher ? `${teacher.title} ${teacher.first_name} ${teacher.last_name}` : 'Unknown Teacher';
+  };
+
+  const getSchoolName = (schoolName: string) => {
+    if (!schoolName) return 'No school assigned';
+    const school = schools.find(s => s.name === schoolName);
+    return school ? school.name : schoolName;
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -354,7 +502,7 @@ const EvepStudents: React.FC = () => {
           <Card sx={{ bgcolor: 'secondary.main', color: 'white' }}>
             <CardContent>
               <Typography variant="h4">
-                {students.filter(s => s.gender === 'M').length}
+                {students.filter(s => s.gender === 'M' || s.gender === 'ชาย').length}
               </Typography>
               <Typography variant="body2">Male Students</Typography>
             </CardContent>
@@ -364,7 +512,7 @@ const EvepStudents: React.FC = () => {
           <Card sx={{ bgcolor: 'success.main', color: 'white' }}>
             <CardContent>
               <Typography variant="h4">
-                {students.filter(s => s.gender === 'F').length}
+                {students.filter(s => s.gender === 'F' || s.gender === 'หญิง').length}
               </Typography>
               <Typography variant="body2">Female Students</Typography>
             </CardContent>
@@ -374,7 +522,7 @@ const EvepStudents: React.FC = () => {
           <Card sx={{ bgcolor: 'warning.main', color: 'white' }}>
             <CardContent>
               <Typography variant="h4">
-                {students.filter(s => s.consent_document).length}
+                {students.filter(s => s.consent_document === true).length}
               </Typography>
               <Typography variant="body2">With Consent</Typography>
             </CardContent>
@@ -388,11 +536,13 @@ const EvepStudents: React.FC = () => {
           <Table stickyHeader>
             <TableHead>
               <TableRow>
+                <TableCell>Photo</TableCell>
                 <TableCell>Student</TableCell>
                 <TableCell>Student Code</TableCell>
                 <TableCell>School</TableCell>
                 <TableCell>Grade</TableCell>
                 <TableCell>Parent</TableCell>
+                <TableCell>Teacher</TableCell>
                 <TableCell>Consent</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
@@ -401,6 +551,22 @@ const EvepStudents: React.FC = () => {
               {students.map((student) => (
                 <TableRow key={student.id} hover>
                   <TableCell>
+                    {student.profile_photo ? (
+                      <img 
+                        src={student.profile_photo} 
+                        alt="Profile" 
+                        style={{ 
+                          width: '40px', 
+                          height: '40px', 
+                          borderRadius: '50%',
+                          border: '1px solid #ddd'
+                        }} 
+                      />
+                    ) : (
+                      <ChildIcon sx={{ color: 'primary.main' }} />
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <Box display="flex" alignItems="center">
                       <ChildIcon sx={{ mr: 1, color: 'primary.main' }} />
                       <Box>
@@ -408,7 +574,7 @@ const EvepStudents: React.FC = () => {
                           {student.title} {student.first_name} {student.last_name}
                         </Typography>
                         <Typography variant="caption" color="textSecondary">
-                          {student.gender === 'M' ? 'Male' : 'Female'} • {new Date(student.birth_date).toLocaleDateString()}
+                          {student.gender === '1' ? 'Male' : student.gender === '2' ? 'Female' : student.gender} • {new Date(student.birth_date).toLocaleDateString()}
                         </Typography>
                       </Box>
                     </Box>
@@ -432,6 +598,12 @@ const EvepStudents: React.FC = () => {
                     <Box display="flex" alignItems="center">
                       <PersonIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
                       {getParentName(student.parent_id)}
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box display="flex" alignItems="center">
+                      <SchoolIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
+                      {getTeacherName(student.teacher_id || '')}
                     </Box>
                   </TableCell>
                   <TableCell>
@@ -492,7 +664,7 @@ const EvepStudents: React.FC = () => {
                   <Typography><strong>Birth Date:</strong> {new Date(viewingStudent.birth_date).toLocaleDateString()}</Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography><strong>Gender:</strong> {viewingStudent.gender}</Typography>
+                  <Typography><strong>Gender:</strong> {viewingStudent.gender === '1' ? 'Male' : viewingStudent.gender === '2' ? 'Female' : viewingStudent.gender}</Typography>
                 </Grid>
                 <Grid item xs={6}>
                   <Typography><strong>School:</strong> {viewingStudent.school_name}</Typography>
@@ -506,10 +678,70 @@ const EvepStudents: React.FC = () => {
                 <Grid item xs={6}>
                   <Typography><strong>Parent:</strong> {getParentName(viewingStudent.parent_id)}</Typography>
                 </Grid>
+                <Grid item xs={6}>
+                  <Typography><strong>Teacher:</strong> {getTeacherName(viewingStudent.teacher_id || '')}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography><strong>Status:</strong> {viewingStudent.status || 'Active'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography><strong>Created:</strong> {viewingStudent.created_at ? new Date(viewingStudent.created_at).toLocaleDateString() : 'N/A'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography><strong>Last Updated:</strong> {viewingStudent.updated_at ? new Date(viewingStudent.updated_at).toLocaleDateString() : 'N/A'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography><strong>Consent Document:</strong> {viewingStudent.consent_document ? 'Yes' : 'No'}</Typography>
+                </Grid>
               </Grid>
 
-              <Typography variant="h6" gutterBottom>Address</Typography>
-              <Typography gutterBottom>{viewingStudent.address ? formatAddress(viewingStudent.address) : 'No address provided'}</Typography>
+            {/* Profile Photo Display */}
+            {viewingStudent.profile_photo && (
+              <Box display="flex" justifyContent="center" mb={3}>
+                <img 
+                  src={viewingStudent.profile_photo} 
+                  alt="Profile" 
+                  style={{ 
+                    width: '150px', 
+                    height: '150px', 
+                    borderRadius: '50%',
+                    border: '3px solid #ddd'
+                  }} 
+                />
+              </Box>
+            )}
+
+            <Typography variant="h6" gutterBottom>Address</Typography>
+            {viewingStudent.address ? (
+              <Grid container spacing={2} mb={3}>
+                <Grid item xs={6}>
+                  <Typography><strong>House No:</strong> {viewingStudent.address.house_no || 'N/A'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography><strong>Village No:</strong> {viewingStudent.address.village_no || 'N/A'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography><strong>Soi:</strong> {viewingStudent.address.soi || 'N/A'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography><strong>Road:</strong> {viewingStudent.address.road || 'N/A'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography><strong>Subdistrict:</strong> {viewingStudent.address.subdistrict || 'N/A'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography><strong>District:</strong> {viewingStudent.address.district || 'N/A'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography><strong>Province:</strong> {viewingStudent.address.province || 'N/A'}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography><strong>Postal Code:</strong> {viewingStudent.address.postal_code || 'N/A'}</Typography>
+                </Grid>
+              </Grid>
+            ) : (
+              <Typography gutterBottom>No address provided</Typography>
+            )}
 
               {viewingStudent.disease && (
                 <>
@@ -522,9 +754,83 @@ const EvepStudents: React.FC = () => {
               <Typography gutterBottom>
                 {viewingStudent.consent_document ? 'Consent document has been provided' : 'No consent document provided'}
               </Typography>
+
+              {/* Additional Information */}
+              {viewingStudent.extra_photos && viewingStudent.extra_photos.length > 0 && (
+                <>
+                  <Typography variant="h6" gutterBottom>Additional Photos</Typography>
+                  <Typography gutterBottom>
+                    <strong>Number of extra photos:</strong> {viewingStudent.extra_photos.length}
+                  </Typography>
+                </>
+              )}
+
+              {viewingStudent.photo_metadata && (
+                <>
+                  <Typography variant="h6" gutterBottom>Photo Metadata</Typography>
+                  <Grid container spacing={2} mb={3}>
+                    <Grid item xs={6}>
+                      <Typography><strong>Upload Date:</strong> {viewingStudent.photo_metadata.upload_date ? new Date(viewingStudent.photo_metadata.upload_date).toLocaleDateString() : 'N/A'}</Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography><strong>File Size:</strong> {viewingStudent.photo_metadata.file_size ? `${viewingStudent.photo_metadata.file_size} bytes` : 'N/A'}</Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography><strong>Format:</strong> {viewingStudent.photo_metadata.format || 'N/A'}</Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography><strong>Uploaded By:</strong> {viewingStudent.photo_metadata.uploaded_by || 'N/A'}</Typography>
+                    </Grid>
+                  </Grid>
+                </>
+              )}
             </Box>
           ) : (
             <Grid container spacing={2}>
+              {/* Profile Photo Section - Moved to Top */}
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>Profile Photo</Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Box display="flex" gap={2} alignItems="flex-end">
+                  <TextField
+                    fullWidth
+                    label="Profile Photo URL"
+                    value={formData.profile_photo}
+                    onChange={(e) => setFormData({ ...formData, profile_photo: e.target.value })}
+                    margin="normal"
+                    placeholder="https://api.dicebear.com/7.x/avataaars/svg?seed=..."
+                  />
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      const seed = Math.floor(Math.random() * 10000);
+                      const newUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+                      setFormData({ ...formData, profile_photo: newUrl });
+                    }}
+                    sx={{ mb: 1 }}
+                  >
+                    Generate
+                  </Button>
+                </Box>
+              </Grid>
+              {formData.profile_photo && (
+                <Grid item xs={12}>
+                  <Box display="flex" justifyContent="center" mt={2}>
+                    <img 
+                      src={formData.profile_photo} 
+                      alt="Profile" 
+                      style={{ 
+                        width: '120px', 
+                        height: '120px', 
+                        borderRadius: '50%',
+                        border: '2px solid #ddd'
+                      }} 
+                    />
+                  </Box>
+                </Grid>
+              )}
+
               <Grid item xs={4}>
                 <FormControl fullWidth margin="normal">
                   <InputLabel>Title</InputLabel>
@@ -593,8 +899,8 @@ const EvepStudents: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                     label="Gender"
                   >
-                    <MenuItem value="M">Male</MenuItem>
-                    <MenuItem value="F">Female</MenuItem>
+                    <MenuItem value="1">Male</MenuItem>
+                    <MenuItem value="2">Female</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -615,15 +921,18 @@ const EvepStudents: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, grade_level: e.target.value })}
                     label="Grade Level"
                   >
-                    <MenuItem value="ป.1">ป.1</MenuItem>
-                    <MenuItem value="ป.2">ป.2</MenuItem>
-                    <MenuItem value="ป.3">ป.3</MenuItem>
-                    <MenuItem value="ป.4">ป.4</MenuItem>
-                    <MenuItem value="ป.5">ป.5</MenuItem>
-                    <MenuItem value="ป.6">ป.6</MenuItem>
-                    <MenuItem value="ม.1">ม.1</MenuItem>
-                    <MenuItem value="ม.2">ม.2</MenuItem>
-                    <MenuItem value="ม.3">ม.3</MenuItem>
+                    <MenuItem value="ประถมศึกษาปีที่ 1">ประถมศึกษาปีที่ 1</MenuItem>
+                    <MenuItem value="ประถมศึกษาปีที่ 2">ประถมศึกษาปีที่ 2</MenuItem>
+                    <MenuItem value="ประถมศึกษาปีที่ 3">ประถมศึกษาปีที่ 3</MenuItem>
+                    <MenuItem value="ประถมศึกษาปีที่ 4">ประถมศึกษาปีที่ 4</MenuItem>
+                    <MenuItem value="ประถมศึกษาปีที่ 5">ประถมศึกษาปีที่ 5</MenuItem>
+                    <MenuItem value="ประถมศึกษาปีที่ 6">ประถมศึกษาปีที่ 6</MenuItem>
+                    <MenuItem value="มัธยมศึกษาปีที่ 1">มัธยมศึกษาปีที่ 1</MenuItem>
+                    <MenuItem value="มัธยมศึกษาปีที่ 2">มัธยมศึกษาปีที่ 2</MenuItem>
+                    <MenuItem value="มัธยมศึกษาปีที่ 3">มัธยมศึกษาปีที่ 3</MenuItem>
+                    <MenuItem value="มัธยมศึกษาปีที่ 4">มัธยมศึกษาปีที่ 4</MenuItem>
+                    <MenuItem value="มัธยมศึกษาปีที่ 5">มัธยมศึกษาปีที่ 5</MenuItem>
+                    <MenuItem value="มัธยมศึกษาปีที่ 6">มัธยมศึกษาปีที่ 6</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -637,12 +946,12 @@ const EvepStudents: React.FC = () => {
                 />
               </Grid>
               <Grid item xs={6}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Parent</InputLabel>
+                <FormControl fullWidth margin="normal" required>
+                  <InputLabel>Parent *</InputLabel>
                   <Select
                     value={formData.parent_id}
                     onChange={(e) => setFormData({ ...formData, parent_id: e.target.value })}
-                    label="Parent"
+                    label="Parent *"
                   >
                     {parents.map((parent) => (
                       <MenuItem key={parent.id} value={parent.id}>
@@ -651,6 +960,52 @@ const EvepStudents: React.FC = () => {
                     ))}
                   </Select>
                 </FormControl>
+              </Grid>
+              <Grid item xs={6}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Teacher</InputLabel>
+                  <Select
+                    value={formData.teacher_id}
+                    onChange={(e) => {
+                      const selectedTeacherId = e.target.value;
+                      const selectedTeacher = teachers.find(t => t.id === selectedTeacherId);
+                      const newSchoolName = selectedTeacher ? selectedTeacher.school_name : '';
+                      console.log('Teacher selected:', selectedTeacherId, 'School name:', newSchoolName);
+                      
+                      if (selectedTeacherId && !newSchoolName) {
+                        console.warn('Selected teacher has no school name:', selectedTeacher);
+                      }
+                      
+                      setFormData({ 
+                        ...formData, 
+                        teacher_id: selectedTeacherId,
+                        school_name: newSchoolName
+                      });
+                    }}
+                    label="Teacher"
+                  >
+                    <MenuItem value="">
+                      <em>No teacher assigned</em>
+                    </MenuItem>
+                    {teachers.map((teacher) => (
+                      <MenuItem key={teacher.id} value={teacher.id}>
+                        {teacher.title} {teacher.first_name} {teacher.last_name} ({teacher.school_name})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label="School (Auto-populated from Teacher)"
+                  value={formData.school_name}
+                  margin="normal"
+                  InputProps={{
+                    readOnly: true,
+                  }}
+                  helperText="School is automatically set based on the selected teacher"
+                />
               </Grid>
               <Grid item xs={12}>
                 <TextField

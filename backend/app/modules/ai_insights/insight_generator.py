@@ -64,10 +64,13 @@ class InsightGenerator:
             # Render prompt
             prompt = self.prompt_manager.render_template(template.template_id, variables)
             
-            # Generate insight using LLM
+            # Generate insight using LLM - Use OpenAI as primary (Claude API key has issues)
+            # Use GPT-4 for doctors and executives, GPT-3.5-turbo for others
+            model = "gpt-4" if role in ["doctor", "executive"] else "gpt-3.5-turbo"
+            
             insight_result = await self.llm_service.generate_insight(
                 prompt=prompt,
-                model="gpt-4" if role in ["doctor", "executive"] else "gpt-3.5-turbo",
+                model=model,
                 context={"role": role, "insight_type": insight_type}
             )
             

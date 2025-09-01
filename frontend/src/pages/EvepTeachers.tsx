@@ -57,6 +57,7 @@ interface Address {
 
 interface Teacher {
   id: string;
+  title: string;
   first_name: string;
   last_name: string;
   cid: string;
@@ -83,6 +84,7 @@ const EvepTeachers: React.FC = () => {
 
   // Form state
   const [formData, setFormData] = useState({
+    title: '',
     first_name: '',
     last_name: '',
     cid: '',
@@ -137,6 +139,7 @@ const EvepTeachers: React.FC = () => {
     if (teacher) {
       setEditingTeacher(teacher);
       setFormData({
+        title: teacher.title || '',
         first_name: teacher.first_name,
         last_name: teacher.last_name,
         cid: teacher.cid,
@@ -161,6 +164,7 @@ const EvepTeachers: React.FC = () => {
     } else {
       setEditingTeacher(null);
       setFormData({
+        title: '',
         first_name: '',
         last_name: '',
         cid: '',
@@ -469,7 +473,25 @@ const EvepTeachers: React.FC = () => {
             </Box>
           ) : (
             <Grid container spacing={2}>
-              <Grid item xs={6}>
+              <Grid item xs={4}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Title</InputLabel>
+                  <Select
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    label="Title"
+                  >
+                    <MenuItem value="นาย">นาย (Mr.)</MenuItem>
+                    <MenuItem value="นาง">นาง (Mrs.)</MenuItem>
+                    <MenuItem value="นางสาว">นางสาว (Miss)</MenuItem>
+                    <MenuItem value="ดร.">ดร. (Dr.)</MenuItem>
+                    <MenuItem value="ผศ.">ผศ. (Asst. Prof.)</MenuItem>
+                    <MenuItem value="รศ.">รศ. (Assoc. Prof.)</MenuItem>
+                    <MenuItem value="ศ.">ศ. (Prof.)</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={4}>
                 <TextField
                   fullWidth
                   label="First Name"
@@ -478,7 +500,7 @@ const EvepTeachers: React.FC = () => {
                   margin="normal"
                 />
               </Grid>
-              <Grid item xs={6}>
+              <Grid item xs={4}>
                 <TextField
                   fullWidth
                   label="Last Name"

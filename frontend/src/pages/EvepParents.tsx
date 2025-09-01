@@ -62,6 +62,7 @@ interface EmergencyContact {
 
 interface Parent {
   id: string;
+  title: string;
   first_name: string;
   last_name: string;
   cid: string;
@@ -71,7 +72,7 @@ interface Parent {
   email?: string;
   relation: string;
   occupation?: string;
-  income_level?: 'low' | 'middle' | 'high';
+  profile_photo?: string;
   address: Address;
   emergency_contact: EmergencyContact;
   created_at: string;
@@ -89,6 +90,7 @@ const EvepParents: React.FC = () => {
 
   // Form state
   const [formData, setFormData] = useState({
+    title: '',
     first_name: '',
     last_name: '',
     cid: '',
@@ -98,7 +100,7 @@ const EvepParents: React.FC = () => {
     email: '',
     relation: '',
     occupation: '',
-    income_level: '',
+    profile_photo: '',
     address: {
       house_no: '',
       village_no: '',
@@ -148,6 +150,7 @@ const EvepParents: React.FC = () => {
     if (parent) {
       setEditingParent(parent);
       setFormData({
+        title: parent.title || '',
         first_name: parent.first_name,
         last_name: parent.last_name,
         cid: parent.cid,
@@ -157,7 +160,7 @@ const EvepParents: React.FC = () => {
         email: parent.email || '',
         relation: parent.relation,
         occupation: parent.occupation || '',
-        income_level: parent.income_level || '',
+        profile_photo: parent.profile_photo || '',
         address: {
           house_no: parent.address?.house_no || '',
           village_no: parent.address?.village_no || '',
@@ -177,6 +180,7 @@ const EvepParents: React.FC = () => {
     } else {
       setEditingParent(null);
       setFormData({
+        title: '',
         first_name: '',
         last_name: '',
         cid: '',
@@ -186,7 +190,7 @@ const EvepParents: React.FC = () => {
         email: '',
         relation: '',
         occupation: '',
-        income_level: '',
+        profile_photo: '',
         address: {
           house_no: '',
           village_no: '',
@@ -372,6 +376,7 @@ const EvepParents: React.FC = () => {
           <Table stickyHeader>
             <TableHead>
               <TableRow>
+                <TableCell>Photo</TableCell>
                 <TableCell>Name</TableCell>
                 <TableCell>CID</TableCell>
                 <TableCell>Phone</TableCell>
@@ -385,6 +390,22 @@ const EvepParents: React.FC = () => {
               {parents.map((parent) => (
                 <TableRow key={parent.id} hover>
                   <TableCell>
+                    {parent.profile_photo ? (
+                      <img 
+                        src={parent.profile_photo} 
+                        alt="Profile" 
+                        style={{ 
+                          width: '40px', 
+                          height: '40px', 
+                          borderRadius: '50%',
+                          border: '1px solid #ddd'
+                        }} 
+                      />
+                    ) : (
+                      <PersonIcon sx={{ color: 'primary.main' }} />
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <Box display="flex" alignItems="center">
                       <PersonIcon sx={{ mr: 1, color: 'primary.main' }} />
                       <Box>
@@ -392,7 +413,7 @@ const EvepParents: React.FC = () => {
                           {parent.first_name} {parent.last_name}
                         </Typography>
                         <Typography variant="caption" color="textSecondary">
-                          {parent.gender === 'M' ? 'Male' : 'Female'}
+                          {parent.gender === '1' ? 'Male' : parent.gender === '2' ? 'Female' : parent.gender}
                         </Typography>
                       </Box>
                     </Box>
@@ -466,7 +487,7 @@ const EvepParents: React.FC = () => {
                   <Typography><strong>Birth Date:</strong> {new Date(viewingParent.birth_date).toLocaleDateString()}</Typography>
                 </Grid>
                 <Grid item xs={6}>
-                  <Typography><strong>Gender:</strong> {viewingParent.gender}</Typography>
+                  <Typography><strong>Gender:</strong> {viewingParent.gender === '1' ? 'Male' : viewingParent.gender === '2' ? 'Female' : viewingParent.gender}</Typography>
                 </Grid>
                 <Grid item xs={6}>
                   <Typography><strong>Phone:</strong> {viewingParent.phone}</Typography>
@@ -482,6 +503,22 @@ const EvepParents: React.FC = () => {
                 </Grid>
               </Grid>
 
+              {/* Profile Photo Display */}
+              {viewingParent.profile_photo && (
+                <Box display="flex" justifyContent="center" mb={3}>
+                  <img 
+                    src={viewingParent.profile_photo} 
+                    alt="Profile" 
+                    style={{ 
+                      width: '150px', 
+                      height: '150px', 
+                      borderRadius: '50%',
+                      border: '3px solid #ddd'
+                    }} 
+                  />
+                </Box>
+              )}
+
               <Typography variant="h6" gutterBottom>Address</Typography>
               <Typography gutterBottom>{formatAddress(viewingParent.address)}</Typography>
 
@@ -495,7 +532,69 @@ const EvepParents: React.FC = () => {
             </Box>
           ) : (
             <Grid container spacing={2}>
-              <Grid item xs={6}>
+              {/* Profile Photo Section - Moved to Top */}
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>Profile Photo</Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Box display="flex" gap={2} alignItems="flex-end">
+                  <TextField
+                    fullWidth
+                    label="Profile Photo URL"
+                    value={formData.profile_photo}
+                    onChange={(e) => setFormData({ ...formData, profile_photo: e.target.value })}
+                    margin="normal"
+                    placeholder="https://api.dicebear.com/7.x/personas/svg?seed=..."
+                  />
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      const seed = Math.floor(Math.random() * 10000);
+                      const newUrl = `https://api.dicebear.com/7.x/personas/svg?seed=${seed}&backgroundColor=4f46e5,7c3aed,059669,dc2626,f59e0b`;
+                      setFormData({ ...formData, profile_photo: newUrl });
+                    }}
+                    sx={{ mb: 1 }}
+                  >
+                    Generate
+                  </Button>
+                </Box>
+              </Grid>
+              {formData.profile_photo && (
+                <Grid item xs={12}>
+                  <Box display="flex" justifyContent="center" mt={2}>
+                    <img 
+                      src={formData.profile_photo} 
+                      alt="Profile" 
+                      style={{ 
+                        width: '120px', 
+                        height: '120px', 
+                        borderRadius: '50%',
+                        border: '2px solid #ddd'
+                      }} 
+                    />
+                  </Box>
+                </Grid>
+              )}
+
+              <Grid item xs={4}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Title</InputLabel>
+                  <Select
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    label="Title"
+                  >
+                    <MenuItem value="นาย">นาย (Mr.)</MenuItem>
+                    <MenuItem value="นาง">นาง (Mrs.)</MenuItem>
+                    <MenuItem value="นางสาว">นางสาว (Miss)</MenuItem>
+                    <MenuItem value="ดร.">ดร. (Dr.)</MenuItem>
+                    <MenuItem value="ผศ.">ผศ. (Asst. Prof.)</MenuItem>
+                    <MenuItem value="รศ.">รศ. (Assoc. Prof.)</MenuItem>
+                    <MenuItem value="ศ.">ศ. (Prof.)</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={4}>
                 <TextField
                   fullWidth
                   label="First Name"
@@ -504,7 +603,7 @@ const EvepParents: React.FC = () => {
                   margin="normal"
                 />
               </Grid>
-              <Grid item xs={6}>
+              <Grid item xs={4}>
                 <TextField
                   fullWidth
                   label="Last Name"
@@ -541,8 +640,8 @@ const EvepParents: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                     label="Gender"
                   >
-                    <MenuItem value="M">Male</MenuItem>
-                    <MenuItem value="F">Female</MenuItem>
+                    <MenuItem value="1">Male</MenuItem>
+                    <MenuItem value="2">Female</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -588,20 +687,6 @@ const EvepParents: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
                   margin="normal"
                 />
-              </Grid>
-              <Grid item xs={6}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Income Level</InputLabel>
-                  <Select
-                    value={formData.income_level}
-                    onChange={(e) => setFormData({ ...formData, income_level: e.target.value })}
-                    label="Income Level"
-                  >
-                    <MenuItem value="low">Low</MenuItem>
-                    <MenuItem value="middle">Middle</MenuItem>
-                    <MenuItem value="high">High</MenuItem>
-                  </Select>
-                </FormControl>
               </Grid>
 
               {/* Address Fields */}

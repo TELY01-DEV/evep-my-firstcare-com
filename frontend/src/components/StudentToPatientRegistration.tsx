@@ -19,7 +19,13 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Divider
+  Divider,
+  Tabs,
+  Tab,
+  ListItemAvatar,
+  Avatar,
+  InputAdornment,
+  Pagination,
 } from '@mui/material';
 import {
   Person,
@@ -27,7 +33,11 @@ import {
   MedicalServices,
   Assignment,
   CheckCircle,
-  Warning
+  Warning,
+  Search,
+  FilterList,
+  Add,
+  CreditCard,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
@@ -74,6 +84,35 @@ const StudentToPatientRegistration: React.FC<StudentToPatientRegistrationProps> 
   const [referringTeacher, setReferringTeacher] = useState('');
   const [schoolScreeningOutcome, setSchoolScreeningOutcome] = useState('');
 
+  // Advanced student selection states
+  const [selectedTab, setSelectedTab] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'school' | 'grade' | 'recent'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [studentsPerPage] = useState(10);
+  
+  // Citizen card reader
+  const [citizenCardDialogOpen, setCitizenCardDialogOpen] = useState(false);
+  const [citizenCardData, setCitizenCardData] = useState({
+    citizen_id: '',
+    first_name: '',
+    last_name: '',
+    date_of_birth: '',
+  });
+  
+  // Manual student registration
+  const [manualStudentDialogOpen, setManualStudentDialogOpen] = useState(false);
+  const [newStudentData, setNewStudentData] = useState({
+    first_name: '',
+    last_name: '',
+    date_of_birth: '',
+    school_name: '',
+    grade_level: '',
+    parent_name: '',
+    parent_phone: '',
+    parent_email: '',
+  });
+
   // Data state
   const [students, setStudents] = useState<Student[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -117,6 +156,44 @@ const StudentToPatientRegistration: React.FC<StudentToPatientRegistrationProps> 
     } catch (err: any) {
       setError('Failed to load registrations');
     }
+  };
+
+  // Filter students based on search term and filter type
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = 
+      student.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.student_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.school_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesFilter = filterType === 'all' || 
+      (filterType === 'school' && student.school_name) ||
+      (filterType === 'grade' && student.grade_level) ||
+      (filterType === 'recent' && student._id); // For recent students
+    
+    return matchesSearch && matchesFilter;
+  });
+
+  // Pagination
+  const indexOfLastStudent = currentPage * studentsPerPage;
+  const indexOfFirstStudent = indexOfLastStudent - studentsPerPage;
+  const currentStudents = filteredStudents.slice(indexOfFirstStudent, indexOfLastStudent);
+  const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
+
+  const handleStudentSelect = (student: Student) => {
+    setSelectedStudent(student._id);
+  };
+
+  const handleManualStudentAdd = () => {
+    setManualStudentDialogOpen(true);
+  };
+
+  const handleCitizenCardRead = () => {
+    setCitizenCardDialogOpen(true);
+  };
+
+  const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+    setCurrentPage(value);
   };
 
   const handleSubmit = async () => {
@@ -206,24 +283,151 @@ const StudentToPatientRegistration: React.FC<StudentToPatientRegistrationProps> 
             </Alert>
           )}
 
-          <Grid container spacing={3}>
-            {/* Student Selection */}
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth required>
-                <InputLabel>Select Student</InputLabel>
-                <Select
-                  value={selectedStudent}
-                  label="Select Student"
-                  onChange={(e) => setSelectedStudent(e.target.value)}
-                >
-                  {students.map((student) => (
-                    <MenuItem key={student._id} value={student._id}>
-                      {student.first_name} {student.last_name} ({student.student_code}) - {student.school_name}
-                    </MenuItem>
+          {/* Student Selection Section */}
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h6" gutterBottom sx={{ borderBottom: '2px solid #1976d2', pb: 1 }}>
+              Student Selection
+            </Typography>
+            
+            {/* Student Selection Tabs */}
+            <Tabs value={selectedTab} onChange={(e, newValue) => setSelectedTab(newValue)} sx={{ mb: 3 }}>
+              <Tab label="School Students" icon={<School />} />
+              <Tab label="Manual Registration" icon={<Person />} />
+              <Tab label="Citizen Card Reader" icon={<CreditCard />} />
+            </Tabs>
+
+            {/* Search and Filter */}
+            <Box sx={{ mb: 3 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Search students"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    InputProps={{
+                      startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth>
+                    <InputLabel>Filter by type</InputLabel>
+                    <Select
+                      value={filterType}
+                      label="Filter by type"
+                      onChange={(e) => setFilterType(e.target.value as any)}
+                      startAdornment={<FilterList sx={{ mr: 1, color: 'text.secondary' }} />}
+                    >
+                      <MenuItem value="all">All Students</MenuItem>
+                      <MenuItem value="school">By School</MenuItem>
+                      <MenuItem value="grade">By Grade</MenuItem>
+                      <MenuItem value="recent">Recently Added</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+            </Box>
+
+            {/* Student List */}
+            <Card>
+              <CardContent>
+                <List>
+                  {currentStudents.map((student) => (
+                    <ListItem
+                      key={student._id}
+                      button
+                      onClick={() => handleStudentSelect(student)}
+                      sx={{
+                        border: '1px solid',
+                        borderColor: selectedStudent === student._id ? 'primary.main' : 'divider',
+                        borderRadius: 1,
+                        mb: 1,
+                        '&:hover': {
+                          borderColor: 'primary.main',
+                          backgroundColor: 'action.hover',
+                        },
+                      }}
+                    >
+                      <ListItemAvatar>
+                        <Avatar sx={{ bgcolor: 'primary.main' }}>
+                          <Person />
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={`${student.first_name} ${student.last_name}`}
+                        secondary={
+                          <Box>
+                            <Typography variant="body2">
+                              Student Code: {student.student_code}
+                              {student.school_name && ` • School: ${student.school_name}`}
+                              {student.grade_level && ` • Grade: ${student.grade_level}`}
+                            </Typography>
+                            <Box sx={{ mt: 1 }}>
+                              <Chip
+                                icon={<School />}
+                                label="School Student"
+                                size="small"
+                                color="primary"
+                                sx={{ mr: 1 }}
+                              />
+                            </Box>
+                          </Box>
+                        }
+                      />
+                      <Box>
+                        <Chip
+                          label={selectedStudent === student._id ? 'Selected' : 'Select'}
+                          color={selectedStudent === student._id ? 'primary' : 'default'}
+                          variant={selectedStudent === student._id ? 'filled' : 'outlined'}
+                        />
+                      </Box>
+                    </ListItem>
                   ))}
-                </Select>
-              </FormControl>
-            </Grid>
+                </List>
+                
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                    <Pagination
+                      count={totalPages}
+                      page={currentPage}
+                      onChange={handlePageChange}
+                      color="primary"
+                    />
+                  </Box>
+                )}
+                
+                {currentStudents.length === 0 && (
+                  <Box textAlign="center" py={4}>
+                    <Typography color="text.secondary">
+                      No students found
+                    </Typography>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Action Buttons */}
+            <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+              <Button
+                variant="outlined"
+                startIcon={<Add />}
+                onClick={handleManualStudentAdd}
+              >
+                Add New Student
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<CreditCard />}
+                onClick={handleCitizenCardRead}
+              >
+                Read Citizen Card
+              </Button>
+            </Box>
+          </Box>
+
+          <Grid container spacing={3}>
 
             {/* Registration Reason */}
             <Grid item xs={12} md={6}>

@@ -32,6 +32,7 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
+  ListItemAvatar,
   TextField,
 } from '@mui/material';
 import {
@@ -53,6 +54,10 @@ import {
   TrendingDown,
   RemoveRedEye,
   VisibilityOutlined,
+  Add,
+  Search,
+  FilterList,
+  CreditCard,
 } from '@mui/icons-material';
 
 interface EnhancedScreeningInterfaceProps {
@@ -113,6 +118,33 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
   const [patientSelectionStep, setPatientSelectionStep] = useState(allowPatientSelection && !patientId);
   const [loadingPatients, setLoadingPatients] = useState(false);
   
+  // Patient selection tabs and filters
+  const [selectedTab, setSelectedTab] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'school' | 'manual'>('all');
+  
+  // Citizen card reader
+  const [citizenCardDialogOpen, setCitizenCardDialogOpen] = useState(false);
+  const [citizenCardData, setCitizenCardData] = useState({
+    citizen_id: '',
+    first_name: '',
+    last_name: '',
+    date_of_birth: '',
+  });
+  
+  // Manual patient registration
+  const [manualPatientDialogOpen, setManualPatientDialogOpen] = useState(false);
+  const [newPatientData, setNewPatientData] = useState({
+    first_name: '',
+    last_name: '',
+    date_of_birth: '',
+    school: '',
+    grade: '',
+    parent_name: '',
+    parent_phone: '',
+    parent_email: '',
+  });
+  
   const [activeStep, setActiveStep] = useState(0);
   const [currentTest, setCurrentTest] = useState<'distance' | 'near' | 'color' | 'depth'>('distance');
   const [currentEye, setCurrentEye] = useState<'left' | 'right'>('left');
@@ -144,7 +176,7 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
       setLoadingPatients(true);
       const token = localStorage.getItem('evep_token');
       
-              const response = await fetch('http://localhost:8014/api/v1/evep/students', {
+      const response = await fetch('http://localhost:8014/api/v1/evep/students', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -164,6 +196,33 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
     } finally {
       setLoadingPatients(false);
     }
+  };
+
+  // Filter patients based on search term and filter type
+  const filteredPatients = patients.filter(patient => {
+    const matchesSearch = 
+      patient.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.school?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesFilter = filterType === 'all' || 
+      (filterType === 'school' && patient.school) ||
+      (filterType === 'manual' && !patient.school);
+    
+    return matchesSearch && matchesFilter;
+  });
+
+  const handlePatientSelect = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setActiveStep(1); // Move to next step
+  };
+
+  const handleManualPatientAdd = () => {
+    setManualPatientDialogOpen(true);
+  };
+
+  const handleCitizenCardRead = () => {
+    setCitizenCardDialogOpen(true);
   };
 
   const [eyeChart, setEyeChart] = useState<EyeChartData>({
@@ -504,45 +563,158 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
         Select Patient for Enhanced Vision Screening
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Choose a patient to conduct enhanced vision screening with comprehensive tests.
+        Choose a patient to conduct enhanced vision screening with comprehensive tests, or start without a patient.
       </Typography>
 
-      {loadingPatients ? (
-        <Box display="flex" justifyContent="center" p={3}>
-          <CircularProgress />
-        </Box>
-      ) : (
-        <Card>
-          <CardContent>
-            <FormControl fullWidth margin="normal">
-              <InputLabel>Select Patient</InputLabel>
+      {/* Quick Start Option */}
+      <Card sx={{ mb: 3, border: '2px dashed', borderColor: 'primary.main' }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box>
+              <Typography variant="h6" color="primary">
+                Start Workflow Without Patient
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Begin the enhanced vision screening workflow and add patient information later
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<Assessment />}
+              onClick={() => {
+                setSelectedPatient(null);
+                setActiveStep(1); // Move to next step
+              }}
+            >
+              Start Workflow
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Patient Selection Tabs */}
+      <Tabs value={selectedTab} onChange={(e, newValue) => setSelectedTab(newValue)} sx={{ mb: 3 }}>
+        <Tab label="School Screening Students" icon={<School />} />
+        <Tab label="Manual Registration" icon={<Person />} />
+        <Tab label="Citizen Card Reader" icon={<CreditCard />} />
+      </Tabs>
+
+      {/* Search and Filter */}
+      <Box sx={{ mb: 3 }}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Search patients"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth>
+              <InputLabel>Filter by type</InputLabel>
               <Select
-                value={selectedPatient?._id || ''}
-                label="Select Patient"
-                onChange={(e) => {
-                  const patient = patients.find(p => p._id === e.target.value);
-                  setSelectedPatient(patient || null);
-                }}
+                value={filterType}
+                label="Filter by type"
+                onChange={(e) => setFilterType(e.target.value as any)}
+                startAdornment={<FilterList sx={{ mr: 1, color: 'text.secondary' }} />}
               >
-                {patients.map((patient) => (
-                  <MenuItem key={patient._id} value={patient._id}>
-                    {patient.first_name} {patient.last_name} 
-                    {patient.school && ` - ${patient.school}`}
-                    {patient.grade && ` (Grade ${patient.grade})`}
-                  </MenuItem>
-                ))}
+                <MenuItem value="all">All Patients</MenuItem>
+                <MenuItem value="school">School Screening Students</MenuItem>
+                <MenuItem value="manual">Manual Registration</MenuItem>
               </Select>
             </FormControl>
-            
-            {selectedPatient && (
-              <Alert severity="info" sx={{ mt: 2 }}>
-                Selected: {selectedPatient.first_name} {selectedPatient.last_name}
-                {selectedPatient.school && ` from ${selectedPatient.school}`}
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-      )}
+          </Grid>
+        </Grid>
+      </Box>
+
+      {/* Patient List */}
+      <Card>
+        <CardContent>
+          <List>
+            {filteredPatients.map((patient) => (
+              <ListItem
+                key={patient._id}
+                button
+                onClick={() => handlePatientSelect(patient)}
+                sx={{
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                  mb: 1,
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    backgroundColor: 'action.hover',
+                  },
+                }}
+              >
+                <ListItemAvatar>
+                  <Avatar sx={{ bgcolor: 'primary.main' }}>
+                    <Person />
+                  </Avatar>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={`${patient.first_name} ${patient.last_name}`}
+                  secondary={
+                    <Box>
+                      <Typography variant="body2">
+                        DOB: {patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString() : 'N/A'}
+                        {patient.school && ` • School: ${patient.school}`}
+                        {patient.grade && ` • Grade: ${patient.grade}`}
+                      </Typography>
+                      <Box sx={{ mt: 1 }}>
+                        {patient.school && (
+                          <Chip
+                            icon={<School />}
+                            label="School Student"
+                            size="small"
+                            color="primary"
+                            sx={{ mr: 1 }}
+                          />
+                        )}
+                      </Box>
+                    </Box>
+                  }
+                />
+                <Box>
+                  <Button
+                    variant="contained"
+                    startIcon={<Assessment />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePatientSelect(patient);
+                    }}
+                  >
+                    Start Screening
+                  </Button>
+                </Box>
+              </ListItem>
+            ))}
+          </List>
+        </CardContent>
+      </Card>
+
+      {/* Action Buttons */}
+      <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+        <Button
+          variant="outlined"
+          startIcon={<Add />}
+          onClick={handleManualPatientAdd}
+        >
+          Add New Patient
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<CreditCard />}
+          onClick={handleCitizenCardRead}
+        >
+          Read Citizen Card
+        </Button>
+      </Box>
     </Box>
   );
 

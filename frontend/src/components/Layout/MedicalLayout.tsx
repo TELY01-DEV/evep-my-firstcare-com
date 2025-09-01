@@ -60,7 +60,7 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set(['Medical Screening']));
+  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(new Set());
   const [isDrawerHovered, setIsDrawerHovered] = useState(false);
   const theme = useTheme();
   const navigate = useNavigate();
@@ -138,65 +138,6 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
       priority: 'medium',
     },
     {
-      text: 'Medical Screening',
-      icon: <MedicalServicesIcon />,
-      path: '/dashboard/medical-screening',
-      badge: 'Core',
-      description: 'Patient care and screening',
-      priority: 'high',
-      children: [
-        {
-          text: 'Medical Reports',
-          icon: <AssessmentIcon />,
-          path: '/dashboard/reports',
-          badge: null,
-          description: 'Generate medical reports',
-        },
-        {
-          text: 'Patient Management',
-          icon: <PeopleIcon />,
-          path: '/dashboard/patients',
-          badge: null,
-          description: 'Manage patient records',
-        },
-        {
-          text: 'Vision Screening',
-          icon: <VisibilityIcon />,
-          path: '/dashboard/screenings',
-          badge: 'Active',
-          description: 'Conduct vision screenings',
-        },
-        {
-          text: 'Patient Registration',
-          icon: <PersonIcon />,
-          path: '/dashboard/medical-screening/patient-registration',
-          badge: 'New',
-          description: 'Register new patients',
-        },
-        {
-          text: 'VA Screening Interface',
-          icon: <VisibilityIcon />,
-          path: '/dashboard/medical-screening/va-screening',
-          badge: 'New',
-          description: 'Visual acuity testing',
-        },
-        {
-          text: 'Diagnosis & Treatment',
-          icon: <AssessmentIcon />,
-          path: '/dashboard/medical-screening/diagnosis',
-          badge: 'New',
-          description: 'Medical diagnosis tools',
-        },
-        {
-          text: 'Appointment Scheduling',
-          icon: <ScheduleIcon />,
-          path: '/dashboard/evep/appointments',
-          badge: 'New',
-          description: 'Schedule screenings',
-        },
-      ],
-    },
-    {
       text: 'School Management',
       icon: <SchoolIcon />,
       path: '/dashboard/evep',
@@ -236,22 +177,67 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
           text: 'School-based Screening',
           icon: <AssessmentIcon />,
           path: '/dashboard/evep/school-screenings',
-          badge: 'Active',
+          badge: null,
           description: 'School screening sessions',
         },
+      ],
+    },
+    {
+      text: 'Medical Screening',
+      icon: <MedicalServicesIcon />,
+      path: '/dashboard/medical-screening',
+      badge: 'Core',
+      description: 'Patient care and screening',
+      priority: 'high',
+      children: [
         {
-          text: 'Glasses Inventory',
-          icon: <InventoryIcon />,
-          path: '/dashboard/glasses-management/inventory',
-          badge: 'New',
-          description: 'Manage glasses stock',
+          text: 'Medical Reports',
+          icon: <AssessmentIcon />,
+          path: '/dashboard/reports',
+          badge: null,
+          description: 'Generate medical reports',
         },
         {
-          text: 'Glasses Delivery',
-          icon: <DeliveryIcon />,
-          path: '/dashboard/glasses-management/delivery',
-          badge: 'New',
-          description: 'Track deliveries',
+          text: 'Patient Management',
+          icon: <PeopleIcon />,
+          path: '/dashboard/patients',
+          badge: null,
+          description: 'Manage patient records',
+        },
+        {
+          text: 'Vision Screening',
+          icon: <VisibilityIcon />,
+          path: '/dashboard/screenings',
+          badge: null,
+          description: 'Conduct vision screenings',
+        },
+        {
+          text: 'Patient Registration',
+          icon: <PersonIcon />,
+          path: '/dashboard/medical-screening/patient-registration',
+          badge: null,
+          description: 'Register new patients',
+        },
+        {
+          text: 'VA Screening Interface',
+          icon: <VisibilityIcon />,
+          path: '/dashboard/medical-screening/va-screening',
+          badge: null,
+          description: 'Visual acuity testing',
+        },
+        {
+          text: 'Diagnosis & Treatment',
+          icon: <AssessmentIcon />,
+          path: '/dashboard/medical-screening/diagnosis',
+          badge: null,
+          description: 'Medical diagnosis tools',
+        },
+        {
+          text: 'Appointment Scheduling',
+          icon: <ScheduleIcon />,
+          path: '/dashboard/evep/appointments',
+          badge: null,
+          description: 'Schedule screenings',
         },
       ],
     },
@@ -274,7 +260,7 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
           text: 'Create User',
           icon: <AddIcon />,
           path: '/dashboard/user-management',
-          badge: 'New',
+          badge: null,
           description: 'Add new user',
         },
       ],
@@ -307,7 +293,7 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
       text: 'Inventory Management',
       icon: <InventoryIcon />,
       path: '/dashboard/inventory',
-      badge: 'New',
+      badge: null,
       description: 'Glasses and equipment',
       priority: 'medium',
       children: [
@@ -315,14 +301,14 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
           text: 'Glasses Inventory',
           icon: <InventoryIcon />,
           path: '/dashboard/glasses-management/inventory',
-          badge: 'Active',
+          badge: null,
           description: 'Manage glasses stock',
         },
         {
           text: 'Glasses Delivery',
           icon: <DeliveryIcon />,
           path: '/dashboard/glasses-management/delivery',
-          badge: 'Active',
+          badge: null,
           description: 'Track deliveries',
         },
       ],
@@ -415,10 +401,6 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
       {/* Navigation Menu */}
       <List sx={{ padding: theme.spacing(2, 0) }}>
         {menuItems.map((item) => {
-          // Debug: Log items with children
-          if (item.children) {
-            console.log('Menu item with children:', item.text, 'Children count:', item.children.length);
-          }
           return (
             <React.Fragment key={item.text}>
             <ListItem disablePadding>
@@ -593,13 +575,13 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                         '&:hover': {
                           backgroundColor: theme.palette.action.hover,
                           '& .MuiListItemText-primary': {
-                            color: theme.palette.primary.main,
+                            color: theme.palette.primary.dark,
                           },
                           '& .MuiListItemText-secondary': {
-                            color: theme.palette.primary.main,
+                            color: theme.palette.primary.dark,
                           },
                           '& .MuiListItemIcon-root': {
-                            color: theme.palette.primary.main,
+                            color: theme.palette.primary.dark,
                           },
                         },
                       }}
@@ -608,8 +590,8 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                         sx={{
                           minWidth: 32,
                           color: location.pathname === child.path 
-                            ? theme.palette.primary.main 
-                            : theme.palette.text.primary,
+                            ? theme.palette.primary.contrastText 
+                            : '#2c3e50',
                         }}
                       >
                         {child.icon}
@@ -618,23 +600,24 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                         primary={child.text}
                         secondary={child.description}
                         primaryTypographyProps={{
-                          fontWeight: location.pathname === child.path ? 600 : 500,
+                          fontWeight: location.pathname === child.path ? 700 : 600,
                           fontSize: '0.85rem',
                           color: location.pathname === child.path 
-                            ? theme.palette.primary.main 
-                            : theme.palette.text.primary,
+                            ? theme.palette.primary.contrastText 
+                            : '#2c3e50',
                         }}
                         secondaryTypographyProps={{
                           fontSize: '0.7rem',
                           lineHeight: 1.2,
                           color: location.pathname === child.path 
-                            ? theme.palette.primary.main 
-                            : theme.palette.text.primary,
-                          fontWeight: 500,
+                            ? '#FFFFFF' 
+                            : '#5a6c7d',
+                          fontWeight: location.pathname === child.path ? 600 : 500,
                         }}
                         sx={{
                           '& .MuiListItemText-secondary': {
-                            opacity: 0.8,
+                            opacity: location.pathname === child.path ? 1 : 0.9,
+                            textShadow: location.pathname === child.path ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
                           },
                         }}
                       />

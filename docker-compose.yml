@@ -13,6 +13,8 @@ services:
       - REDIS_URL=redis://redis-master-1:6379
       - AI_SERVICE_ENABLED=${AI_SERVICE_ENABLED:-false}
       - AI_SERVICE_URL=${AI_SERVICE_URL:-http://ai-service:8001}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     volumes:
       - ./backend:/app
       - ./uploads:/app/uploads
@@ -386,6 +388,8 @@ services:
     networks:
       - evep-network
     restart: unless-stopped
+    profiles:
+      - monitoring
 
   # Grafana Dashboard
   grafana:
@@ -402,6 +406,8 @@ services:
     networks:
       - evep-network
     restart: unless-stopped
+    profiles:
+      - monitoring
 
   # Elasticsearch for Logging
   elasticsearch:
@@ -418,6 +424,8 @@ services:
     networks:
       - evep-network
     restart: unless-stopped
+    profiles:
+      - monitoring
 
   # Kibana for Log Visualization
   kibana:
@@ -432,6 +440,8 @@ services:
     networks:
       - evep-network
     restart: unless-stopped
+    profiles:
+      - monitoring
 
   # Filebeat for Log Collection
   filebeat:
@@ -446,6 +456,8 @@ services:
     networks:
       - evep-network
     restart: unless-stopped
+    profiles:
+      - monitoring
 
   # Socket.IO Service for Real-time Communication
   socketio:

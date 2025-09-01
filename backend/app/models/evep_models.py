@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 from datetime import date, datetime
 from bson import ObjectId
 
@@ -39,6 +39,7 @@ class EmergencyContact(BaseModel):
 
 class Parent(BaseModel):
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    title: str
     first_name: str
     last_name: str
     cid: str
@@ -77,7 +78,12 @@ class Student(BaseModel):
     address: Address
     disease: Optional[str] = None
     parent_id: str  # Reference to parent document
+    teacher_id: Optional[str] = None  # Reference to teacher document
     consent_document: bool = False
+    # Photo fields
+    profile_photo: Optional[str] = None  # Base64 encoded or file path
+    extra_photos: Optional[List[str]] = []  # List of additional photo paths/URLs
+    photo_metadata: Optional[dict] = None  # Metadata about photos (capture date, description, etc.)
     status: Optional[str] = "active"
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -91,6 +97,7 @@ class Student(BaseModel):
 
 class Teacher(BaseModel):
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    title: str
     first_name: str
     last_name: str
     cid: str
@@ -135,6 +142,7 @@ class School(BaseModel):
 # Response models for API endpoints
 class ParentResponse(BaseModel):
     id: Optional[str] = None
+    title: str
     first_name: str
     last_name: str
     cid: str
@@ -186,6 +194,7 @@ class StudentResponse(BaseModel):
 
 class TeacherResponse(BaseModel):
     id: Optional[str] = None
+    title: str
     first_name: str
     last_name: str
     cid: str

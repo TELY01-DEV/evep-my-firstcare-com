@@ -20,7 +20,9 @@ ROLE_PERMISSIONS = {
             "access_medical_portal",
             "view_analytics",
             "manage_appointments",
-            "manage_school_data"
+            "manage_school_data",
+            "view_user_management",
+            "manage_user_management"
         ],
         "restricted_endpoints": [
             "/api/v1/admin/",

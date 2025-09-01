@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Depends, status, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from bson import ObjectId
+import base64
 
 from app.core.config import settings
 from app.core.security import verify_token, generate_blockchain_hash
@@ -24,6 +25,7 @@ security = HTTPBearer()
 class PatientCreate(BaseModel):
     first_name: str
     last_name: str
+    cid: str  # Citizen ID as primary key
     date_of_birth: str
     gender: str  # male, female, other
     parent_email: EmailStr
@@ -41,6 +43,7 @@ class PatientCreate(BaseModel):
 class PatientUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    cid: Optional[str] = None  # Citizen ID as primary key
     date_of_birth: Optional[str] = None
     gender: Optional[str] = None
     parent_email: Optional[EmailStr] = None
@@ -60,6 +63,7 @@ class PatientResponse(BaseModel):
     patient_id: str
     first_name: str
     last_name: str
+    cid: Optional[str] = None  # Citizen ID as primary key (optional for backward compatibility)
     date_of_birth: str
     gender: str
     parent_email: str
@@ -106,28 +110,27 @@ async def create_patient(
     patients_collection = get_patients_collection()
     audit_logs_collection = get_audit_logs_collection()
     
-    # Check if patient already exists (by parent email and child name)
+    # Check if patient already exists (by CID as primary key)
     existing_patient = await patients_collection.find_one({
-        "parent_email": patient_data.parent_email,
-        "first_name": patient_data.first_name,
-        "last_name": patient_data.last_name
+        "cid": patient_data.cid
     })
     
     if existing_patient:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Patient with this information already exists"
+            detail="Patient with this Citizen ID (CID) already exists"
         )
     
     # Generate blockchain hash for audit
     audit_hash = generate_blockchain_hash(
-        f"patient_creation:{patient_data.parent_email}:{patient_data.first_name}:{patient_data.last_name}"
+        f"patient_creation:{patient_data.cid}:{patient_data.first_name}:{patient_data.last_name}"
     )
     
     # Create patient document
     patient_doc = {
         "first_name": patient_data.first_name,
         "last_name": patient_data.last_name,
+        "cid": patient_data.cid,  # Citizen ID as primary key
         "date_of_birth": patient_data.date_of_birth,
         "gender": patient_data.gender,
         "parent_email": patient_data.parent_email,
@@ -142,8 +145,8 @@ async def create_patient(
         "insurance_info": patient_data.insurance_info or {},
         "consent_forms": patient_data.consent_forms or {},
         "is_active": True,
-        "created_at": settings.get_current_timestamp(),
-        "updated_at": settings.get_current_timestamp(),
+        "created_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow().isoformat(),
         "created_by": current_user["user_id"],
         "audit_hash": audit_hash,
         "screening_history": [],
@@ -159,7 +162,7 @@ async def create_patient(
         "action": "patient_created",
         "user_id": current_user["user_id"],
         "patient_id": str(result.inserted_id),
-        "timestamp": settings.get_current_timestamp(),
+        "timestamp": datetime.utcnow().isoformat(),
         "audit_hash": audit_hash,
         "details": {
             "patient_name": f"{patient_data.first_name} {patient_data.last_name}",
@@ -287,7 +290,7 @@ async def update_patient(
     
     # Prepare update data
     update_data = {k: v for k, v in patient_data.dict().items() if v is not None}
-    update_data["updated_at"] = settings.get_current_timestamp()
+    update_data["updated_at"] = datetime.utcnow().isoformat()
     
     # Generate blockchain hash for audit
     audit_hash = generate_blockchain_hash(
@@ -312,7 +315,7 @@ async def update_patient(
         "action": "patient_updated",
         "user_id": current_user["user_id"],
         "patient_id": patient_id,
-        "timestamp": settings.get_current_timestamp(),
+        "timestamp": datetime.utcnow().isoformat(),
         "audit_hash": audit_hash,
         "details": {
             "updated_fields": list(update_data.keys()),
@@ -372,7 +375,7 @@ async def delete_patient(
         {
             "$set": {
                 "is_active": False,
-                "updated_at": settings.get_current_timestamp(),
+                "updated_at": datetime.utcnow().isoformat(),
                 "audit_hash": audit_hash
             }
         }
@@ -389,7 +392,7 @@ async def delete_patient(
         "action": "patient_deleted",
         "user_id": current_user["user_id"],
         "patient_id": patient_id,
-        "timestamp": settings.get_current_timestamp(),
+        "timestamp": datetime.utcnow().isoformat(),
         "audit_hash": audit_hash,
         "details": {
             "patient_name": f"{existing_patient['first_name']} {existing_patient['last_name']}",
@@ -423,6 +426,7 @@ async def search_patients(
         query["$or"] = [
             {"first_name": {"$regex": search_data.query, "$options": "i"}},
             {"last_name": {"$regex": search_data.query, "$options": "i"}},
+            {"cid": {"$regex": search_data.query, "$options": "i"}},  # Search by CID
             {"parent_email": {"$regex": search_data.query, "$options": "i"}},
             {"school": {"$regex": search_data.query, "$options": "i"}}
         ]
@@ -520,7 +524,7 @@ async def upload_patient_document(
         "filename": file.filename,
         "document_type": document_type,
         "uploaded_by": current_user["user_id"],
-        "uploaded_at": settings.get_current_timestamp(),
+        "uploaded_at": datetime.utcnow().isoformat(),
         "file_size": len(await file.read()),
         "audit_hash": audit_hash,
         "status": "uploaded"
@@ -538,7 +542,7 @@ async def upload_patient_document(
         "user_id": current_user["user_id"],
         "patient_id": patient_id,
         "document_id": str(result.inserted_id),
-        "timestamp": settings.get_current_timestamp(),
+        "timestamp": datetime.utcnow().isoformat(),
         "audit_hash": audit_hash,
         "details": {
             "filename": file.filename,
@@ -680,8 +684,8 @@ async def register_student_as_patient(
         "insurance_info": patient_data.insurance_info or {},
         "consent_forms": patient_data.consent_forms or {},
         "is_active": True,
-        "created_at": settings.get_current_timestamp(),
-        "updated_at": settings.get_current_timestamp(),
+        "created_at": datetime.utcnow().isoformat(),
+        "updated_at": datetime.utcnow().isoformat(),
         "created_by": current_user["user_id"],
         "audit_hash": audit_hash,
         "screening_history": [],
@@ -700,7 +704,7 @@ async def register_student_as_patient(
         "user_id": current_user["user_id"],
         "patient_id": str(result.inserted_id),
         "student_id": student_id,
-        "timestamp": settings.get_current_timestamp(),
+        "timestamp": datetime.utcnow().isoformat(),
         "audit_hash": audit_hash,
         "details": {
             "patient_name": f"{student['first_name']} {student['last_name']}",
@@ -714,3 +718,313 @@ async def register_student_as_patient(
         patient_id=str(result.inserted_id),
         **{k: v for k, v in patient_doc.items() if k != "_id"}
     )
+
+# ==================== PHOTO UPLOAD ENDPOINTS ====================
+
+@router.post("/{patient_id}/upload-profile-photo")
+async def upload_patient_profile_photo(
+    patient_id: str,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload profile photo for a patient"""
+    
+    # Check if user has permission to upload photos
+    if current_user["role"] not in ["doctor", "admin", "medical_staff"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to upload patient photos"
+        )
+    
+    patients_collection = get_patients_collection()
+    audit_logs_collection = get_audit_logs_collection()
+    
+    # Validate ObjectId
+    if not ObjectId.is_valid(patient_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid patient ID format"
+        )
+    
+    # Check if patient exists
+    patient = await patients_collection.find_one({"_id": ObjectId(patient_id)})
+    if not patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient not found"
+        )
+    
+    # Validate file type
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be an image"
+        )
+    
+    # Read file content and encode as base64
+    file_content = await file.read()
+    photo_base64 = base64.b64encode(file_content).decode('utf-8')
+    
+    # Generate blockchain hash for audit
+    audit_hash = generate_blockchain_hash(
+        f"patient_photo_upload:{patient_id}:{current_user['user_id']}"
+    )
+    
+    # Update patient with profile photo
+    result = await patients_collection.update_one(
+        {"_id": ObjectId(patient_id)},
+        {
+            "$set": {
+                "profile_photo": photo_base64,
+                "updated_at": datetime.utcnow().isoformat(),
+                "audit_hash": audit_hash
+            }
+        }
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to update patient profile photo"
+        )
+    
+    # Log photo upload
+    await audit_logs_collection.insert_one({
+        "action": "patient_photo_uploaded",
+        "user_id": current_user["user_id"],
+        "patient_id": patient_id,
+        "timestamp": datetime.utcnow().isoformat(),
+        "audit_hash": audit_hash,
+        "details": {
+            "photo_type": "profile_photo",
+            "file_size": len(file_content),
+            "content_type": file.content_type
+        }
+    })
+    
+    return {"message": "Profile photo uploaded successfully", "patient_id": patient_id}
+
+
+@router.post("/{patient_id}/upload-extra-photo")
+async def upload_patient_extra_photo(
+    patient_id: str,
+    file: UploadFile = File(...),
+    description: str = "",
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload extra photo for a patient"""
+    
+    # Check if user has permission to upload photos
+    if current_user["role"] not in ["doctor", "admin", "medical_staff"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to upload patient photos"
+        )
+    
+    patients_collection = get_patients_collection()
+    audit_logs_collection = get_audit_logs_collection()
+    
+    # Validate ObjectId
+    if not ObjectId.is_valid(patient_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid patient ID format"
+        )
+    
+    # Check if patient exists
+    patient = await patients_collection.find_one({"_id": ObjectId(patient_id)})
+    if not patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient not found"
+        )
+    
+    # Validate file type
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be an image"
+        )
+    
+    # Read file content and encode as base64
+    file_content = await file.read()
+    photo_base64 = base64.b64encode(file_content).decode('utf-8')
+    
+    # Create photo metadata
+    photo_metadata = {
+        "description": description,
+        "uploaded_by": current_user.get("email", "unknown"),
+        "uploaded_at": datetime.utcnow().isoformat(),
+        "file_size": len(file_content),
+        "content_type": file.content_type
+    }
+    
+    # Generate blockchain hash for audit
+    audit_hash = generate_blockchain_hash(
+        f"patient_extra_photo_upload:{patient_id}:{current_user['user_id']}"
+    )
+    
+    # Add photo to extra_photos array
+    result = await patients_collection.update_one(
+        {"_id": ObjectId(patient_id)},
+        {
+            "$push": {
+                "extra_photos": photo_base64
+            },
+            "$set": {
+                "updated_at": datetime.utcnow().isoformat(),
+                "audit_hash": audit_hash
+            }
+        }
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to upload extra photo"
+        )
+    
+    # Log photo upload
+    await audit_logs_collection.insert_one({
+        "action": "patient_extra_photo_uploaded",
+        "user_id": current_user["user_id"],
+        "patient_id": patient_id,
+        "timestamp": datetime.utcnow().isoformat(),
+        "audit_hash": audit_hash,
+        "details": {
+            "photo_type": "extra_photo",
+            "description": description,
+            "file_size": len(file_content),
+            "content_type": file.content_type
+        }
+    })
+    
+    return {"message": "Extra photo uploaded successfully", "patient_id": patient_id}
+
+
+@router.get("/{patient_id}/photos")
+async def get_patient_photos(
+    patient_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all photos for a patient"""
+    
+    # Check if user has permission to view photos
+    if current_user["role"] not in ["doctor", "parent", "admin", "medical_staff"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to view patient photos"
+        )
+    
+    patients_collection = get_patients_collection()
+    
+    # Validate ObjectId
+    if not ObjectId.is_valid(patient_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid patient ID format"
+        )
+    
+    # Check if patient exists
+    patient = await patients_collection.find_one({"_id": ObjectId(patient_id)})
+    if not patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient not found"
+        )
+    
+    # Check if parent is viewing their own child's photos
+    if current_user["role"] == "parent":
+        if patient["parent_email"] != current_user["email"]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only view your own children's photos"
+            )
+    
+    return {
+        "patient_id": patient_id,
+        "profile_photo": patient.get("profile_photo"),
+        "extra_photos": patient.get("extra_photos", []),
+        "photo_metadata": patient.get("photo_metadata", {})
+    }
+
+
+@router.delete("/{patient_id}/photos/{photo_index}")
+async def delete_patient_extra_photo(
+    patient_id: str,
+    photo_index: int,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete an extra photo for a patient"""
+    
+    # Check if user has permission to delete photos
+    if current_user["role"] not in ["doctor", "admin", "medical_staff"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to delete patient photos"
+        )
+    
+    patients_collection = get_patients_collection()
+    audit_logs_collection = get_audit_logs_collection()
+    
+    # Validate ObjectId
+    if not ObjectId.is_valid(patient_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid patient ID format"
+        )
+    
+    # Check if patient exists
+    patient = await patients_collection.find_one({"_id": ObjectId(patient_id)})
+    if not patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient not found"
+        )
+    
+    extra_photos = patient.get("extra_photos", [])
+    if photo_index >= len(extra_photos):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Photo index out of range"
+        )
+    
+    # Generate blockchain hash for audit
+    audit_hash = generate_blockchain_hash(
+        f"patient_photo_deletion:{patient_id}:{photo_index}:{current_user['user_id']}"
+    )
+    
+    # Remove photo at specified index
+    extra_photos.pop(photo_index)
+    
+    result = await patients_collection.update_one(
+        {"_id": ObjectId(patient_id)},
+        {
+            "$set": {
+                "extra_photos": extra_photos,
+                "updated_at": datetime.utcnow().isoformat(),
+                "audit_hash": audit_hash
+            }
+        }
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to delete photo"
+        )
+    
+    # Log photo deletion
+    await audit_logs_collection.insert_one({
+        "action": "patient_photo_deleted",
+        "user_id": current_user["user_id"],
+        "patient_id": patient_id,
+        "timestamp": datetime.utcnow().isoformat(),
+        "audit_hash": audit_hash,
+        "details": {
+            "photo_type": "extra_photo",
+            "photo_index": photo_index
+        }
+    })
+    
+    return {"message": "Photo deleted successfully", "patient_id": patient_id}
