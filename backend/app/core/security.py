@@ -4,6 +4,7 @@ Handles JWT token verification and other security functions
 """
 
 import jwt
+import os
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from fastapi import HTTPException, status, Request
@@ -16,30 +17,29 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(hours=settings.JWT_EXPIRATION_HOURS)
+        expire = datetime.utcnow() + timedelta(hours=int(os.getenv("JWT_EXPIRATION_HOURS", "24")))
     
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    # Convert datetime to timestamp for JWT compatibility
+    to_encode.update({"exp": int(expire.timestamp())})
+    encoded_jwt = jwt.encode(to_encode, os.getenv("JWT_SECRET_KEY", "hardcoded_secret_key"), algorithm="HS256")
     return encoded_jwt
 
 def verify_token(token: str) -> Optional[Dict[str, Any]]:
     """Verify and decode a JWT token"""
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        # Use environment variable directly to ensure consistency
+        jwt_secret = os.getenv("JWT_SECRET_KEY", "hardcoded_secret_key")
+        print(f"🔐 Security module JWT Secret: {jwt_secret[:10]}... (from env)")
+        payload = jwt.decode(token, jwt_secret, algorithms=["HS256"])
         return payload
     except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        print(f"Token expired: {token[:20]}...")
+        return None
     except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except Exception:
+        print(f"Invalid token: {token[:20]}...")
+        return None
+    except Exception as e:
+        print(f"Token verification error: {e}")
         return None
 
 def get_current_user(token: str) -> Optional[Dict[str, Any]]:
@@ -64,7 +64,7 @@ def generate_blockchain_hash(data: str) -> str:
     """Generate a blockchain-style hash for audit purposes"""
     import hashlib
     timestamp = datetime.utcnow().isoformat()
-    content = f"{data}:{timestamp}:{settings.JWT_SECRET_KEY}"
+    content = f"{data}:{timestamp}:{os.getenv('JWT_SECRET_KEY', 'hardcoded_secret_key')}"
     return hashlib.sha256(content.encode()).hexdigest()
 
 def log_security_event(request: Request, event_type: str, description: str, portal: str = "admin"):

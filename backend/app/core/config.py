@@ -11,7 +11,7 @@ MODULE_REGISTRY = {
             "version": "1.0.0",
             "dependencies": [],
             "config": {
-                "jwt_secret": os.getenv("JWT_SECRET", "hardcoded_secret_key"),
+                "jwt_secret": os.getenv("JWT_SECRET_KEY", "hardcoded_secret_key"),
                 "jwt_expires_in": "24h",
                 "bcrypt_rounds": 12,
                 "session_timeout": 3600,
@@ -210,7 +210,7 @@ class Settings(BaseSettings):
     SECURE_FILE_ACCESS: bool = Field(default=True, env="SECURE_FILE_ACCESS")
     
     # JWT Configuration
-    JWT_SECRET_KEY: str = Field(default="hardcoded_secret_key", env="JWT_SECRET")
+    JWT_SECRET_KEY: str = Field(default="hardcoded_secret_key", env="JWT_SECRET_KEY")
     JWT_ALGORITHM: str = Field(default="HS256", env="JWT_ALGORITHM")
     JWT_EXPIRATION_HOURS: int = Field(default=24, env="JWT_EXPIRATION_HOURS")
     

@@ -22,8 +22,9 @@ from app.modules.ai_ml import AIMLModule
 
 # Import admin API
 from app.api.admin import router as admin_router
-from app.api.auth import router as auth_router
+# from app.api.auth import router as auth_router  # Now handled by AuthModule
 from app.api.evep import router as evep_router
+from app.api.dashboard import router as dashboard_router
 from app.api.patients import router as patients_router
 from app.api.screenings import router as screenings_router
 from app.api.ai_insights import router as ai_insights_router
@@ -65,10 +66,18 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure this properly for production
+    allow_origins=[
+        "http://localhost:3000",      # Frontend
+        "http://localhost:3013",      # Frontend alternative port
+        "http://localhost:3015",      # Admin Panel
+        "http://localhost:3001",      # Development
+        "https://portal.evep.my-firstcare.com",  # Production
+        "*"  # Allow all for development
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Request timing middleware
@@ -79,6 +88,21 @@ async def add_process_time_header(request: Request, call_next):
     process_time = time.time() - start_time
     response.headers["X-Process-Time"] = str(process_time)
     return response
+
+# Global OPTIONS handler for CORS preflight
+@app.options("/{full_path:path}")
+async def options_handler(request: Request):
+    """Handle OPTIONS requests for CORS preflight"""
+    return JSONResponse(
+        status_code=200,
+        content={"message": "OK"},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true"
+        }
+    )
 
 # Global exception handler
 @app.exception_handler(Exception)
@@ -146,13 +170,17 @@ async def startup_event():
     app.include_router(admin_router, prefix="/api/v1", tags=["admin"])
     logger.info("Admin API router included successfully!")
     
-    # Include auth API router
-    app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
-    logger.info("Auth API router included successfully!")
+    # Auth router is now handled by AuthModule
+    # app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
+    # logger.info("Auth API router included successfully!")
     
     # Include EVEP API router
     app.include_router(evep_router, prefix="/api/v1/evep", tags=["evep"])
     logger.info("EVEP API router included successfully!")
+    
+    # Include Dashboard API router
+    app.include_router(dashboard_router, prefix="/api/v1", tags=["dashboard"])
+    logger.info("Dashboard API router included successfully!")
     
     # Include patient registration API router (must be before patients router to avoid route conflicts)
     app.include_router(patient_registration_router, prefix="/api/v1", tags=["patient_registration"])

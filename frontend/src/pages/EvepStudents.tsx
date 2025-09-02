@@ -28,7 +28,8 @@ import {
   Card,
   CardContent,
   CardActions,
-  Fab
+  Fab,
+  Breadcrumbs
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -38,10 +39,15 @@ import {
   School as SchoolIcon,
   Person as PersonIcon,
   LocationOn as LocationIcon,
-  PersonOutline as ChildIcon
+  PersonOutline as ChildIcon,
+  Home as HomeIcon,
+  NavigateNext as NavigateNextIcon,
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import { useAuthenticatedFetch } from '../utils/api';
 
 interface Address {
   house_no?: string;
@@ -115,6 +121,7 @@ interface Student {
 
 const EvepStudents: React.FC = () => {
   const { token } = useAuth();
+  const authenticatedFetch = useAuthenticatedFetch();
   const [students, setStudents] = useState<Student[]>([]);
   const [parents, setParents] = useState<Parent[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -124,6 +131,14 @@ const EvepStudents: React.FC = () => {
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [viewingStudent, setViewingStudent] = useState<Student | null>(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  
+  // Filter states
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterSchool, setFilterSchool] = useState('all');
+  const [filterGrade, setFilterGrade] = useState('all');
+  const [filterGender, setFilterGender] = useState('all');
+  const [filterConsent, setFilterConsent] = useState('all');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -157,12 +172,7 @@ const EvepStudents: React.FC = () => {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8014/api/v1/evep/students', {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await authenticatedFetch('http://localhost:8014/api/v1/evep/students');
       if (response.ok) {
         const data = await response.json();
         setStudents(data.students || []);
@@ -180,12 +190,7 @@ const EvepStudents: React.FC = () => {
 
   const fetchParents = async () => {
     try {
-      const response = await fetch('http://localhost:8014/api/v1/evep/parents', {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await authenticatedFetch('http://localhost:8014/api/v1/evep/parents');
       if (response.ok) {
         const data = await response.json();
         setParents(data.parents || []);
@@ -200,12 +205,7 @@ const EvepStudents: React.FC = () => {
 
   const fetchTeachers = async () => {
     try {
-      const response = await fetch('http://localhost:8014/api/v1/evep/teachers', {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await authenticatedFetch('http://localhost:8014/api/v1/evep/teachers');
       if (response.ok) {
         const data = await response.json();
         setTeachers(data.teachers || []);
@@ -220,12 +220,7 @@ const EvepStudents: React.FC = () => {
 
   const fetchSchools = async () => {
     try {
-      const response = await fetch('http://localhost:8014/api/v1/evep/schools', {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await authenticatedFetch('http://localhost:8014/api/v1/evep/schools');
       if (response.ok) {
         const data = await response.json();
         setSchools(data.schools || []);
@@ -312,6 +307,32 @@ const EvepStudents: React.FC = () => {
     setOpenDialog(false);
     setEditingStudent(null);
     setViewingStudent(null);
+  };
+
+  // Filter logic
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = 
+      student.first_name.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      student.last_name.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      student.student_code?.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      student.cid.toLowerCase().includes(filterSearch.toLowerCase());
+    
+    const matchesSchool = filterSchool === 'all' || student.school_name === filterSchool;
+    const matchesGrade = filterGrade === 'all' || student.grade_level === filterGrade;
+    const matchesGender = filterGender === 'all' || student.gender === filterGender;
+    const matchesConsent = filterConsent === 'all' || 
+      (filterConsent === 'yes' && student.consent_document === true) ||
+      (filterConsent === 'no' && student.consent_document === false);
+    
+    return matchesSearch && matchesSchool && matchesGrade && matchesGender && matchesConsent;
+  });
+
+  const resetFilters = () => {
+    setFilterSearch('');
+    setFilterSchool('all');
+    setFilterGrade('all');
+    setFilterGender('all');
+    setFilterConsent('all');
   };
 
   const handleSubmit = async () => {
@@ -479,61 +500,214 @@ const EvepStudents: React.FC = () => {
 
   return (
     <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" component="h1" color="primary">
-          Students Management
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
-          Manage student information and records
-        </Typography>
+      {/* Breadcrumbs */}
+      <Box sx={{ mb: 3 }}>
+        <Breadcrumbs aria-label="breadcrumb" separator={<NavigateNextIcon fontSize="small" />}>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+            color="text.primary"
+            onClick={() => window.location.href = '/dashboard'}
+          >
+            <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            Dashboard
+          </Typography>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center' }}
+            color="text.primary"
+          >
+            <SchoolIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            School Management
+          </Typography>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center' }}
+            color="text.secondary"
+          >
+            <ChildIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            Students
+          </Typography>
+        </Breadcrumbs>
       </Box>
 
-      {/* Summary Cards */}
+      {/* Header */}
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+        <Box>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Students Management
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Manage student information and records
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => handleOpenDialog()}
+        >
+          Add New Student
+        </Button>
+      </Box>
+
+      {/* Statistics Cards */}
       <Grid container spacing={3} mb={4}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'primary.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">{students.length}</Typography>
-              <Typography variant="body2">Total Students</Typography>
+              <Typography variant="h4" color="primary">
+                {students.length}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Total Students
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'secondary.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">
+              <Typography variant="h4" color="success.main">
                 {students.filter(s => s.gender === 'M' || s.gender === 'ชาย').length}
               </Typography>
-              <Typography variant="body2">Male Students</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Male Students
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'success.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">
+              <Typography variant="h4" color="warning.main">
                 {students.filter(s => s.gender === 'F' || s.gender === 'หญิง').length}
               </Typography>
-              <Typography variant="body2">Female Students</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Female Students
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'warning.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">
+              <Typography variant="h4" color="info.main">
                 {students.filter(s => s.consent_document === true).length}
               </Typography>
-              <Typography variant="body2">With Consent</Typography>
+              <Typography variant="body2" color="text.secondary">
+                With Consent
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
       {/* Students Table */}
-      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-        <TableContainer>
-          <Table stickyHeader>
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              Students List
+            </Typography>
+            <Button
+              variant="outlined"
+              startIcon={<FilterListIcon />}
+              onClick={() => setShowFilters(!showFilters)}
+              size="small"
+            >
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
+            </Button>
+          </Box>
+
+          {/* Filter Section */}
+          {showFilters && (
+            <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Search"
+                    value={filterSearch}
+                    onChange={(e) => setFilterSearch(e.target.value)}
+                    placeholder="Name, Code, CID..."
+                    InputProps={{
+                      startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>School</InputLabel>
+                    <Select
+                      value={filterSchool}
+                      onChange={(e) => setFilterSchool(e.target.value)}
+                      label="School"
+                    >
+                      <MenuItem value="all">All Schools</MenuItem>
+                      {Array.from(new Set(students.map(s => s.school_name))).map(school => (
+                        <MenuItem key={school} value={school}>{school}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Grade Level</InputLabel>
+                    <Select
+                      value={filterGrade}
+                      onChange={(e) => setFilterGrade(e.target.value)}
+                      label="Grade Level"
+                    >
+                      <MenuItem value="all">All Grades</MenuItem>
+                      {Array.from(new Set(students.map(s => s.grade_level))).map(grade => (
+                        <MenuItem key={grade} value={grade}>{grade}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Gender</InputLabel>
+                    <Select
+                      value={filterGender}
+                      onChange={(e) => setFilterGender(e.target.value)}
+                      label="Gender"
+                    >
+                      <MenuItem value="all">All</MenuItem>
+                      <MenuItem value="1">Male</MenuItem>
+                      <MenuItem value="2">Female</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Consent</InputLabel>
+                    <Select
+                      value={filterConsent}
+                      onChange={(e) => setFilterConsent(e.target.value)}
+                      label="Consent"
+                    >
+                      <MenuItem value="all">All</MenuItem>
+                      <MenuItem value="yes">With Consent</MenuItem>
+                      <MenuItem value="no">Without Consent</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={1}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<ClearIcon />}
+                    onClick={resetFilters}
+                    size="small"
+                    fullWidth
+                  >
+                    Clear
+                  </Button>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
+          <TableContainer>
+            <Table>
             <TableHead>
               <TableRow>
                 <TableCell>Photo</TableCell>
@@ -548,7 +722,7 @@ const EvepStudents: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {students.map((student) => (
+              {filteredStudents.map((student) => (
                 <TableRow key={student.id} hover>
                   <TableCell>
                     {student.profile_photo ? (
@@ -629,7 +803,8 @@ const EvepStudents: React.FC = () => {
             </TableBody>
           </Table>
         </TableContainer>
-      </Paper>
+        </CardContent>
+      </Card>
 
       {/* Floating Action Button */}
       <Fab

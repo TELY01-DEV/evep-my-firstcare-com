@@ -27,7 +27,7 @@ async def get_parents(
     db = get_database()
     if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view parents")
-    parents = await db.evep.parents.find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
+    parents = await db.evep["evep.parents"].find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
     result = []
     for parent in parents:
         result.append({
@@ -39,7 +39,7 @@ async def get_parents(
             "relationship": parent.get("relationship", ""),
             "status": parent.get("status", "")
         })
-    total_count = await db.evep.parents.count_documents({"status": "active"})
+    total_count = await db.evep["evep.parents"].count_documents({"status": "active"})
     return {"parents": result, "total_count": total_count}
 
 @router.get("/parents/{parent_id}")
@@ -51,7 +51,7 @@ async def get_parent(
     db = get_database()
     if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view parent details")
-    parent = await db.evep.parents.find_one({"_id": ObjectId(parent_id)})
+    parent = await db.evep["evep.parents"].find_one({"_id": ObjectId(parent_id)})
     if not parent:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent not found")
     return {
@@ -81,7 +81,7 @@ async def create_parent(
     parent_dict["status"] = "active"
     
     # Insert parent
-    result = await db.evep.parents.insert_one(parent_dict)
+    result = await db.evep["evep.parents"].insert_one(parent_dict)
     
     if not result.inserted_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create parent")
@@ -108,7 +108,7 @@ async def update_parent(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to update parent")
     
     # Check if parent exists
-    existing_parent = await db.evep.parents.find_one({"_id": ObjectId(parent_id)})
+    existing_parent = await db.evep["evep.parents"].find_one({"_id": ObjectId(parent_id)})
     if not existing_parent:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Parent not found")
     
@@ -116,7 +116,7 @@ async def update_parent(
     update_data = parent_data.model_dump()
     update_data["updated_at"] = get_current_thailand_time()
     
-    result = await db.evep.parents.update_one(
+    result = await db.evep["evep.parents"].update_one(
         {"_id": ObjectId(parent_id)},
         {"$set": update_data}
     )
@@ -180,22 +180,32 @@ async def get_students(
     db = get_database()
     if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view students")
-    students = await db.evep.students.find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
+    students = await db.evep["evep.students"].find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
     result = []
     for student in students:
         result.append({
             "id": str(student["_id"]),
+            "title": student.get("title", ""),
             "first_name": student.get("first_name", ""),
             "last_name": student.get("last_name", ""),
+            "cid": student.get("cid", ""),
             "student_code": student.get("student_code", ""),
             "grade_level": student.get("grade_level", ""),
+            "grade_number": student.get("grade_number", ""),
             "school_name": student.get("school_name", ""),
             "birth_date": student.get("birth_date", ""),
             "gender": student.get("gender", ""),
             "parent_id": str(student.get("parent_id", "")),
+            "teacher_id": str(student.get("teacher_id", "")),
+            "consent_document": student.get("consent_document", False),
+            "profile_photo": student.get("profile_photo", ""),
+            "extra_photos": student.get("extra_photos", []),
+            "photo_metadata": student.get("photo_metadata", {}),
+            "address": student.get("address", {}),
+            "disease": student.get("disease", ""),
             "status": student.get("status", "")
         })
-    total_count = await db.evep.students.count_documents({"status": "active"})
+    total_count = await db.evep["evep.students"].count_documents({"status": "active"})
     return {"students": result, "total_count": total_count}
 
 @router.get("/students/{student_id}")
@@ -207,19 +217,29 @@ async def get_student(
     db = get_database()
     if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view student details")
-    student = await db.evep.students.find_one({"_id": ObjectId(student_id)})
+    student = await db.evep["evep.students"].find_one({"_id": ObjectId(student_id)})
     if not student:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
     return {
         "id": str(student["_id"]),
+        "title": student.get("title", ""),
         "first_name": student.get("first_name", ""),
         "last_name": student.get("last_name", ""),
+        "cid": student.get("cid", ""),
         "student_code": student.get("student_code", ""),
         "grade_level": student.get("grade_level", ""),
+        "grade_number": student.get("grade_number", ""),
         "school_name": student.get("school_name", ""),
         "birth_date": student.get("birth_date", ""),
         "gender": student.get("gender", ""),
         "parent_id": str(student.get("parent_id", "")),
+        "teacher_id": str(student.get("teacher_id", "")),
+        "consent_document": student.get("consent_document", False),
+        "profile_photo": student.get("profile_photo", ""),
+        "extra_photos": student.get("extra_photos", []),
+        "photo_metadata": student.get("photo_metadata", {}),
+        "address": student.get("address", {}),
+        "disease": student.get("disease", ""),
         "status": student.get("status", "")
     }
 
@@ -240,7 +260,7 @@ async def create_student(
     student_dict["status"] = "active"
     
     # Insert student
-    result = await db.evep.students.insert_one(student_dict)
+    result = await db.evep["evep.students"].insert_one(student_dict)
     
     if not result.inserted_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create student")
@@ -267,7 +287,7 @@ async def update_student(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to update student")
     
     # Check if student exists
-    existing_student = await db.evep.students.find_one({"_id": ObjectId(student_id)})
+    existing_student = await db.evep["evep.students"].find_one({"_id": ObjectId(student_id)})
     if not existing_student:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
     
@@ -275,7 +295,7 @@ async def update_student(
     update_data = student_data.model_dump()
     update_data["updated_at"] = get_current_thailand_time()
     
-    result = await db.evep.students.update_one(
+    result = await db.evep["evep.students"].update_one(
         {"_id": ObjectId(student_id)},
         {"$set": update_data}
     )
@@ -304,12 +324,12 @@ async def delete_student(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to delete student")
     
     # Check if student exists
-    existing_student = await db.evep.students.find_one({"_id": ObjectId(student_id)})
+    existing_student = await db.evep["evep.students"].find_one({"_id": ObjectId(student_id)})
     if not existing_student:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
     
     # Soft delete by setting status to inactive
-    result = await db.evep.students.update_one(
+    result = await db.evep["evep.students"].update_one(
         {"_id": ObjectId(student_id)},
         {"$set": {"status": "inactive", "updated_at": get_current_thailand_time()}}
     )
@@ -339,7 +359,7 @@ async def get_teachers(
     db = get_database()
     if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view teachers")
-    teachers = await db.evep.teachers.find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
+    teachers = await db.evep["evep.teachers"].find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
     result = []
     for teacher in teachers:
         result.append({
@@ -352,7 +372,7 @@ async def get_teachers(
             "phone": teacher.get("phone", ""),
             "status": teacher.get("status", "")
         })
-    total_count = await db.evep.teachers.count_documents({"status": "active"})
+    total_count = await db.evep["evep.teachers"].count_documents({"status": "active"})
     return {"teachers": result, "total_count": total_count}
 
 @router.get("/teachers/{teacher_id}")
@@ -494,7 +514,7 @@ async def get_schools(
     db = get_database()
     if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view schools")
-    schools = await db.evep.schools.find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
+    schools = await db.evep["evep.schools"].find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
     result = []
     for school in schools:
         result.append({
@@ -510,7 +530,7 @@ async def get_schools(
             "principal_name": school.get("principal_name", ""),
             "status": school.get("status", "")
         })
-    total_count = await db.evep.schools.count_documents({"status": "active"})
+    total_count = await db.evep["evep.schools"].count_documents({"status": "active"})
     return {"schools": result, "total_count": total_count}
 
 @router.get("/schools/{school_id}")
@@ -926,14 +946,24 @@ async def get_students(
     for student in students:
         result.append({
             "id": str(student["_id"]),
+            "title": student.get("title", ""),
             "first_name": student.get("first_name", ""),
             "last_name": student.get("last_name", ""),
+            "cid": student.get("cid", ""),
             "student_code": student.get("student_code", ""),
             "grade_level": student.get("grade_level", ""),
+            "grade_number": student.get("grade_number", ""),
             "school_name": student.get("school_name", ""),
             "birth_date": student.get("birth_date", ""),
             "gender": student.get("gender", ""),
             "parent_id": str(student.get("parent_id", "")),
+            "teacher_id": str(student.get("teacher_id", "")),
+            "consent_document": student.get("consent_document", False),
+            "profile_photo": student.get("profile_photo", ""),
+            "extra_photos": student.get("extra_photos", []),
+            "photo_metadata": student.get("photo_metadata", {}),
+            "address": student.get("address", {}),
+            "disease": student.get("disease", ""),
             "status": student.get("status", "")
         })
     
@@ -966,14 +996,24 @@ async def get_student(
     
     return {
         "id": str(student["_id"]),
+        "title": student.get("title", ""),
         "first_name": student.get("first_name", ""),
         "last_name": student.get("last_name", ""),
+        "cid": student.get("cid", ""),
         "student_code": student.get("student_code", ""),
         "grade_level": student.get("grade_level", ""),
+        "grade_number": student.get("grade_number", ""),
         "school_name": student.get("school_name", ""),
         "birth_date": student.get("birth_date", ""),
         "gender": student.get("gender", ""),
         "parent_id": str(student.get("parent_id", "")),
+        "teacher_id": str(student.get("teacher_id", "")),
+        "consent_document": student.get("consent_document", False),
+        "profile_photo": student.get("profile_photo", ""),
+        "extra_photos": student.get("extra_photos", []),
+        "photo_metadata": student.get("photo_metadata", {}),
+        "address": student.get("address", {}),
+        "disease": student.get("disease", ""),
         "status": student.get("status", "")
     }
 

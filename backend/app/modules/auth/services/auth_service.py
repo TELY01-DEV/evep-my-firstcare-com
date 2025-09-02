@@ -1,15 +1,18 @@
 import bcrypt
 import jwt
+import os
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
-from app.core.config import Config
+from app.core.config import Config, settings
 from app.core.database import get_database
 from app.shared.models.user import User, UserCreate, UserRole, UserStatus
 
 class AuthService:
     def __init__(self):
         self.config = Config.get_module_config("auth")
-        self.jwt_secret = self.config.get("config", {}).get("jwt_secret", "hardcoded_secret_key")
+        # Use the same JWT secret as the main security module
+        self.jwt_secret = os.getenv("JWT_SECRET_KEY", "hardcoded_secret_key")
+        print(f"🔐 AuthService JWT Secret: {self.jwt_secret[:10]}... (from env)")
         self.jwt_expires_in = self.config.get("config", {}).get("jwt_expires_in", "24h")
         self.bcrypt_rounds = self.config.get("config", {}).get("bcrypt_rounds", 12)
         self.db = None
@@ -46,9 +49,12 @@ class AuthService:
             "email": user_data["email"],
             "role": user_data["role"],
             "token_type": "access",
-            "exp": datetime.utcnow() + timedelta(hours=24),
-            "iat": datetime.utcnow()
+            "exp": int((datetime.utcnow() + timedelta(hours=int(os.getenv("JWT_EXPIRATION_HOURS", "24")))).timestamp()),
+            "iat": int(datetime.utcnow().timestamp())
         }
+        
+
+        
         return jwt.encode(payload, self.jwt_secret, algorithm="HS256")
     
     def verify_jwt_token(self, token: str) -> Optional[Dict[str, Any]]:
@@ -81,12 +87,9 @@ class AuthService:
                 raise ValueError("User account is not active")
             
             # Create JWT token
-            print(f"🔐 Creating JWT token for admin user...")
             try:
                 token = self.create_jwt_token(admin_user)
-                print(f"✅ JWT token created successfully: {token[:50]}...")
             except Exception as e:
-                print(f"❌ JWT token creation failed: {e}")
                 raise
             
             # Update last login

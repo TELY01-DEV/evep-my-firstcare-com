@@ -28,7 +28,8 @@ import {
   Card,
   CardContent,
   CardActions,
-  Fab
+  Fab,
+  Breadcrumbs
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -38,10 +39,17 @@ import {
   Phone as PhoneIcon,
   Email as EmailIcon,
   LocationOn as LocationIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Home as HomeIcon,
+  NavigateNext as NavigateNextIcon,
+  School as SchoolIcon,
+  Group as GroupIcon,
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import { useAuthenticatedFetch } from '../utils/api';
 
 interface Address {
   house_no?: string;
@@ -81,12 +89,19 @@ interface Parent {
 
 const EvepParents: React.FC = () => {
   const { token } = useAuth();
+  const authenticatedFetch = useAuthenticatedFetch();
   const [parents, setParents] = useState<Parent[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingParent, setEditingParent] = useState<Parent | null>(null);
   const [viewingParent, setViewingParent] = useState<Parent | null>(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  
+  // Filter states
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterRelation, setFilterRelation] = useState('all');
+  const [filterGender, setFilterGender] = useState('all');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -121,12 +136,7 @@ const EvepParents: React.FC = () => {
   const fetchParents = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8014/api/v1/evep/parents', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await authenticatedFetch('http://localhost:8014/api/v1/evep/parents');
       if (response.ok) {
         const data = await response.json();
         setParents(data.parents || []);
@@ -300,6 +310,26 @@ const EvepParents: React.FC = () => {
     return parts.join(', ') || 'Address not available';
   };
 
+  // Filter logic
+  const filteredParents = parents.filter(parent => {
+    const matchesSearch = 
+      parent.first_name.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      parent.last_name.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      parent.cid.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      parent.phone.toLowerCase().includes(filterSearch.toLowerCase());
+    
+    const matchesRelation = filterRelation === 'all' || parent.relation === filterRelation;
+    const matchesGender = filterGender === 'all' || parent.gender === filterGender;
+    
+    return matchesSearch && matchesRelation && matchesGender;
+  });
+
+  const resetFilters = () => {
+    setFilterSearch('');
+    setFilterRelation('all');
+    setFilterGender('all');
+  };
+
   const getIncomeLevelColor = (level?: string) => {
     switch (level) {
       case 'low': return 'error';
@@ -319,61 +349,185 @@ const EvepParents: React.FC = () => {
 
   return (
     <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" component="h1" color="primary">
-          Parents Management
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
-          Manage student parents and guardians
-        </Typography>
+      {/* Breadcrumbs */}
+      <Box sx={{ mb: 3 }}>
+        <Breadcrumbs aria-label="breadcrumb" separator={<NavigateNextIcon fontSize="small" />}>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+            color="text.primary"
+            onClick={() => window.location.href = '/dashboard'}
+          >
+            <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            Dashboard
+          </Typography>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center' }}
+            color="text.primary"
+          >
+            <SchoolIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            School Management
+          </Typography>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center' }}
+            color="text.secondary"
+          >
+            <GroupIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            Parents
+          </Typography>
+        </Breadcrumbs>
       </Box>
 
-      {/* Summary Cards */}
+      {/* Header */}
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+        <Box>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Parents Management
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Manage student parents and guardians
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => handleOpenDialog()}
+        >
+          Add New Parent
+        </Button>
+      </Box>
+
+      {/* Statistics Cards */}
       <Grid container spacing={3} mb={4}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'primary.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">{parents.length}</Typography>
-              <Typography variant="body2">Total Parents</Typography>
+              <Typography variant="h4" color="primary">
+                {parents.length}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Total Parents
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'secondary.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">
+              <Typography variant="h4" color="success.main">
                 {parents.filter(p => p.relation === 'มารดา').length}
               </Typography>
-              <Typography variant="body2">Mothers</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Mothers
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'success.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">
+              <Typography variant="h4" color="warning.main">
                 {parents.filter(p => p.relation === 'บิดา').length}
               </Typography>
-              <Typography variant="body2">Fathers</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Fathers
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'warning.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">
+              <Typography variant="h4" color="info.main">
                 {parents.filter(p => p.relation !== 'มารดา' && p.relation !== 'บิดา').length}
               </Typography>
-              <Typography variant="body2">Other Guardians</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Other Guardians
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
       {/* Parents Table */}
-      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-        <TableContainer>
-          <Table stickyHeader>
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              Parents List
+            </Typography>
+            <Button
+              variant="outlined"
+              startIcon={<FilterListIcon />}
+              onClick={() => setShowFilters(!showFilters)}
+              size="small"
+            >
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
+            </Button>
+          </Box>
+
+          {/* Filter Section */}
+          {showFilters && (
+            <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={6} md={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Search"
+                    value={filterSearch}
+                    onChange={(e) => setFilterSearch(e.target.value)}
+                    placeholder="Name, CID, Phone..."
+                    InputProps={{
+                      startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Relation</InputLabel>
+                    <Select
+                      value={filterRelation}
+                      onChange={(e) => setFilterRelation(e.target.value)}
+                      label="Relation"
+                    >
+                      <MenuItem value="all">All Relations</MenuItem>
+                      {Array.from(new Set(parents.map(p => p.relation))).map(relation => (
+                        <MenuItem key={relation} value={relation}>{relation}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Gender</InputLabel>
+                    <Select
+                      value={filterGender}
+                      onChange={(e) => setFilterGender(e.target.value)}
+                      label="Gender"
+                    >
+                      <MenuItem value="all">All</MenuItem>
+                      <MenuItem value="1">Male</MenuItem>
+                      <MenuItem value="2">Female</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<ClearIcon />}
+                    onClick={resetFilters}
+                    size="small"
+                    fullWidth
+                  >
+                    Clear
+                  </Button>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
+          <TableContainer>
+            <Table>
             <TableHead>
               <TableRow>
                 <TableCell>Photo</TableCell>
@@ -387,7 +541,7 @@ const EvepParents: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {parents.map((parent) => (
+              {filteredParents.map((parent) => (
                 <TableRow key={parent.id} hover>
                   <TableCell>
                     {parent.profile_photo ? (
@@ -455,7 +609,8 @@ const EvepParents: React.FC = () => {
             </TableBody>
           </Table>
         </TableContainer>
-      </Paper>
+        </CardContent>
+      </Card>
 
       {/* Floating Action Button */}
       <Fab

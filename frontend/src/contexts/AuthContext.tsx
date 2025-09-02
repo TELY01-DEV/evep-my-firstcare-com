@@ -23,6 +23,8 @@ interface AuthContextType {
   hasPortalAccess: (portal: string) => boolean;
   isMedicalAdmin: () => boolean;
   isSystemAdmin: () => boolean;
+  refreshToken: () => Promise<boolean>;
+  isTokenExpired: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,26 +37,76 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [storedCredentials, setStoredCredentials] = useState<{ email: string; password: string } | null>(null);
 
   useEffect(() => {
     // Check for existing token and user data on app start
     const storedToken = localStorage.getItem('evep_token');
     const storedUser = localStorage.getItem('evep_user');
+    const storedEmail = localStorage.getItem('evep_email');
+    const storedPassword = localStorage.getItem('evep_password');
     
     if (storedToken && storedUser) {
       try {
         const userData = JSON.parse(storedUser);
         setToken(storedToken);
         setUser(userData);
+        
+        // Store credentials for auto-refresh (in production, use more secure methods)
+        if (storedEmail && storedPassword) {
+          setStoredCredentials({ email: storedEmail, password: storedPassword });
+        }
       } catch (error) {
         console.error('Error parsing stored user data:', error);
         localStorage.removeItem('evep_token');
         localStorage.removeItem('evep_user');
+        localStorage.removeItem('evep_email');
+        localStorage.removeItem('evep_password');
       }
     }
     
     setLoading(false);
   }, []);
+
+  const isTokenExpired = (): boolean => {
+    if (!token) return true;
+    
+    try {
+      // Decode JWT token to check expiration
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+      return payload.exp < currentTime;
+    } catch (error) {
+      console.error('Error checking token expiration:', error);
+      return true;
+    }
+  };
+
+  const refreshToken = async (): Promise<boolean> => {
+    if (!storedCredentials) {
+      console.log('No stored credentials for auto-refresh');
+      return false;
+    }
+
+    try {
+      console.log('Attempting auto-refresh with stored credentials...');
+      const success = await login(storedCredentials.email, storedCredentials.password);
+      if (success) {
+        console.log('Auto-refresh successful');
+        return true;
+      } else {
+        console.log('Auto-refresh failed');
+        // Clear stored credentials if refresh fails
+        setStoredCredentials(null);
+        localStorage.removeItem('evep_email');
+        localStorage.removeItem('evep_password');
+        return false;
+      }
+    } catch (error) {
+      console.error('Auto-refresh error:', error);
+      return false;
+    }
+  };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
@@ -87,16 +139,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Store token and complete user data
         localStorage.setItem('evep_token', data.access_token);
         localStorage.setItem('evep_user', JSON.stringify(completeUserData));
+        localStorage.setItem('evep_email', email);
+        localStorage.setItem('evep_password', password);
         
         setToken(data.access_token);
         setUser(completeUserData);
+        setStoredCredentials({ email, password });
       } else {
         // Fallback to basic user data if profile fetch fails
         localStorage.setItem('evep_token', data.access_token);
         localStorage.setItem('evep_user', JSON.stringify(data.user));
+        localStorage.setItem('evep_email', email);
+        localStorage.setItem('evep_password', password);
         
         setToken(data.access_token);
         setUser(data.user);
+        setStoredCredentials({ email, password });
       }
       
       return true;
@@ -110,10 +168,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Clear stored data
     localStorage.removeItem('evep_token');
     localStorage.removeItem('evep_user');
+    localStorage.removeItem('evep_email');
+    localStorage.removeItem('evep_password');
     
     // Clear state
     setToken(null);
     setUser(null);
+    setStoredCredentials(null);
   };
 
   // Role-based access control functions
@@ -146,6 +207,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     hasPortalAccess,
     isMedicalAdmin,
     isSystemAdmin,
+    refreshToken,
+    isTokenExpired,
   };
 
   return (

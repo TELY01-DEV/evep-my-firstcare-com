@@ -1,12 +1,14 @@
 import jwt
+import os
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
-from app.core.config import Config
+from app.core.config import Config, settings
 
 class TokenService:
     def __init__(self):
         self.config = Config.get_module_config("auth")
-        self.jwt_secret = self.config.get("config", {}).get("jwt_secret", "hardcoded_secret_key")
+        # Use the same JWT secret as the main security module
+        self.jwt_secret = os.getenv("JWT_SECRET_KEY", "hardcoded_secret_key")
         self.jwt_expires_in = self.config.get("config", {}).get("jwt_expires_in", "24h")
         self.refresh_expires_in = self.config.get("config", {}).get("refresh_expires_in", "7d")
         
@@ -27,7 +29,7 @@ class TokenService:
             "email": user_data["email"],
             "role": user_data["role"],
             "token_type": "access",
-            "exp": datetime.utcnow() + timedelta(hours=24),
+            "exp": datetime.utcnow() + timedelta(hours=int(os.getenv("JWT_EXPIRATION_HOURS", "24"))),
             "iat": datetime.utcnow()
         }
         
@@ -49,7 +51,7 @@ class TokenService:
             "email": user_data["email"],
             "role": user_data["role"],
             "token_type": "refresh",
-            "exp": datetime.utcnow() + timedelta(days=7),
+            "exp": datetime.utcnow() + timedelta(hours=int(os.getenv("JWT_EXPIRATION_HOURS", "24")) * 7),  # 7 days
             "iat": datetime.utcnow()
         }
         

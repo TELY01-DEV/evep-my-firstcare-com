@@ -1,209 +1,325 @@
-# EVEP Platform Documentation
+# EVEP (EYE Vision Evaluation Platform)
 
-Welcome to the EVEP Platform documentation! This directory contains comprehensive documentation for all aspects of the EVEP Platform, including the Security & Audit system.
+A comprehensive vision screening platform designed for children aged 6-12 years, featuring AI-powered analysis, multi-platform support, and seamless communication between healthcare providers, parents, and educational institutions.
 
-## 📚 Documentation Index
+## 🚀 Quick Start
 
-### 🔒 Security & Audit System
-- **[Security Audit System](SECURITY_AUDIT_SYSTEM.md)** - Complete documentation of the dual-panel security audit system
-- **[Security Audit Quick Reference](SECURITY_AUDIT_QUICK_REFERENCE.md)** - Quick reference guide for daily operations
-- **[Security Audit API](SECURITY_AUDIT_API.md)** - Detailed API documentation with examples
+### Prerequisites
+- Docker and Docker Compose
+- Git
+- Node.js 18+ (for local development)
+- Python 3.11+ (for local development)
 
-### 🏗️ System Architecture
-- **[System Overview](../README.md)** - Main system documentation
-- **[API Documentation](../backend/README.md)** - Backend API documentation
-- **[Frontend Documentation](../frontend/README.md)** - Frontend application documentation
-
-## 🎯 Quick Start
-
-### Access Security Dashboards
-- **Admin Panel Security**: `http://localhost:3015/admin/security`
-- **Medical Portal Security**: `http://localhost:3013/dashboard/security`
-
-### Test Security System
+### 1. Clone the Repository
 ```bash
-# Get authentication token
-TOKEN=$(curl -s -X POST "http://localhost:8013/api/v1/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@evep.com","password":"admin123"}' | jq -r '.access_token')
-
-# Test admin security
-curl -X GET "http://localhost:8013/api/v1/admin/security/events" \
-  -H "Authorization: Bearer $TOKEN"
-
-# Test medical security
-curl -X GET "http://localhost:8013/api/v1/medical/security/events" \
-  -H "Authorization: Bearer $TOKEN"
+git clone https://github.com/your-org/evep-platform.git
+cd evep-platform
 ```
 
-## 🔍 Current System Status
-
-### Security Audit Implementation
-- ✅ **Dual-Panel Security**: Separate audit systems for Admin and Medical portals
-- ✅ **Real-Time Logging**: All activities logged with timestamps and user details
-- ✅ **Role-Based Access**: Different access levels for different user roles
-- ✅ **Data Isolation**: Users only see events from their respective portal
-- ✅ **Real Data**: 100% real data, no mock content
-- ✅ **Audit Trail**: Complete activity history with blockchain-style hashes
-
-### Current Statistics
-- **Admin Portal Events**: 5 events (admin activities only)
-- **Medical Portal Events**: 11 events (medical activities only)
-- **Total Security Events**: 16 events across both portals
-- **Real Client IP**: 192.168.65.1 (your actual IP)
-
-## 📊 Key Features
-
-### 🔒 Admin Panel Security
-- **Portal Tag**: `"portal": "admin"`
-- **Access Control**: Admin and Super Admin roles only
-- **Event Types**: System administration, user management, admin activities
-- **Data Filtering**: Only shows admin portal events
-
-### 🏥 Medical Portal Security
-- **Portal Tag**: `"portal": "medical"`
-- **Access Control**: Medical roles + Admin roles
-- **Event Types**: Patient care, medical data access, healthcare activities
-- **Data Filtering**: Only shows medical portal events + user-specific filtering
-
-## 🔐 Role-Based Access Control
-
-| User Role | Admin Security | Medical Security | Data Access |
-|-----------|----------------|------------------|-------------|
-| super_admin | ✅ Full Access | ✅ Full Access | All events |
-| admin | ✅ Full Access | ✅ Full Access | All events |
-| doctor | ❌ No Access | ✅ Own Events | Personal events only |
-| nurse | ❌ No Access | ✅ Own Events | Personal events only |
-| teacher | ❌ No Access | ✅ Own Events | Personal events only |
-| parent | ❌ No Access | ✅ Own Events | Personal events only |
-
-## 📋 Event Types
-
-### Admin Portal Events
-- `access` - General admin access
-- `login` - User login/logout
-- `access_denied` - Failed access attempts
-- `security_alert` - Security violations
-- `user_management` - User CRUD operations
-- `system_config` - System settings changes
-
-### Medical Portal Events
-- `patient_access` - Patient data access
-- `screening_access` - Vision screening access
-- `record_update` - Medical record changes
-- `access` - General medical access
-- `failed_access` - Failed medical access
-
-## 🗄️ Database Schema
-
-### Audit Logs Collection
-```javascript
-{
-  "_id": ObjectId,
-  "timestamp": "2025-08-29T07:53:17.730208",
-  "event_type": "access",
-  "portal": "admin" | "medical",
-  "user_id": "68b131b09cf9b01a0274e39a",
-  "user_email": "admin@evep.com",
-  "user_role": "admin",
-  "ip_address": "192.168.65.1",
-  "user_agent": "Mozilla/5.0...",
-  "resource": "/api/v1/admin/security/events",
-  "action": "Security events accessed",
-  "patient_id": "12345",        // Only for medical events
-  "screening_id": "67890",      // Only for medical events
-  "status": "success" | "failed",
-  "details": "Additional details",
-  "severity": "low" | "medium" | "high",
-  "audit_hash": "admin_access_68b131b09cf9b01a0274e39a_192.168.65.1_1735467197"
-}
-```
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-#### 1. Events Not Appearing
+### 2. Environment Setup
 ```bash
-# Check backend logs
-docker-compose logs backend | grep "SECURITY EVENT"
+# Copy environment variables
+cp .env.example .env
 
-# Check database
-docker exec evep-mongo-primary mongosh evep --eval "db.audit_logs.find({}).count()"
+# Edit .env file with your actual values
+nano .env
 ```
 
-#### 2. Portal Filtering Issues
+### 3. Start Development Environment
 ```bash
-# Verify portal tags
-docker exec evep-mongo-primary mongosh evep --eval "db.audit_logs.distinct('portal')"
+# Start all services
+docker-compose up -d
 
-# Test API response
-curl -H "Authorization: Bearer $TOKEN" \
-  http://localhost:8013/api/v1/admin/security/events | jq '.events[0].portal'
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
 ```
 
-#### 3. Access Denied
+### 4. Access Services
+
+#### Core Services
+- **Frontend**: http://localhost:3013
+- **Backend API**: http://localhost:8013
+- **API Documentation**: http://localhost:8013/docs
+- **Socket.IO Real-time**: http://localhost:8013/socket.io
+
+#### Documentation & File Services
+- **FastAPI/Swagger Docs**: http://localhost:3014
+- **CDN File Access**: http://localhost:8014
+
+#### Database Services
+- **MongoDB Primary**: localhost:27019
+- **MongoDB Secondary 1**: localhost:27020
+- **MongoDB Secondary 2**: localhost:27021
+- **MongoDB Arbiter**: localhost:27022
+- **Redis Master 1**: localhost:6389
+- **Redis Master 2**: localhost:6390
+- **Redis Master 3**: localhost:6391
+- **Redis Replica 1**: localhost:6392
+- **Redis Replica 2**: localhost:6393
+- **Redis Replica 3**: localhost:6394
+
+#### Monitoring Services
+- **Grafana Dashboard**: http://localhost:3001 (admin/admin)
+- **Prometheus**: http://localhost:9090
+- **Kibana**: http://localhost:5601
+
+## 🏗️ Project Structure
+
+```
+evep-platform/
+├── backend/                 # FastAPI backend application
+│   ├── app/
+│   │   ├── api/            # API routes
+│   │   ├── core/           # Core functionality
+│   │   ├── models/         # Database models
+│   │   └── services/       # Business logic
+│   ├── tests/              # Backend tests
+│   └── Dockerfile          # Backend container
+├── frontend/               # React frontend application
+│   ├── src/
+│   │   ├── components/     # React components
+│   │   ├── pages/          # Page components
+│   │   ├── services/       # API services
+│   │   └── utils/          # Utility functions
+│   ├── tests/              # Frontend tests
+│   └── Dockerfile          # Frontend container
+├── mobile/                 # React Native mobile app
+├── documents/              # Project documentation
+├── scripts/                # Utility scripts
+├── monitoring/             # Monitoring configuration
+├── traefik/                # Reverse proxy configuration
+├── docker-compose.yml      # Development environment
+└── README.md              # This file
+```
+
+## 🔧 Development
+
+### Backend Development
 ```bash
-# Check user role
-curl -H "Authorization: Bearer $TOKEN" \
-  http://localhost:8013/api/v1/auth/me | jq '.role'
+# Navigate to backend directory
+cd backend
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run development server
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Run tests
+pytest
+
+# Run linting
+flake8 app/
 ```
 
-## 📈 Monitoring Commands
-
-### Real-time Monitoring
+### Frontend Development
 ```bash
-# Watch backend logs
-docker-compose logs -f backend | grep "SECURITY EVENT"
+# Navigate to frontend directory
+cd frontend
 
-# Monitor database
-watch -n 5 'docker exec evep-mongo-primary mongosh evep --eval "db.audit_logs.find({}).count()"'
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+
+# Run tests
+npm test
+
+# Build for production
+npm run build
 ```
 
-### Security Alerts
+### Mobile Development
 ```bash
-# Check failed access attempts
-docker exec evep-mongo-primary mongosh evep --eval "db.audit_logs.find({status: 'failed'}).count()"
+# Navigate to mobile directory
+cd mobile
 
-# Check high severity events
-docker exec evep-mongo-primary mongosh evep --eval "db.audit_logs.find({severity: 'high'}).count()"
+# Install dependencies
+npm install
+
+# Run on iOS
+npx react-native run-ios
+
+# Run on Android
+npx react-native run-android
 ```
 
-## 🎯 Development Status
+## 🧪 Testing
 
-### ✅ Completed Features
-- [x] Dual-panel security audit systems
-- [x] Real-time event logging
-- [x] Role-based access control
-- [x] Portal-specific data filtering
-- [x] User-specific event filtering
-- [x] Real data (no mock content)
-- [x] Blockchain-style audit hashes
-- [x] Frontend security dashboards
-- [x] Export functionality (CSV)
-- [x] Real-time statistics
+### Run All Tests
+```bash
+# Backend tests
+cd backend && pytest
 
-### 🔄 Maintenance Tasks
-- [ ] Daily security event monitoring
-- [ ] Weekly access pattern review
-- [ ] Monthly data cleanup
-- [ ] Quarterly security policy review
+# Frontend tests
+cd frontend && npm test
+
+# E2E tests
+npm run test:e2e
+```
+
+### Test Coverage
+```bash
+# Backend coverage
+cd backend && pytest --cov=app
+
+# Frontend coverage
+cd frontend && npm run test:coverage
+```
+
+## 🚀 Deployment
+
+### Production Deployment
+```bash
+# Build production images
+docker-compose -f docker-compose.prod.yml build
+
+# Deploy to production
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+### Staging Deployment
+```bash
+# Deploy to staging
+docker-compose -f docker-compose.staging.yml up -d
+```
+
+## 📊 Monitoring
+
+### Access Monitoring Tools
+- **Grafana**: http://localhost:3001 (admin/admin)
+- **Prometheus**: http://localhost:9090
+- **Kibana**: http://localhost:5601
+
+### Key Metrics
+- API response times
+- Error rates
+- User activity
+- System resource usage
+
+## 🔄 Real-time Features
+
+### Socket.IO Integration
+The EVEP platform includes real-time communication capabilities:
+
+- **Real-time Updates**: Live dashboard updates for all user roles
+- **Instant Notifications**: Push notifications for important events
+- **Live Messaging**: Direct messaging between users
+- **Room-based Communication**: Role-specific and screening-specific rooms
+- **Health Monitoring**: Connection health checks and automatic reconnection
+
+### Real-time Events
+- Screening status updates
+- New patient registrations
+- AI analysis completions
+- System alerts and notifications
+- User activity tracking
+
+## 🗄️ Database Clustering
+
+### MongoDB Replica Set
+- **Primary Node**: Handles write operations
+- **Secondary Nodes**: Handle read operations and provide redundancy
+- **Arbiter Node**: Participates in elections but doesn't hold data
+- **Automatic Failover**: Seamless failover in case of primary node failure
+
+### Redis Cluster
+- **3 Master Nodes**: Handle data distribution
+- **3 Replica Nodes**: Provide redundancy and read scaling
+- **Automatic Sharding**: Data automatically distributed across masters
+- **High Availability**: Automatic failover and recovery
+
+## 🔒 Security
+
+### Environment Variables
+Ensure all sensitive data is stored in environment variables:
+- API keys
+- Database credentials
+- JWT secrets
+- External service tokens
+
+### Security Features
+- JWT authentication with blockchain audit
+- Role-based access control
+- Data encryption at rest and in transit
+- Regular security audits
+
+## 📚 Documentation
+
+### Project Documentation
+- [Design Specifications](documents/EVEP_Design_Specifications.md)
+- [Work Projects](documents/EVEP_Work_Projects.md)
+- [Workflows](documents/EVEP_Workflows.md)
+- [Task List](documents/EVEP_Task_List.md)
+- [Next Steps](documents/EVEP_Next_Steps.md)
+
+### API Documentation
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+## 🤝 Contributing
+
+### Development Workflow
+1. Create feature branch from `develop`
+2. Make changes and write tests
+3. Run all tests and linting
+4. Create pull request
+5. Code review and approval
+6. Merge to `develop`
+
+### Code Standards
+- Follow PEP 8 for Python
+- Follow ESLint rules for JavaScript/TypeScript
+- Write comprehensive tests
+- Update documentation
 
 ## 📞 Support
 
-### Files Location
-- **Admin Security**: `backend/app/api/admin.py`
-- **Medical Security**: `backend/app/api/medical_security.py`
-- **Admin Dashboard**: `admin-panel/src/pages/SecurityAudit.tsx`
-- **Medical Dashboard**: `frontend/src/components/SecurityAudit.tsx`
+### Getting Help
+- Check the [documentation](documents/)
+- Review [issues](https://github.com/your-org/evep-platform/issues)
+- Contact the development team
 
-### Documentation Files
-- **Full Documentation**: `docs/SECURITY_AUDIT_SYSTEM.md`
-- **Quick Reference**: `docs/SECURITY_AUDIT_QUICK_REFERENCE.md`
-- **API Documentation**: `docs/SECURITY_AUDIT_API.md`
+### Reporting Issues
+- Use GitHub issues
+- Include detailed error messages
+- Provide steps to reproduce
+- Include environment information
+
+## 📄 License
+
+This project is proprietary software. All rights reserved.
+
+## 🎯 Roadmap
+
+### Phase 1: Core Platform (Months 1-3)
+- [x] Project infrastructure setup
+- [ ] Authentication system
+- [ ] Patient management
+- [ ] Basic screening tools
+
+### Phase 2: Advanced Features (Months 4-6)
+- [ ] AI/ML integration
+- [ ] Mobile applications
+- [ ] School integration
+- [ ] Advanced analytics
+
+### Phase 3: Integration & Optimization (Months 7-9)
+- [ ] LINE integration
+- [ ] Performance optimization
+- [ ] Advanced reporting
+- [ ] Security hardening
+
+### Phase 4: Launch & Scale (Months 10-12)
+- [ ] Production deployment
+- [ ] User training
+- [ ] Marketing launch
+- [ ] Scale operations
 
 ---
 
-**Last Updated**: August 29, 2025  
-**Version**: 1.0.0  
-**Author**: EVEP Development Team
+**EVEP Platform** - Transforming pediatric vision screening with AI-powered insights.

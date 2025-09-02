@@ -28,7 +28,8 @@ import {
   Card,
   CardContent,
   CardActions,
-  Fab
+  Fab,
+  Breadcrumbs
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -39,7 +40,12 @@ import {
   Phone as PhoneIcon,
   Email as EmailIcon,
   LocationOn as LocationIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Home as HomeIcon,
+  NavigateNext as NavigateNextIcon,
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
@@ -81,6 +87,12 @@ const EvepTeachers: React.FC = () => {
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [viewingTeacher, setViewingTeacher] = useState<Teacher | null>(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  
+  // Filter states
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterSchool, setFilterSchool] = useState('all');
+  const [filterGender, setFilterGender] = useState('all');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -279,6 +291,27 @@ const EvepTeachers: React.FC = () => {
     return parts.join(', ') || 'Address not available';
   };
 
+  // Filter logic
+  const filteredTeachers = teachers.filter(teacher => {
+    const matchesSearch = 
+      teacher.first_name.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      teacher.last_name.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      teacher.cid.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      teacher.phone?.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      teacher.email?.toLowerCase().includes(filterSearch.toLowerCase());
+    
+    const matchesSchool = filterSchool === 'all' || teacher.school === filterSchool;
+    const matchesGender = filterGender === 'all' || teacher.gender === filterGender;
+    
+    return matchesSearch && matchesSchool && matchesGender;
+  });
+
+  const resetFilters = () => {
+    setFilterSearch('');
+    setFilterSchool('all');
+    setFilterGender('all');
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -289,61 +322,185 @@ const EvepTeachers: React.FC = () => {
 
   return (
     <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" component="h1" color="primary">
-          Teachers Management
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
-          Manage teacher information and records
-        </Typography>
+      {/* Breadcrumbs */}
+      <Box sx={{ mb: 3 }}>
+        <Breadcrumbs aria-label="breadcrumb" separator={<NavigateNextIcon fontSize="small" />}>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+            color="text.primary"
+            onClick={() => window.location.href = '/dashboard'}
+          >
+            <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            Dashboard
+          </Typography>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center' }}
+            color="text.primary"
+          >
+            <SchoolIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            School Management
+          </Typography>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center' }}
+            color="text.secondary"
+          >
+            <PersonIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            Teachers
+          </Typography>
+        </Breadcrumbs>
       </Box>
 
-      {/* Summary Cards */}
+      {/* Header */}
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+        <Box>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Teachers Management
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Manage teacher information and records
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => handleOpenDialog()}
+        >
+          Add New Teacher
+        </Button>
+      </Box>
+
+      {/* Statistics Cards */}
       <Grid container spacing={3} mb={4}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'primary.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">{teachers.length}</Typography>
-              <Typography variant="body2">Total Teachers</Typography>
+              <Typography variant="h4" color="primary">
+                {teachers.length}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Total Teachers
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'secondary.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">
+              <Typography variant="h4" color="success.main">
                 {teachers.filter(t => t.gender === 'M').length}
               </Typography>
-              <Typography variant="body2">Male Teachers</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Male Teachers
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'success.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">
+              <Typography variant="h4" color="warning.main">
                 {teachers.filter(t => t.gender === 'F').length}
               </Typography>
-              <Typography variant="body2">Female Teachers</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Female Teachers
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'warning.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">
+              <Typography variant="h4" color="info.main">
                 {new Set(teachers.map(t => t.school)).size}
               </Typography>
-              <Typography variant="body2">Schools</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Schools
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
       {/* Teachers Table */}
-      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-        <TableContainer>
-          <Table stickyHeader>
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              Teachers List
+            </Typography>
+            <Button
+              variant="outlined"
+              startIcon={<FilterListIcon />}
+              onClick={() => setShowFilters(!showFilters)}
+              size="small"
+            >
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
+            </Button>
+          </Box>
+
+          {/* Filter Section */}
+          {showFilters && (
+            <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={6} md={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Search"
+                    value={filterSearch}
+                    onChange={(e) => setFilterSearch(e.target.value)}
+                    placeholder="Name, CID, Phone, Email..."
+                    InputProps={{
+                      startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>School</InputLabel>
+                    <Select
+                      value={filterSchool}
+                      onChange={(e) => setFilterSchool(e.target.value)}
+                      label="School"
+                    >
+                      <MenuItem value="all">All Schools</MenuItem>
+                      {Array.from(new Set(teachers.map(t => t.school))).map(school => (
+                        <MenuItem key={school} value={school}>{school}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Gender</InputLabel>
+                    <Select
+                      value={filterGender}
+                      onChange={(e) => setFilterGender(e.target.value)}
+                      label="Gender"
+                    >
+                      <MenuItem value="all">All</MenuItem>
+                      <MenuItem value="1">Male</MenuItem>
+                      <MenuItem value="2">Female</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<ClearIcon />}
+                    onClick={resetFilters}
+                    size="small"
+                    fullWidth
+                  >
+                    Clear
+                  </Button>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
+          <TableContainer>
+            <Table>
             <TableHead>
               <TableRow>
                 <TableCell>Teacher</TableCell>
@@ -355,7 +512,7 @@ const EvepTeachers: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {teachers.map((teacher) => (
+              {filteredTeachers.map((teacher) => (
                 <TableRow key={teacher.id} hover>
                   <TableCell>
                     <Box display="flex" alignItems="center">
@@ -417,7 +574,8 @@ const EvepTeachers: React.FC = () => {
             </TableBody>
           </Table>
         </TableContainer>
-      </Paper>
+        </CardContent>
+      </Card>
 
       {/* Floating Action Button */}
       <Fab

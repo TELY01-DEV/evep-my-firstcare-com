@@ -43,6 +43,7 @@ import {
   FormControlLabel,
   Checkbox,
   FormGroup,
+  Breadcrumbs
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -60,6 +61,8 @@ import {
   Save,
   Close,
   Clear,
+  Home as HomeIcon,
+  NavigateNext as NavigateNextIcon
 } from '@mui/icons-material';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -288,6 +291,13 @@ const EvepSchoolScreenings: React.FC = () => {
     }));
     // Don't close dialog - move to next step
     setActiveStep(1);
+    
+    // Show success message
+    setSnackbar({
+      open: true,
+      message: `Student ${student.first_name} ${student.last_name} selected. Moving to next step...`,
+      severity: 'success'
+    });
   };
 
   const handleManualPatientAdd = () => {
@@ -1083,6 +1093,34 @@ const EvepSchoolScreenings: React.FC = () => {
 
   return (
     <Box p={3}>
+      {/* Breadcrumbs */}
+      <Box sx={{ mb: 3 }}>
+        <Breadcrumbs aria-label="breadcrumb" separator={<NavigateNextIcon fontSize="small" />}>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+            color="text.primary"
+            onClick={() => window.location.href = '/dashboard'}
+          >
+            <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            Dashboard
+          </Typography>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center' }}
+            color="text.primary"
+          >
+            <SchoolIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            School Management
+          </Typography>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center' }}
+            color="text.secondary"
+          >
+            <AssessmentIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            School Screenings
+          </Typography>
+        </Breadcrumbs>
+      </Box>
+
       {/* Header */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
@@ -1317,13 +1355,31 @@ const EvepSchoolScreenings: React.FC = () => {
       </Card>
 
       {/* Create/Edit Dialog */}
-              <Dialog open={openDialog} onClose={() => {
-          setOpenDialog(false);
-          setEditingScreening(null);
-          resetFormData();
-        }} maxWidth="lg" fullWidth>
+      <Dialog 
+        open={openDialog} 
+        onClose={() => {
+          // Check if there are unsaved changes
+          if (formData.patient_id || formData.screening_type || 
+              screeningResults.left_eye_distance || screeningResults.right_eye_distance ||
+              screeningResults.left_eye_near || screeningResults.right_eye_near ||
+              screeningResults.notes || screeningResults.recommendations) {
+            if (window.confirm('You have unsaved changes. Are you sure you want to close?')) {
+              setOpenDialog(false);
+              setEditingScreening(null);
+              resetFormData();
+            }
+          } else {
+            setOpenDialog(false);
+            setEditingScreening(null);
+            resetFormData();
+          }
+        }} 
+        maxWidth="lg" 
+        fullWidth
+        disableEscapeKeyDown={true}
+      >
         <DialogTitle>
-          {editingScreening ? 'Edit School Screening' : 'Create New School Screening'}
+          {editingScreening ? 'Edit School Screening' : 'Create New School Screening'} - {steps[activeStep]}
         </DialogTitle>
         <DialogContent>
           {/* Stepper */}

@@ -28,7 +28,8 @@ import {
   Card,
   CardContent,
   CardActions,
-  Fab
+  Fab,
+  Breadcrumbs
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -38,7 +39,12 @@ import {
   School as SchoolIcon,
   Phone as PhoneIcon,
   Email as EmailIcon,
-  LocationOn as LocationIcon
+  LocationOn as LocationIcon,
+  Home as HomeIcon,
+  NavigateNext as NavigateNextIcon,
+  Search as SearchIcon,
+  FilterList as FilterListIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
@@ -74,6 +80,12 @@ const EvepSchools: React.FC = () => {
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [viewingSchool, setViewingSchool] = useState<School | null>(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  
+  // Filter states
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [filterProvince, setFilterProvince] = useState('all');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -251,6 +263,26 @@ const EvepSchools: React.FC = () => {
     return parts.join(', ');
   };
 
+  // Filter logic
+  const filteredSchools = schools.filter(school => {
+    const matchesSearch = 
+      school.name.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      school.school_code.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      school.phone?.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      school.email?.toLowerCase().includes(filterSearch.toLowerCase());
+    
+    const matchesType = filterType === 'all' || school.type === filterType;
+    const matchesProvince = filterProvince === 'all' || school.address.province === filterProvince;
+    
+    return matchesSearch && matchesType && matchesProvince;
+  });
+
+  const resetFilters = () => {
+    setFilterSearch('');
+    setFilterType('all');
+    setFilterProvince('all');
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -261,61 +293,186 @@ const EvepSchools: React.FC = () => {
 
   return (
     <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" component="h1" color="primary">
-          Schools Management
-        </Typography>
-        <Typography variant="body2" color="textSecondary">
-          Manage school information and records
-        </Typography>
+      {/* Breadcrumbs */}
+      <Box sx={{ mb: 3 }}>
+        <Breadcrumbs aria-label="breadcrumb" separator={<NavigateNextIcon fontSize="small" />}>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+            color="text.primary"
+            onClick={() => window.location.href = '/dashboard'}
+          >
+            <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            Dashboard
+          </Typography>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center' }}
+            color="text.primary"
+          >
+            <SchoolIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            School Management
+          </Typography>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center' }}
+            color="text.secondary"
+          >
+            <SchoolIcon sx={{ mr: 0.5 }} fontSize="inherit" />
+            Schools
+          </Typography>
+        </Breadcrumbs>
       </Box>
 
-      {/* Summary Cards */}
+      {/* Header */}
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+        <Box>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Schools Management
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Manage school information and records
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setOpenDialog(true)}
+        >
+          Add New School
+        </Button>
+      </Box>
+
+      {/* Statistics Cards */}
       <Grid container spacing={3} mb={4}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'primary.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">{schools.length}</Typography>
-              <Typography variant="body2">Total Schools</Typography>
+              <Typography variant="h4" color="primary">
+                {schools.length}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Total Schools
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'secondary.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">
+              <Typography variant="h4" color="success.main">
                 {schools.filter(s => s.type === 'ประถมศึกษา').length}
               </Typography>
-              <Typography variant="body2">Primary Schools</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Primary Schools
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'success.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">
+              <Typography variant="h4" color="warning.main">
                 {schools.filter(s => s.type === 'มัธยมศึกษา').length}
               </Typography>
-              <Typography variant="body2">Secondary Schools</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Secondary Schools
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ bgcolor: 'warning.main', color: 'white' }}>
+        <Grid item xs={12} md={3}>
+          <Card>
             <CardContent>
-              <Typography variant="h4">
+              <Typography variant="h4" color="info.main">
                 {schools.filter(s => s.type !== 'ประถมศึกษา' && s.type !== 'มัธยมศึกษา').length}
               </Typography>
-              <Typography variant="body2">Other Schools</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Other Schools
+              </Typography>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
       {/* Schools Table */}
-      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-        <TableContainer>
-          <Table stickyHeader>
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              Schools List
+            </Typography>
+            <Button
+              variant="outlined"
+              startIcon={<FilterListIcon />}
+              onClick={() => setShowFilters(!showFilters)}
+              size="small"
+            >
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
+            </Button>
+          </Box>
+
+          {/* Filter Section */}
+          {showFilters && (
+            <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={6} md={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Search"
+                    value={filterSearch}
+                    onChange={(e) => setFilterSearch(e.target.value)}
+                    placeholder="Name, Code, Phone, Email..."
+                    InputProps={{
+                      startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>School Type</InputLabel>
+                    <Select
+                      value={filterType}
+                      onChange={(e) => setFilterType(e.target.value)}
+                      label="School Type"
+                    >
+                      <MenuItem value="all">All Types</MenuItem>
+                      {Array.from(new Set(schools.map(s => s.type))).map(type => (
+                        <MenuItem key={type} value={type}>{type}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Province</InputLabel>
+                    <Select
+                      value={filterProvince}
+                      onChange={(e) => setFilterProvince(e.target.value)}
+                      label="Province"
+                    >
+                      <MenuItem value="all">All Provinces</MenuItem>
+                      {Array.from(new Set(schools.map(s => s.address.province))).map(province => (
+                        <MenuItem key={province} value={province}>{province}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<ClearIcon />}
+                    onClick={resetFilters}
+                    size="small"
+                    fullWidth
+                  >
+                    Clear
+                  </Button>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
+          <TableContainer>
+            <Table>
             <TableHead>
               <TableRow>
                 <TableCell>School</TableCell>
@@ -327,7 +484,7 @@ const EvepSchools: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {schools.map((school) => (
+              {filteredSchools.map((school) => (
                 <TableRow key={school.id} hover>
                   <TableCell>
                     <Box display="flex" alignItems="center">
@@ -388,7 +545,8 @@ const EvepSchools: React.FC = () => {
             </TableBody>
           </Table>
         </TableContainer>
-      </Paper>
+        </CardContent>
+      </Card>
 
       {/* Floating Action Button */}
       <Fab

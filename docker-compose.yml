@@ -7,6 +7,8 @@ services:
     container_name: evep-backend
     ports:
       - "8014:8000"
+    env_file:
+      - .env
     environment:
       - ENVIRONMENT=production
       - MONGODB_URL=mongodb://mongo-primary:27017/evep
@@ -15,6 +17,7 @@ services:
       - AI_SERVICE_URL=${AI_SERVICE_URL:-http://ai-service:8001}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+
     volumes:
       - ./backend:/app
       - ./uploads:/app/uploads

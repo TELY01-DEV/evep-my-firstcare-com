@@ -327,8 +327,8 @@ class UserService:
             "organization": user.get("organization", ""),
             "phone": user.get("phone", ""),
             "is_active": user.get("is_active", True),
-            "created_at": user.get("created_at", datetime.utcnow()).isoformat(),
-            "last_login": user.get("last_login", "").isoformat() if user.get("last_login") else None
+            "created_at": user.get("created_at", datetime.utcnow()).isoformat() if isinstance(user.get("created_at"), datetime) else str(user.get("created_at", "")),
+            "last_login": user.get("last_login", "").isoformat() if isinstance(user.get("last_login"), datetime) else str(user.get("last_login", ""))
         } for user in users]
     
     async def get_medical_staff_user(self, user_id: str) -> Optional[Dict]:
@@ -347,8 +347,8 @@ class UserService:
                     "organization": user.get("organization", ""),
                     "phone": user.get("phone", ""),
                     "is_active": user.get("is_active", True),
-                    "created_at": user.get("created_at", datetime.utcnow()).isoformat(),
-                    "last_login": user.get("last_login", "").isoformat() if user.get("last_login") else None
+                    "created_at": user.get("created_at", datetime.utcnow()).isoformat() if isinstance(user.get("created_at"), datetime) else str(user.get("created_at", "")),
+                    "last_login": user.get("last_login", "").isoformat() if isinstance(user.get("last_login"), datetime) else str(user.get("last_login", ""))
                 }
             return None
         except Exception as e:

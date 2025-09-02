@@ -545,7 +545,17 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
             
             {/* Render nested menu items */}
             {item.children && isMenuExpanded(item.text) && (
-              <Box sx={{ pl: 2, pr: 2 }}>
+              <Box sx={{ 
+                pl: 2, 
+                pr: 2, 
+                backgroundColor: 'rgba(226, 232, 240, 0.8)', 
+                borderRadius: 1,
+                mx: 1,
+                mb: 1,
+                pt: 0.5,
+                pb: 0.5,
+                border: '1px solid rgba(203, 213, 225, 0.6)'
+              }}>
                 {item.children.map((child) => (
                   <ListItem key={child.text} disablePadding>
                     <ListItemButton
@@ -557,17 +567,17 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                         minHeight: 48,
                         pl: 3,
                         '&.Mui-selected': {
-                          backgroundColor: theme.palette.primary.light,
-                          color: theme.palette.primary.main,
+                          backgroundColor: '#3b82f6',
+                          color: '#ffffff',
                           '&:hover': {
-                            backgroundColor: theme.palette.primary.main,
-                            color: theme.palette.primary.contrastText,
+                            backgroundColor: '#2563eb',
+                            color: '#ffffff',
                           },
                           '& .MuiListItemIcon-root': {
-                            color: theme.palette.primary.main,
+                            color: '#ffffff',
                           },
                           '& .MuiListItemText-secondary': {
-                            color: theme.palette.primary.main,
+                            color: '#ffffff',
                             opacity: 0.9,
                             fontWeight: 500,
                           },
@@ -590,8 +600,8 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                         sx={{
                           minWidth: 32,
                           color: location.pathname === child.path 
-                            ? theme.palette.primary.contrastText 
-                            : '#2c3e50',
+                            ? '#ffffff' 
+                            : '#1a202c',
                         }}
                       >
                         {child.icon}
@@ -603,15 +613,15 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                           fontWeight: location.pathname === child.path ? 700 : 600,
                           fontSize: '0.85rem',
                           color: location.pathname === child.path 
-                            ? theme.palette.primary.contrastText 
-                            : '#2c3e50',
+                            ? '#ffffff' 
+                            : '#1a202c',
                         }}
                         secondaryTypographyProps={{
                           fontSize: '0.7rem',
                           lineHeight: 1.2,
                           color: location.pathname === child.path 
-                            ? '#FFFFFF' 
-                            : '#5a6c7d',
+                            ? '#ffffff' 
+                            : '#2d3748',
                           fontWeight: location.pathname === child.path ? 600 : 500,
                         }}
                         sx={{

@@ -43,6 +43,7 @@ import {
   AccessTime as AccessTimeIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { useAuthenticatedFetch } from '../utils/api';
 
 interface DashboardStats {
   totalPatients: number;
@@ -73,6 +74,7 @@ interface DashboardStats {
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const authenticatedFetch = useAuthenticatedFetch();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,15 +91,7 @@ const Dashboard: React.FC = () => {
 
   const fetchUserProfile = async () => {
     try {
-      const token = localStorage.getItem('evep_token');
-      if (!token) return;
-
-      const response = await fetch('http://localhost:8014/api/v1/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await authenticatedFetch('http://localhost:8014/api/v1/auth/me');
 
       if (response.ok) {
         const profileData = await response.json();
@@ -115,34 +109,45 @@ const Dashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('evep_token');
       
-      // Fetch data from available endpoints
+      // Fetch data from dashboard endpoint
+      const dashboardResponse = await authenticatedFetch('http://localhost:8014/api/v1/dashboard/stats');
+
+      if (dashboardResponse.ok) {
+        const dashboardData = await dashboardResponse.json();
+        console.log('Dashboard data received:', dashboardData);
+        
+        // Use the dashboard data directly
+        setStats({
+          totalPatients: dashboardData.totalPatients || 0,
+          totalScreenings: dashboardData.totalScreenings || 0,
+          pendingScreenings: dashboardData.pendingScreenings || 0,
+          completedScreenings: dashboardData.completedScreenings || 0,
+          totalStudents: dashboardData.totalStudents || 0,
+          totalTeachers: dashboardData.totalTeachers || 0,
+          totalSchools: dashboardData.totalSchools || 0,
+          schoolBasedScreenings: dashboardData.totalSchoolScreenings || 0,
+          visionScreenings: dashboardData.totalVisionScreenings || 0,
+          standardVisionScreenings: dashboardData.totalStandardVisionScreenings || 0,
+          hospitalMobileUnit: dashboardData.totalHospitalMobileUnit || 0,
+          chartData: {
+            studentGenderBreakdown: [],
+            gradeLevelBreakdown: [],
+            patientGenderBreakdown: [],
+            patientAgeBreakdown: [],
+          },
+          recentActivity: dashboardData.recentActivity || [],
+        });
+        return;
+      }
+      
+      // Fallback: Fetch data from individual endpoints if dashboard fails
+      console.log('Dashboard endpoint failed, falling back to individual endpoints');
       const [patientsResponse, screeningsResponse, schoolsResponse, teachersResponse] = await Promise.all([
-        fetch('http://localhost:8014/api/v1/evep/students', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }),
-        fetch('http://localhost:8014/api/v1/screenings/sessions/', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }),
-        fetch('http://localhost:8014/api/v1/evep/schools', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }),
-        fetch('http://localhost:8014/api/v1/evep/teachers', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        })
+        authenticatedFetch('http://localhost:8014/api/v1/evep/students'),
+        authenticatedFetch('http://localhost:8014/api/v1/screenings/sessions'),
+        authenticatedFetch('http://localhost:8014/api/v1/evep/schools'),
+        authenticatedFetch('http://localhost:8014/api/v1/evep/teachers')
       ]);
 
       // Parse responses
@@ -153,15 +158,15 @@ const Dashboard: React.FC = () => {
 
       // Calculate statistics
       const totalPatients = patientsData.students?.length || patientsData.total_count || 0;
-      const totalScreenings = screeningsData.screenings?.length || screeningsData.length || 0;
-      const completedScreenings = (screeningsData.screenings || screeningsData).filter((s: any) => s.status === 'completed').length || 0;
-      const pendingScreenings = (screeningsData.screenings || screeningsData).filter((s: any) => s.status === 'in_progress').length || 0;
+      const totalScreenings = screeningsData.length || 0; // screeningsData is already an array
+      const completedScreenings = screeningsData.filter((s: any) => s.status === 'completed').length || 0;
+      const pendingScreenings = screeningsData.filter((s: any) => s.status === 'pending').length || 0;
       const totalSchools = schoolsData.schools?.length || 0;
       const totalTeachers = teachersData.teachers?.length || 0;
 
       // Get today's date for recent activity
       const today = new Date().toISOString().split('T')[0];
-      const screeningsToday = (screeningsData.screenings || screeningsData).filter((s: any) => 
+      const screeningsToday = screeningsData.filter((s: any) => 
         s.created_at?.startsWith(today)
       ).length || 0;
 

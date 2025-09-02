@@ -5,12 +5,14 @@ Handles user registration, login, and token management
 
 from datetime import timedelta, datetime
 from typing import Optional
+import os
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 
 from app.core.config import settings
-from app.core.security import create_access_token, verify_token, hash_password, verify_password, generate_blockchain_hash
+from app.core.security import verify_token, hash_password, verify_password, generate_blockchain_hash
+from app.modules.auth.services.auth_service import AuthService
 from app.core.database import get_users_collection, get_admin_users_collection, get_audit_logs_collection
 from bson import ObjectId
 
@@ -112,13 +114,13 @@ async def register_user(user_data: UserRegister):
     result = await users_collection.insert_one(user_doc)
     user_doc["_id"] = result.inserted_id
     
-    # Create access token
-    token_data = {
-        "user_id": str(result.inserted_id),
+    # Create access token using auth service
+    auth_service = AuthService()
+    access_token = auth_service.create_jwt_token({
+        "id": str(result.inserted_id),
         "email": user_data.email,
         "role": user_data.role
-    }
-    access_token = create_access_token(token_data)
+    })
     
     # Log successful registration
     await audit_logs_collection.insert_one({
@@ -136,7 +138,7 @@ async def register_user(user_data: UserRegister):
     
     return TokenResponse(
         access_token=access_token,
-        expires_in=settings.JWT_EXPIRATION_HOURS * 3600,
+        expires_in=int(os.getenv("JWT_EXPIRATION_HOURS", "24")) * 3600,
         user={
             "user_id": str(result.inserted_id),
             "email": user_data.email,
@@ -218,13 +220,9 @@ async def login_user(login_data: UserLogin):
         }
     )
     
-    # Create access token
-    token_data = {
-        "user_id": str(user["_id"]),
-        "email": user["email"],
-        "role": user["role"]
-    }
-    access_token = create_access_token(token_data)
+    # Create access token using auth service
+    auth_service = AuthService()
+    access_token = auth_service.create_jwt_token(user)
     
     # Generate audit hash
     audit_hash = generate_blockchain_hash(f"user_login:{user['email']}")
@@ -245,7 +243,7 @@ async def login_user(login_data: UserLogin):
     
     return TokenResponse(
         access_token=access_token,
-        expires_in=settings.JWT_EXPIRATION_HOURS * 3600,
+        expires_in=int(os.getenv("JWT_EXPIRATION_HOURS", "24")) * 3600,
         user={
             "user_id": str(user["_id"]),
             "email": user["email"],
@@ -295,17 +293,13 @@ async def refresh_token(current_user: dict = Depends(get_current_user)):
             detail="User not found or inactive"
         )
     
-    # Create new access token
-    token_data = {
-        "user_id": str(user["_id"]),
-        "email": user["email"],
-        "role": user["role"]
-    }
-    access_token = create_access_token(token_data)
+    # Create new access token using auth service
+    auth_service = AuthService()
+    access_token = auth_service.create_jwt_token(user)
     
     return TokenResponse(
         access_token=access_token,
-        expires_in=settings.JWT_EXPIRATION_HOURS * 3600,
+        expires_in=int(os.getenv("JWT_EXPIRATION_HOURS", "24")) * 3600,
         user={
             "user_id": str(user["_id"]),
             "email": user["email"],
@@ -476,6 +470,8 @@ async def reset_password(token: str, new_password: str):
     })
     
     return {"message": "Password reset successfully"}
+
+
 
 @router.get("/profile")
 async def get_user_profile(current_user: dict = Depends(get_current_user)):
