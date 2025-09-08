@@ -30,9 +30,15 @@ class VectorStore:
             self.embedding_model = SentenceTransformer(self.model_name)
             logger.info(f"Embedding model {self.model_name} loaded successfully")
             
-            # Initialize ChromaDB client with new configuration
-            self.chroma_client = chromadb.PersistentClient(path="./chroma_db")
-            logger.info("ChromaDB client initialized successfully")
+            # Initialize ChromaDB client with telemetry disabled
+            self.chroma_client = chromadb.PersistentClient(
+                path="./chroma_db",
+                settings=chromadb.Settings(
+                    anonymized_telemetry=False,
+                    allow_reset=True
+                )
+            )
+            logger.info("ChromaDB client initialized successfully with telemetry disabled")
             
             # Initialize collections
             self._initialize_collections()
@@ -185,11 +191,30 @@ class VectorStore:
             # Generate query embedding
             query_embedding = self.generate_embedding(query)
             
+            # Format metadata filter for ChromaDB
+            where_clause = None
+            if filter_metadata:
+                # Convert metadata filter to ChromaDB format
+                where_conditions = []
+                for key, value in filter_metadata.items():
+                    if isinstance(value, list):
+                        # For lists, use $in operator
+                        where_conditions.append({key: {"$in": value}})
+                    else:
+                        # For single values, use $eq operator
+                        where_conditions.append({key: {"$eq": value}})
+                
+                if len(where_conditions) == 1:
+                    where_clause = where_conditions[0]
+                elif len(where_conditions) > 1:
+                    # For multiple conditions, use $and operator
+                    where_clause = {"$and": where_conditions}
+            
             # Perform search
             results = collection.query(
                 query_embeddings=[query_embedding],
                 n_results=n_results,
-                where=filter_metadata
+                where=where_clause
             )
             
             # Format results
@@ -221,9 +246,28 @@ class VectorStore:
             
             collection = self.collections[collection_name]
             
+            # Format metadata filter for ChromaDB
+            where_clause = None
+            if metadata_filter:
+                # Convert metadata filter to ChromaDB format
+                where_conditions = []
+                for key, value in metadata_filter.items():
+                    if isinstance(value, list):
+                        # For lists, use $in operator
+                        where_conditions.append({key: {"$in": value}})
+                    else:
+                        # For single values, use $eq operator
+                        where_conditions.append({key: {"$eq": value}})
+                
+                if len(where_conditions) == 1:
+                    where_clause = where_conditions[0]
+                elif len(where_conditions) > 1:
+                    # For multiple conditions, use $and operator
+                    where_clause = {"$and": where_conditions}
+            
             # Perform metadata search
             results = collection.get(
-                where=metadata_filter,
+                where=where_clause,
                 limit=n_results
             )
             

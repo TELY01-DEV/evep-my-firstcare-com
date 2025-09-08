@@ -166,7 +166,7 @@ const MedicalReports: React.FC = () => {
       const token = localStorage.getItem('evep_token');
       
       // Fetch students data
-      const studentsResponse = await fetch('http://localhost:8014/api/v1/evep/students', {
+      const studentsResponse = await fetch('https://stardust.evep.my-firstcare.com/api/v1/evep/students', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -174,7 +174,7 @@ const MedicalReports: React.FC = () => {
       });
       
       // Fetch schools data
-      const schoolsResponse = await fetch('http://localhost:8014/api/v1/evep/schools', {
+      const schoolsResponse = await fetch('https://stardust.evep.my-firstcare.com/api/v1/evep/schools', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -182,7 +182,7 @@ const MedicalReports: React.FC = () => {
       });
       
       // Fetch screening sessions data
-      const screeningsResponse = await fetch('http://localhost:8014/api/v1/screenings/sessions', {
+      const screeningsResponse = await fetch('https://stardust.evep.my-firstcare.com/api/v1/screenings/sessions', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -269,13 +269,22 @@ const MedicalReports: React.FC = () => {
   const handleGenerateReport = async (reportType: string) => {
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setSnackbar({
-        open: true,
-        message: `${reportType} report generated successfully!`,
-        severity: 'success'
-      });
+      if (reportType === 'CSV Export') {
+        exportToCSV();
+        setSnackbar({
+          open: true,
+          message: 'CSV report exported successfully!',
+          severity: 'success'
+        });
+      } else {
+        // Simulate API call for other report types
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setSnackbar({
+          open: true,
+          message: `${reportType} report generated successfully!`,
+          severity: 'success'
+        });
+      }
     } catch (error) {
       setSnackbar({
         open: true,
@@ -285,6 +294,67 @@ const MedicalReports: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const exportToCSV = () => {
+    // Get current data based on selected filters
+    let dataToExport: any[] = [];
+    
+    // Sample data structure - this should match your actual data
+    const sampleData = [
+      {
+        timestamp: new Date().toISOString(),
+        report_type: selectedReportType || 'screening',
+        school: selectedSchool || 'all',
+        total_students: 58,
+        total_screenings: 35,
+        completed_screenings: 11,
+        pending_screenings: 12,
+        vision_issues: 8,
+        referral_count: 3,
+        glasses_prescribed: 5
+      }
+    ];
+
+    // Define CSV headers that match PDF format
+    const headers = [
+      'Timestamp',
+      'Report Type', 
+      'School',
+      'Total Students',
+      'Total Screenings',
+      'Completed Screenings',
+      'Pending Screenings',
+      'Vision Issues Detected',
+      'Referrals Required',
+      'Glasses Prescribed'
+    ];
+
+    // Create CSV content
+    const csvContent = [
+      headers.join(','),
+      ...sampleData.map(row => [
+        new Date(row.timestamp).toLocaleString(),
+        row.report_type,
+        row.school,
+        row.total_students,
+        row.total_screenings,
+        row.completed_screenings,
+        row.pending_screenings,
+        row.vision_issues,
+        row.referral_count,
+        row.glasses_prescribed
+      ].join(','))
+    ].join('\n');
+
+    // Create and download CSV file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `medical-report-${selectedReportType || 'screening'}-${selectedSchool || 'all'}-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    window.URL.revokeObjectURL(url);
   };
 
   const handleDownloadReport = (reportId: number) => {

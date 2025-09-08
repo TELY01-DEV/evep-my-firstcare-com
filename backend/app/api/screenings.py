@@ -13,6 +13,7 @@ from bson import ObjectId
 from app.core.config import settings
 from app.core.security import verify_token, generate_blockchain_hash
 from app.core.database import get_database
+from app.core.db_rbac import has_permission_db, has_role_db, has_any_role_db, get_user_permissions_from_db
 from app.utils.timezone import get_current_thailand_time, format_datetime_for_frontend
 
 router = APIRouter(prefix="/screenings", tags=["Screenings"])
@@ -97,15 +98,27 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         )
     return payload
 
+# Import the standard get_current_user from auth module
+from app.api.auth import get_current_user as auth_get_current_user
+
 @router.post("/sessions", response_model=ScreeningSessionResponse)
 async def create_screening_session(
     session_data: ScreeningSessionCreate,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(auth_get_current_user)
 ):
     """Create a new screening session"""
     
-    # Check if user has permission to create screenings
-    if current_user["role"] not in ["doctor", "teacher", "admin"]:
+    # Check if user has permission to create screenings using database-based RBAC
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User ID not found"
+        )
+    
+    # Check permission from database - allow super_admin to create screenings
+    user_role = current_user.get("role")
+    if user_role != "super_admin" and not await has_permission_db(user_id, "full_access") and not await has_permission_db(user_id, "screenings_create"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to create screening sessions"
@@ -121,14 +134,19 @@ async def create_screening_session(
             detail="Patient not found"
         )
     
-    # Validate screening category based on user role
-    if current_user["role"] == "teacher" and session_data.screening_category != "school_screening":
+    # Validate screening category based on user roles from database
+    user_roles = await get_user_permissions_from_db(user_id)
+    user_role_names = current_user.get("role", "").split(",") if current_user.get("role") else []
+    
+    # Check if user has teacher role and is trying to create non-school screening
+    if await has_role_db(user_id, "teacher") and session_data.screening_category != "school_screening":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Teachers can only create school screening sessions"
         )
     
-    if current_user["role"] == "doctor" and session_data.screening_category != "medical_screening":
+    # Check if user has doctor role and is trying to create non-medical screening
+    if await has_role_db(user_id, "doctor") and session_data.screening_category != "medical_screening":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Doctors can only create medical screening sessions"
@@ -178,7 +196,7 @@ async def create_screening_session(
 @router.get("/sessions/{session_id}", response_model=ScreeningSessionResponse)
 async def get_screening_session(
     session_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(auth_get_current_user)
 ):
     """Get a specific screening session"""
     
@@ -218,7 +236,7 @@ async def get_screening_session(
 async def update_screening_session(
     session_id: str,
     update_data: ScreeningSessionUpdate,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(auth_get_current_user)
 ):
     """Update a screening session with results"""
     
@@ -304,12 +322,12 @@ async def update_screening_session(
 async def list_screening_sessions(
     patient_id: Optional[str] = Query(None, description="Filter by patient ID"),
     examiner_id: Optional[str] = Query(None, description="Filter by examiner ID"),
-    status: Optional[str] = Query(None, description="Filter by status"),
+    status_filter: Optional[str] = Query(None, description="Filter by status"),
     screening_type: Optional[str] = Query(None, description="Filter by screening type"),
     screening_category: Optional[str] = Query(None, description="Filter by screening category"),
     limit: int = Query(50, ge=1, le=100, description="Number of results to return"),
     skip: int = Query(0, ge=0, description="Number of results to skip"),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(auth_get_current_user)
 ):
     """List screening sessions with optional filtering"""
     
@@ -324,8 +342,8 @@ async def list_screening_sessions(
     if examiner_id:
         filter_query["examiner_id"] = ObjectId(examiner_id)
     
-    if status:
-        filter_query["status"] = status
+    if status_filter:
+        filter_query["status"] = status_filter
     
     if screening_type:
         filter_query["screening_type"] = screening_type
@@ -333,14 +351,34 @@ async def list_screening_sessions(
     if screening_category:
         filter_query["screening_category"] = screening_category
     
+    # Apply role-based filtering using database-based RBAC
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User ID not found"
+        )
+    
+    # Check if user has permission to view screenings - allow super_admin
+    user_role = current_user.get("role")
+    if user_role != "super_admin" and not await has_permission_db(user_id, "full_access") and not await has_permission_db(user_id, "screenings_view"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to view screening sessions"
+        )
+    
+    # Get user roles from database for filtering
+    user_roles = await get_user_permissions_from_db(user_id)
+    user_role_names = current_user.get("role", "").split(",") if current_user.get("role") else []
+    
     # Apply role-based filtering
-    if current_user["role"] == "teacher":
+    if await has_role_db(user_id, "teacher"):
         # Teachers can only see school screenings
         filter_query["screening_category"] = "school_screening"
-    elif current_user["role"] == "doctor":
+    elif await has_role_db(user_id, "doctor"):
         # Doctors can only see medical screenings
         filter_query["screening_category"] = "medical_screening"
-    elif current_user["role"] not in ["admin"]:
+    elif "admin" not in user_role_names and "super_admin" not in user_role_names:
         # Other roles have limited access
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -372,12 +410,21 @@ async def list_screening_sessions(
 @router.delete("/sessions/{session_id}")
 async def delete_screening_session(
     session_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(auth_get_current_user)
 ):
     """Delete a screening session (soft delete)"""
     
-    # Only admins can delete sessions
-    if current_user["role"] != "admin":
+    # Check if user has permission to delete screenings using database-based RBAC
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User ID not found"
+        )
+    
+    # Check permission from database - allow super_admin
+    user_role = current_user.get("role")
+    if user_role != "super_admin" and not await has_permission_db(user_id, "full_access") and not await has_permission_db(user_id, "screenings_delete"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only administrators can delete screening sessions"
@@ -427,20 +474,23 @@ async def delete_screening_session(
 @router.get("/analytics/patient/{patient_id}")
 async def get_patient_screening_analytics(
     patient_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(auth_get_current_user)
 ):
     """Get screening analytics for a specific patient"""
+    
+    # Extract user ID
+    user_id = current_user.get("user_id")
     
     db = get_database()
     
     # Check permissions and filter by screening category
-    if current_user["role"] == "teacher":
+    if await has_role_db(user_id, "teacher") or await has_permission_db(user_id, "manage_school_data"):
         # Teachers can only see school screening analytics
         screening_category_filter = "school_screening"
-    elif current_user["role"] == "doctor":
+    elif await has_role_db(user_id, "doctor") or await has_permission_db(user_id, "manage_screenings"):
         # Doctors can only see medical screening analytics
         screening_category_filter = "medical_screening"
-    elif current_user["role"] == "admin":
+    elif await has_role_db(user_id, "admin") or await has_permission_db(user_id, "manage_users"):
         # Admins can see all analytics
         screening_category_filter = None
     else:
@@ -517,7 +567,7 @@ async def get_patient_screening_analytics(
 async def create_screening_outcome(
     session_id: str,
     outcome_data: ScreeningOutcomeCreate,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(auth_get_current_user)
 ):
     """Create a detailed screening outcome for a session"""
     db = get_database()
@@ -599,13 +649,17 @@ async def create_screening_outcome(
 @router.get("/sessions/{session_id}/outcome", response_model=ScreeningOutcomeResponse)
 async def get_screening_outcome(
     session_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(auth_get_current_user)
 ):
     """Get the screening outcome for a specific session"""
+    
+    # Extract user ID
+    user_id = current_user.get("user_id")
+    
     db = get_database()
     
-    # Check permissions
-    if current_user["role"] not in ["doctor", "teacher", "admin", "parent"]:
+    # Check permissions using database RBAC
+    if not await has_permission_db(user_id, "view_screenings"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view screening outcomes"
@@ -631,13 +685,13 @@ async def get_screening_outcome(
         )
     
     # Role-based access control
-    if current_user["role"] == "teacher" and session.get("screening_category") != "school_screening":
+    if await has_role_db(user_id, "teacher") or await has_permission_db(user_id, "manage_school_data") and session.get("screening_category") != "school_screening":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Teachers can only view school screening outcomes"
         )
     
-    if current_user["role"] == "doctor" and session.get("screening_category") != "medical_screening":
+    if await has_role_db(user_id, "doctor") or await has_permission_db(user_id, "manage_screenings") and session.get("screening_category") != "medical_screening":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Doctors can only view medical screening outcomes"
@@ -659,7 +713,7 @@ async def get_screening_outcome(
 async def update_screening_outcome(
     session_id: str,
     outcome_data: ScreeningOutcomeCreate,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(auth_get_current_user)
 ):
     """Update the screening outcome for a session"""
     db = get_database()
@@ -733,7 +787,7 @@ async def update_screening_outcome(
 @router.get("/outcomes/patient/{patient_id}")
 async def get_patient_screening_outcomes(
     patient_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(auth_get_current_user)
 ):
     """Get all screening outcomes for a specific patient"""
     db = get_database()
@@ -768,13 +822,17 @@ async def get_patient_screening_outcomes(
 
 @router.get("/outcomes/summary")
 async def get_screening_outcomes_summary(
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(auth_get_current_user)
 ):
     """Get summary statistics of screening outcomes"""
+    
+    # Extract user ID
+    user_id = current_user.get("user_id")
+    
     db = get_database()
     
-    # Check permissions
-    if current_user["role"] not in ["doctor", "teacher", "admin"]:
+    # Check permissions using database RBAC
+    if not await has_permission_db(user_id, "view_screenings"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view screening outcomes summary"
@@ -784,7 +842,7 @@ async def get_screening_outcomes_summary(
     pipeline = []
     
     # Add role-based filtering
-    if current_user["role"] == "teacher":
+    if await has_role_db(user_id, "teacher") or await has_permission_db(user_id, "manage_school_data"):
         pipeline.append({
             "$lookup": {
                 "from": "screenings",
@@ -798,7 +856,7 @@ async def get_screening_outcomes_summary(
                 "session.screening_category": "school_screening"
             }
         })
-    elif current_user["role"] == "doctor":
+    elif await has_role_db(user_id, "doctor") or await has_permission_db(user_id, "manage_screenings"):
         pipeline.append({
             "$lookup": {
                 "from": "screenings",

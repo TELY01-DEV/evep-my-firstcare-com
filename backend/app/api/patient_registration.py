@@ -56,7 +56,7 @@ async def register_student_as_patient(
     db = get_database()
     
     # Check permissions - only medical staff can register students as patients
-    if current_user["role"] not in ["medical_staff", "doctor", "admin"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to register students as patients"
@@ -189,7 +189,7 @@ async def get_patient_by_student(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "admin", "teacher"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "admin", "teacher", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view patient information"
@@ -263,7 +263,7 @@ async def get_patient_registrations(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "admin"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view patient registrations"
@@ -316,7 +316,7 @@ async def get_student_patient_mappings(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "admin", "teacher"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "admin", "teacher", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view student-patient mappings"
@@ -363,7 +363,7 @@ async def update_patient_student_link(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "admin"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to update patient-student links"
@@ -442,7 +442,7 @@ async def get_registration_statistics(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "admin"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view registration statistics"

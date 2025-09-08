@@ -12,18 +12,39 @@ from app.core.config import Config
 _database: Optional[AsyncIOMotorClient] = None
 
 def get_database() -> AsyncIOMotorClient:
-    """Get the database client instance"""
+    """Get the database client instance with authentication"""
     global _database
     if _database is None:
-        # Use a simpler connection string without replica set
-        connection_string = "mongodb://mongo-primary:27017"
-        _database = AsyncIOMotorClient(connection_string, serverSelectionTimeoutMS=5000)
+        # Use connection string from environment variable
+        import os
+        
+        # Get MongoDB URL from environment variable
+        connection_string = os.getenv("MONGODB_URL", "mongodb://mongo-primary:27017/evep")
+        
+        _database = AsyncIOMotorClient(
+            connection_string, 
+            serverSelectionTimeoutMS=5000,
+            # Add security options
+            ssl=False,  # Set to True in production with SSL certificates
+            retryWrites=True,
+            w='majority'  # Write concern for data consistency
+        )
     return _database
 
 def get_sync_database() -> MongoClient:
-    """Get a synchronous database client for operations that require it"""
-    connection_string = "mongodb://mongo-primary:27017"
-    return MongoClient(connection_string, serverSelectionTimeoutMS=5000)
+    """Get a synchronous database client with authentication"""
+    import os
+    
+    # Get MongoDB URL from environment variable
+    connection_string = os.getenv("MONGODB_URL", "mongodb://mongo-primary:27017/evep")
+    
+    return MongoClient(
+        connection_string, 
+        serverSelectionTimeoutMS=5000,
+        ssl=False,  # Set to True in production with SSL certificates
+        retryWrites=True,
+        w='majority'  # Write concern for data consistency
+    )
 
 async def close_database():
     """Close the database connection"""
@@ -31,6 +52,22 @@ async def close_database():
     if _database:
         _database.close()
         _database = None
+
+# RBAC Collection getters
+def get_rbac_roles_collection():
+    """Get RBAC roles collection"""
+    db = get_database()
+    return db.rbac_roles
+
+def get_rbac_permissions_collection():
+    """Get RBAC permissions collection"""
+    db = get_database()
+    return db.rbac_permissions
+
+def get_rbac_user_roles_collection():
+    """Get RBAC user roles collection"""
+    db = get_database()
+    return db.rbac_user_roles
 
 # Database collections
 def get_users_collection():

@@ -15,6 +15,7 @@ from app.core.config import settings
 from app.core.security import verify_token, generate_blockchain_hash
 from app.core.database import get_database, get_patients_collection, get_audit_logs_collection
 from app.api.auth import get_current_user
+from app.core.db_rbac import has_permission_db, has_role_db, get_user_roles_from_db
 
 router = APIRouter(prefix="/patients", tags=["Patient Management"])
 
@@ -101,7 +102,7 @@ async def create_patient(
     """Create a new patient"""
     
     # Check if user has permission to create patients
-    if current_user["role"] not in ["doctor", "admin", "medical_staff"]:
+    if current_user["role"] not in ["doctor", "admin", "medical_staff", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to create patients"
@@ -183,8 +184,12 @@ async def get_patients(
 ):
     """Get all patients with pagination"""
     
-    # Check if user has permission to view patients
-    if current_user["role"] not in ["doctor", "parent", "admin", "medical_staff"]:
+    # Extract user ID and role
+    user_id = current_user.get("user_id")
+    user_role = current_user.get("role")
+    
+    # Check if user has permission to view patients using database RBAC
+    if user_role != "super_admin" and not await has_permission_db(user_id, "view_patients"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view patients"
@@ -194,7 +199,7 @@ async def get_patients(
     
     # Build query based on user role
     query = {}
-    if current_user["role"] == "parent":
+    if await has_role_db(user_id, "parent") or await has_permission_db(user_id, "view_patients"):
         # Parents can only see their own children
         query["parent_email"] = current_user["email"]
     
@@ -219,7 +224,7 @@ async def get_patient(
     """Get patient by ID"""
     
     # Check if user has permission to view patients
-    if current_user["role"] not in ["doctor", "parent", "admin", "medical_staff"]:
+    if current_user["role"] not in ["doctor", "parent", "admin", "medical_staff", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view patients"
@@ -243,7 +248,7 @@ async def get_patient(
         )
     
     # Check if parent is viewing their own child
-    if current_user["role"] == "parent":
+    if await has_role_db(user_id, "parent") or await has_permission_db(user_id, "view_patients"):
         if patient["parent_email"] != current_user["email"]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -264,7 +269,7 @@ async def update_patient(
     """Update patient information"""
     
     # Check if user has permission to update patients
-    if current_user["role"] not in ["doctor", "admin"]:
+    if current_user["role"] not in ["doctor", "admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to update patients"
@@ -410,7 +415,7 @@ async def search_patients(
     """Search patients with filters"""
     
     # Check if user has permission to search patients
-    if current_user["role"] not in ["doctor", "parent", "admin", "medical_staff"]:
+    if current_user["role"] not in ["doctor", "parent", "admin", "medical_staff", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to search patients"
@@ -444,7 +449,7 @@ async def search_patients(
         query["is_active"] = search_data.is_active
     
     # Filter by parent email for parent role
-    if current_user["role"] == "parent":
+    if await has_role_db(user_id, "parent") or await has_permission_db(user_id, "view_patients"):
         query["parent_email"] = current_user["email"]
     
     # Execute search
@@ -479,7 +484,7 @@ async def upload_patient_document(
     """Upload document for patient"""
     
     # Check if user has permission to upload documents
-    if current_user["role"] not in ["doctor", "admin"]:
+    if current_user["role"] not in ["doctor", "admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to upload documents"
@@ -567,7 +572,7 @@ async def get_patient_documents(
     """Get all documents for a patient"""
     
     # Check if user has permission to view documents
-    if current_user["role"] not in ["doctor", "parent", "admin", "medical_staff"]:
+    if current_user["role"] not in ["doctor", "parent", "admin", "medical_staff", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view documents"
@@ -593,7 +598,7 @@ async def get_patient_documents(
         )
     
     # Check if parent is viewing their own child's documents
-    if current_user["role"] == "parent":
+    if await has_role_db(user_id, "parent") or await has_permission_db(user_id, "view_patients"):
         if patient["parent_email"] != current_user["email"]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -626,7 +631,7 @@ async def register_student_as_patient(
     """Register a student as a patient"""
     
     # Check if user has permission to create patients
-    if current_user["role"] not in ["doctor", "admin", "medical_staff"]:
+    if current_user["role"] not in ["doctor", "admin", "medical_staff", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to create patients"
@@ -730,7 +735,7 @@ async def upload_patient_profile_photo(
     """Upload profile photo for a patient"""
     
     # Check if user has permission to upload photos
-    if current_user["role"] not in ["doctor", "admin", "medical_staff"]:
+    if current_user["role"] not in ["doctor", "admin", "medical_staff", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to upload patient photos"
@@ -815,7 +820,7 @@ async def upload_patient_extra_photo(
     """Upload extra photo for a patient"""
     
     # Check if user has permission to upload photos
-    if current_user["role"] not in ["doctor", "admin", "medical_staff"]:
+    if current_user["role"] not in ["doctor", "admin", "medical_staff", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to upload patient photos"
@@ -910,7 +915,7 @@ async def get_patient_photos(
     """Get all photos for a patient"""
     
     # Check if user has permission to view photos
-    if current_user["role"] not in ["doctor", "parent", "admin", "medical_staff"]:
+    if current_user["role"] not in ["doctor", "parent", "admin", "medical_staff", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view patient photos"
@@ -934,7 +939,7 @@ async def get_patient_photos(
         )
     
     # Check if parent is viewing their own child's photos
-    if current_user["role"] == "parent":
+    if await has_role_db(user_id, "parent") or await has_permission_db(user_id, "view_patients"):
         if patient["parent_email"] != current_user["email"]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -958,7 +963,7 @@ async def delete_patient_extra_photo(
     """Delete an extra photo for a patient"""
     
     # Check if user has permission to delete photos
-    if current_user["role"] not in ["doctor", "admin", "medical_staff"]:
+    if current_user["role"] not in ["doctor", "admin", "medical_staff", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to delete patient photos"

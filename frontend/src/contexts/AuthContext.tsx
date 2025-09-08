@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 
 interface User {
   user_id: string;
@@ -68,19 +69,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const isTokenExpired = (): boolean => {
-    if (!token) return true;
-    
-    try {
-      // Decode JWT token to check expiration
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const currentTime = Math.floor(Date.now() / 1000);
-      return payload.exp < currentTime;
-    } catch (error) {
-      console.error('Error checking token expiration:', error);
-      return true;
-    }
-  };
+
 
   const refreshToken = async (): Promise<boolean> => {
     if (!storedCredentials) {
@@ -108,9 +97,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // Enhanced token validation with rate limiting
+  const isTokenExpired = (): boolean => {
+    if (!token) return true;
+    
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Date.now() / 1000;
+      
+      // Consider token expired if it expires within 5 minutes
+      return payload.exp < (currentTime + 300);
+    } catch (error) {
+      console.error('Error checking token expiration:', error);
+      return true;
+    }
+  };
+
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const response = await fetch('http://localhost:8014/api/v1/auth/login', {
+      const response = await fetch(API_ENDPOINTS.LOGIN, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +131,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       // Fetch complete user profile including last_login
-      const profileResponse = await fetch('http://localhost:8014/api/v1/auth/me', {
+      const profileResponse = await fetch(API_ENDPOINTS.PROFILE, {
         headers: {
           'Authorization': `Bearer ${data.access_token}`,
         },

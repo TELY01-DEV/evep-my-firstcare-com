@@ -7,7 +7,8 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.api.auth import get_current_user
-from app.core.rbac import check_permission
+from app.core.database import get_users_collection
+from bson import ObjectId
 
 router = APIRouter()
 security = HTTPBearer()
@@ -52,10 +53,13 @@ class UserRoleAssignment(BaseModel):
     user_id: str
     role_id: str
 
-# File paths for storing RBAC data
-ROLES_FILE = "rbac_roles.json"
-PERMISSIONS_FILE = "rbac_permissions.json"
-USER_ROLES_FILE = "rbac_user_roles.json"
+class PermissionSeed(BaseModel):
+    permissions: List[Dict[str, Any]]
+
+# File paths for storing RBAC data (use persistent rbac_data directory)
+ROLES_FILE = "./rbac_data/rbac_roles.json"
+PERMISSIONS_FILE = "./rbac_data/rbac_permissions.json"
+USER_ROLES_FILE = "./rbac_data/rbac_user_roles.json"
 
 def load_roles() -> List[Role]:
     """Load roles from file"""
@@ -132,6 +136,15 @@ def get_default_roles() -> List[Role]:
     """Get default system roles"""
     now = datetime.now().isoformat()
     return [
+        Role(
+            id="super_admin",
+            name="Super Administrator",
+            description="Ultimate system access with full control over all operations",
+            permissions=["*"],
+            is_system=True,
+            created_at=now,
+            updated_at=now
+        ),
         Role(
             id="system_admin",
             name="System Administrator",
@@ -327,12 +340,16 @@ def get_default_permissions() -> List[Permission]:
 
 # Roles endpoints
 @router.get("/roles/")
-@check_permission("view_panel_settings")
 async def get_roles(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Get all roles"""
+    # Check permissions
+    if current_user["role"] not in ["admin", "super_admin", "system_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to view roles"
+        )
     try:
         roles = load_roles()
         return {
@@ -346,12 +363,16 @@ async def get_roles(
         )
 
 @router.post("/roles/")
-@check_permission("manage_panel_settings")
 async def create_role(
     role_data: RoleCreate,
-    credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
+    # Check permissions
+    if current_user["role"] not in ["admin", "super_admin", "system_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to create roles"
+        )
     """Create a new role"""
     try:
         roles = load_roles()
@@ -395,13 +416,17 @@ async def create_role(
         )
 
 @router.put("/roles/{role_id}")
-@check_permission("manage_panel_settings")
 async def update_role(
     role_id: str,
     role_data: RoleUpdate,
-    credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
+    # Check permissions
+    if current_user["role"] not in ["admin", "super_admin", "system_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to update roles"
+        )
     """Update an existing role"""
     try:
         roles = load_roles()
@@ -447,12 +472,16 @@ async def update_role(
         )
 
 @router.delete("/roles/{role_id}")
-@check_permission("manage_panel_settings")
 async def delete_role(
     role_id: str,
-    credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
+    # Check permissions
+    if current_user["role"] not in ["admin", "super_admin", "system_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to delete roles"
+        )
     """Delete a role"""
     try:
         roles = load_roles()
@@ -495,11 +524,15 @@ async def delete_role(
 
 # Permissions endpoints
 @router.get("/permissions/")
-@check_permission("view_panel_settings")
 async def get_permissions(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
+    # Check permissions
+    if current_user["role"] not in ["admin", "super_admin", "system_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to view permissions"
+        )
     """Get all permissions"""
     try:
         permissions = load_permissions()
@@ -513,13 +546,62 @@ async def get_permissions(
             detail=f"Failed to load permissions: {str(e)}"
         )
 
-# User roles endpoints
-@router.get("/user-roles/")
-@check_permission("view_panel_settings")
-async def get_user_roles(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+@router.post("/permissions/seed")
+async def seed_permissions(
+    seed_data: PermissionSeed,
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
+    """Seed comprehensive permission master data"""
+    # Check permissions
+    if current_user["role"] not in ["admin", "super_admin", "system_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to seed permissions"
+        )
+    
+    try:
+        # Convert dict permissions to Permission objects
+        permissions = []
+        for perm_data in seed_data.permissions:
+            permission = Permission(
+                id=perm_data["id"],
+                name=perm_data["name"],
+                description=perm_data["description"],
+                category=perm_data["category"],
+                resource=perm_data["resource"],
+                action=perm_data["action"]
+            )
+            permissions.append(permission)
+        
+        # Save to file
+        if save_permissions(permissions):
+            return {
+                "success": True,
+                "message": f"Successfully seeded {len(permissions)} permissions",
+                "count": len(permissions)
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to save seeded permissions"
+            )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to seed permissions: {str(e)}"
+        )
+
+# User roles endpoints
+@router.get("/user-roles/")
+async def get_user_roles(
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    # Check permissions
+    if current_user["role"] not in ["admin", "super_admin", "system_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to view user roles"
+        )
     """Get all user role assignments"""
     try:
         user_roles = load_user_roles()
@@ -533,13 +615,39 @@ async def get_user_roles(
             detail=f"Failed to load user roles: {str(e)}"
         )
 
+async def get_real_user_info(user_id: str):
+    """Get real user information from users collection"""
+    try:
+        users_collection = get_users_collection()
+        user = await users_collection.find_one({"_id": ObjectId(user_id)})
+        
+        if user:
+            first_name = user.get('first_name', '')
+            last_name = user.get('last_name', '')
+            full_name = f"{first_name} {last_name}".strip()
+            if not full_name:
+                full_name = f"User {user_id[:8]}"
+                
+            email = user.get('email', f'user{user_id[:8]}@evep.com')
+            return full_name, email
+        else:
+            return f"User {user_id[:8]}", f"user{user_id[:8]}@evep.com"
+            
+    except Exception as e:
+        print(f"Error getting user info: {e}")
+        return f"User {user_id[:8]}", f"user{user_id[:8]}@evep.com"
+
 @router.post("/user-roles/")
-@check_permission("manage_panel_settings")
 async def assign_user_role(
     assignment: UserRoleAssignment,
-    credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
+    # Check permissions
+    if current_user["role"] not in ["admin", "super_admin", "system_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to assign user roles"
+        )
     """Assign a role to a user"""
     try:
         user_roles = load_user_roles()
@@ -566,10 +674,14 @@ async def assign_user_role(
         
         # Create new assignment
         now = datetime.now().isoformat()
+        
+        # Get real user information from database
+        user_name, user_email = await get_real_user_info(assignment.user_id)
+        
         new_user_role = UserRole(
             user_id=assignment.user_id,
-            user_name=f"User {assignment.user_id}",  # This should be fetched from user database
-            user_email=f"user{assignment.user_id}@example.com",  # This should be fetched from user database
+            user_name=user_name,
+            user_email=user_email,
             role_id=assignment.role_id,
             role_name=role.name,
             assigned_at=now
@@ -595,13 +707,17 @@ async def assign_user_role(
         )
 
 @router.delete("/user-roles/{user_id}/{role_id}")
-@check_permission("manage_panel_settings")
 async def remove_user_role(
     user_id: str,
     role_id: str,
-    credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
+    # Check permissions
+    if current_user["role"] not in ["admin", "super_admin", "system_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to remove user roles"
+        )
     """Remove a role from a user"""
     try:
         user_roles = load_user_roles()

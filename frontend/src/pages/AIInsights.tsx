@@ -24,7 +24,7 @@ const AIInsights: React.FC = () => {
 
   useEffect(() => {
     // Check if user has permission to access AI insights
-    const allowedRoles = ['admin', 'doctor', 'medical_staff', 'teacher'];
+    const allowedRoles = ['admin', 'doctor', 'medical_staff', 'teacher', 'super_admin'];
     if (user && !allowedRoles.includes(user.role)) {
       setError('You do not have permission to access AI Insights');
     }

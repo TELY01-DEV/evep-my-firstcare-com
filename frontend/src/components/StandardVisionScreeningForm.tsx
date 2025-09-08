@@ -72,8 +72,11 @@ import {
   PhotoCamera,
   PhotoLibrary,
   Delete,
+  CreditCard,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import RBACScreeningDropdown from './RBAC/RBACScreeningDropdown';
+import api from '../services/api';
 
 interface Patient {
   _id: string;
@@ -249,21 +252,9 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
 
   const fetchPatients = async () => {
     try {
-      const token = localStorage.getItem('evep_token');
-              const response = await fetch('http://localhost:8013/api/v1/evep/students', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await api.get('/api/v1/evep/students');
 
-      if (response.ok) {
-        const data = await response.json();
-        setPatients(data.patients || []);
-      } else {
-        console.error('Failed to fetch patients from API');
-        setPatients([]);
-      }
+      setPatients(response.data.students || []);
     } catch (error) {
       console.error('Error fetching patients:', error);
       setSnackbar({
@@ -338,25 +329,14 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
         status: 'completed'
       };
 
-      const response = await fetch('http://localhost:8013/api/v1/screenings/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(screeningData),
-      });
+      const response = await api.post('/api/v1/screenings/', screeningData);
 
-      if (response.ok) {
-        setSnackbar({
-          open: true,
-          message: 'Screening completed successfully',
-          severity: 'success'
-        });
-        onComplete?.(screeningData);
-      } else {
-        throw new Error('Failed to save screening results');
-      }
+      setSnackbar({
+        open: true,
+        message: 'Screening completed successfully',
+        severity: 'success'
+      });
+      onComplete?.(screeningData);
     } catch (error) {
       console.error('Error completing screening:', error);
       setSnackbar({
@@ -1904,19 +1884,26 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
             </Card>
 
             <Tabs value={patientTab} onChange={(e, newValue) => setPatientTab(newValue)} sx={{ mb: 3 }}>
-              <Tab label="Search Patients" />
-              <Tab label="Add New Patient" />
+              <Tab label="School Screening Students" icon={<School />} />
+              <Tab label="Manual Registration" icon={<Person />} />
+              <Tab label="Citizen Card Reader" icon={<CreditCard />} />
             </Tabs>
 
 
 
             {patientTab === 0 && (
               <Box>
+                <Typography variant="h6" gutterBottom>
+                  School Screening Students
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Students who have completed school screenings and are ready for standard vision assessment
+                </Typography>
                 <Grid container spacing={2} sx={{ mb: 3 }}>
                   <Grid item xs={12} md={8}>
                     <TextField
                       fullWidth
-                      placeholder="Search patients by name, ID, or school..."
+                      placeholder="Search school screening students by name, ID, or school..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       InputProps={{
@@ -1926,16 +1913,15 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
                   </Grid>
                   <Grid item xs={12} md={4}>
                     <FormControl fullWidth>
-                      <InputLabel>Filter by Status</InputLabel>
+                      <InputLabel>Filter by School</InputLabel>
                       <Select
                         value={filterStatus}
-                        label="Filter by Status"
+                        label="Filter by School"
                         onChange={(e) => setFilterStatus(e.target.value)}
-
                       >
-                        <MenuItem value="all">All Patients</MenuItem>
-                        <MenuItem value="active">Active</MenuItem>
-                        <MenuItem value="inactive">Inactive</MenuItem>
+                        <MenuItem value="all">All Schools</MenuItem>
+                        <MenuItem value="active">Active Students</MenuItem>
+                        <MenuItem value="completed">Completed Screenings</MenuItem>
                       </Select>
                     </FormControl>
                   </Grid>
@@ -1992,8 +1978,11 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
 
             {patientTab === 1 && (
               <Box>
-                <Typography variant="subtitle1" gutterBottom>
-                  Add New Patient Information
+                <Typography variant="h6" gutterBottom>
+                  Manual Registration
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Manually register new patients for standard vision screening
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={12} md={6}>
@@ -2088,6 +2077,52 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
               </Box>
             )}
 
+            {patientTab === 2 && (
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  Citizen Card Reader
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Patients registered via citizen card reader for standard vision screening
+                </Typography>
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                  <Grid item xs={12} md={8}>
+                    <TextField
+                      fullWidth
+                      placeholder="Search card reader patients by name, ID, or citizen number..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      InputProps={{
+                        startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <FormControl fullWidth>
+                      <InputLabel>Filter by Type</InputLabel>
+                      <Select
+                        value={filterStatus}
+                        label="Filter by Type"
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                      >
+                        <MenuItem value="all">All Card Types</MenuItem>
+                        <MenuItem value="citizen">Citizen ID</MenuItem>
+                        <MenuItem value="student">Student ID</MenuItem>
+                        <MenuItem value="other">Other Cards</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                </Grid>
+                <Card>
+                  <CardContent>
+                    <Typography variant="body2" color="text.secondary" align="center">
+                      Card reader patients will appear here when registered via card scanning
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Box>
+            )}
+
             {selectedPatient && (
               <Alert severity="info" sx={{ mt: 2 }}>
                 <Typography variant="subtitle2">
@@ -2117,23 +2152,13 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
             
             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Screening Type</InputLabel>
-                  <Select
-                    value={screeningType}
-                    label="Screening Type"
-                    onChange={(e) => setScreeningType(e.target.value)}
-                  >
-                    <MenuItem value="comprehensive_ophthalmic">Comprehensive Ophthalmic Examination</MenuItem>
-                    <MenuItem value="visual_acuity">Visual Acuity Screening</MenuItem>
-                    <MenuItem value="color_vision_deficiency">Color Vision Deficiency Assessment</MenuItem>
-                    <MenuItem value="stereoacuity">Stereoacuity (Depth Perception) Test</MenuItem>
-                    <MenuItem value="legacy_comprehensive">Legacy Comprehensive</MenuItem>
-                    <MenuItem value="legacy_basic">Legacy Basic</MenuItem>
-                    <MenuItem value="legacy_color">Legacy Color</MenuItem>
-                    <MenuItem value="legacy_depth">Legacy Depth</MenuItem>
-                  </Select>
-                </FormControl>
+                <RBACScreeningDropdown
+                  label="Screening Type"
+                  value={screeningType}
+                  onChange={setScreeningType}
+                  required
+                  showAccessInfo
+                />
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField

@@ -20,27 +20,24 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.utcnow() + timedelta(hours=int(os.getenv("JWT_EXPIRATION_HOURS", "24")))
     
     # Convert datetime to timestamp for JWT compatibility
-    to_encode.update({"exp": int(expire.timestamp())})
-    encoded_jwt = jwt.encode(to_encode, os.getenv("JWT_SECRET_KEY", "hardcoded_secret_key"), algorithm="HS256")
+    now = datetime.utcnow()
+    to_encode.update({
+        "exp": int(expire.timestamp()),
+        "iat": int(now.timestamp()),  # Add issued at timestamp
+        "nbf": int(now.timestamp())   # Add not before timestamp
+    })
+    
+    jwt_secret = os.getenv("JWT_SECRET_KEY")
+    if not jwt_secret:
+        raise ValueError("JWT_SECRET_KEY environment variable is required")
+    
+    encoded_jwt = jwt.encode(to_encode, jwt_secret, algorithm="HS256")
     return encoded_jwt
 
 def verify_token(token: str) -> Optional[Dict[str, Any]]:
-    """Verify and decode a JWT token"""
-    try:
-        # Use environment variable directly to ensure consistency
-        jwt_secret = os.getenv("JWT_SECRET_KEY", "hardcoded_secret_key")
-        print(f"🔐 Security module JWT Secret: {jwt_secret[:10]}... (from env)")
-        payload = jwt.decode(token, jwt_secret, algorithms=["HS256"])
-        return payload
-    except jwt.ExpiredSignatureError:
-        print(f"Token expired: {token[:20]}...")
-        return None
-    except jwt.InvalidTokenError:
-        print(f"Invalid token: {token[:20]}...")
-        return None
-    except Exception as e:
-        print(f"Token verification error: {e}")
-        return None
+    """Verify and decode a JWT token - DEPRECATED: Use jwt_service instead"""
+    from app.core.jwt_service import verify_jwt_token
+    return verify_jwt_token(token)
 
 def get_current_user(token: str) -> Optional[Dict[str, Any]]:
     """Get current user from token"""
@@ -64,7 +61,12 @@ def generate_blockchain_hash(data: str) -> str:
     """Generate a blockchain-style hash for audit purposes"""
     import hashlib
     timestamp = datetime.utcnow().isoformat()
-    content = f"{data}:{timestamp}:{os.getenv('JWT_SECRET_KEY', 'hardcoded_secret_key')}"
+    
+    jwt_secret = os.getenv("JWT_SECRET_KEY")
+    if not jwt_secret:
+        raise ValueError("JWT_SECRET_KEY environment variable is required")
+    
+    content = f"{data}:{timestamp}:{jwt_secret}"
     return hashlib.sha256(content.encode()).hexdigest()
 
 def log_security_event(request: Request, event_type: str, description: str, portal: str = "admin"):

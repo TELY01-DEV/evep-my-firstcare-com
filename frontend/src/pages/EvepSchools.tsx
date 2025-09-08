@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import unifiedApi from '../services/unifiedApi';
 import {
   Box,
   Typography,
@@ -46,8 +47,6 @@ import {
   FilterList as FilterListIcon,
   Clear as ClearIcon
 } from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
 
 interface Address {
   house_no?: string;
@@ -73,7 +72,6 @@ interface School {
 }
 
 const EvepSchools: React.FC = () => {
-  const { token } = useAuth();
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -109,18 +107,8 @@ const EvepSchools: React.FC = () => {
   const fetchSchools = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8014/api/v1/evep/schools', {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setSchools(data.schools || []);
-      } else {
-        throw new Error('Failed to fetch schools');
-      }
+      const response = await unifiedApi.get('/api/v1/evep/schools');
+      setSchools(response.data.schools || []);
     } catch (error) {
       console.error('Error fetching schools:', error);
       setSchools([]);
@@ -186,33 +174,11 @@ const EvepSchools: React.FC = () => {
   const handleSubmit = async () => {
     try {
       if (editingSchool) {
-        const response = await fetch(`http://localhost:8014/api/v1/evep/schools/${editingSchool.id}`, {
-          method: 'PUT',
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(formData)
-        });
-        if (response.ok) {
-          setSnackbar({ open: true, message: 'School updated successfully', severity: 'success' });
-        } else {
-          throw new Error('Failed to update school');
-        }
+        await unifiedApi.put(`/api/v1/evep/schools/${editingSchool.id}`, formData);
+        setSnackbar({ open: true, message: 'School updated successfully', severity: 'success' });
       } else {
-        const response = await fetch('http://localhost:8014/api/v1/evep/schools', {
-          method: 'POST',
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(formData)
-        });
-        if (response.ok) {
-          setSnackbar({ open: true, message: 'School created successfully', severity: 'success' });
-        } else {
-          throw new Error('Failed to create school');
-        }
+        await unifiedApi.post('/api/v1/evep/schools', formData);
+        setSnackbar({ open: true, message: 'School created successfully', severity: 'success' });
       }
       handleCloseDialog();
       fetchSchools();
@@ -225,19 +191,9 @@ const EvepSchools: React.FC = () => {
   const handleDelete = async (schoolId: string) => {
     if (window.confirm('Are you sure you want to delete this school?')) {
       try {
-        const response = await fetch(`http://localhost:8014/api/v1/evep/schools/${schoolId}`, {
-          method: 'DELETE',
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        if (response.ok) {
-          setSnackbar({ open: true, message: 'School deleted successfully', severity: 'success' });
-          fetchSchools();
-        } else {
-          throw new Error('Failed to delete school');
-        }
+        await unifiedApi.delete(`/api/v1/evep/schools/${schoolId}`);
+        setSnackbar({ open: true, message: 'School deleted successfully', severity: 'success' });
+        fetchSchools();
       } catch (error) {
         console.error('Error deleting school:', error);
         setSnackbar({ open: true, message: 'Error deleting school', severity: 'error' });
@@ -322,231 +278,430 @@ const EvepSchools: React.FC = () => {
       </Box>
 
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Schools Management
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Manage school information and records
-          </Typography>
-        </Box>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h4" component="h1" sx={{ display: 'flex', alignItems: 'center' }}>
+          <SchoolIcon sx={{ mr: 1 }} />
+          School Management
+        </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => setOpenDialog(true)}
+          onClick={() => handleOpenDialog()}
+          sx={{ bgcolor: 'primary.main', color: 'white' }}
         >
-          Add New School
+          Add School
         </Button>
       </Box>
 
-      {/* Statistics Cards */}
-      <Grid container spacing={3} mb={4}>
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Typography variant="h4" color="primary">
-                {schools.length}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Total Schools
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Typography variant="h4" color="success.main">
-                {schools.filter(s => s.type === 'ประถมศึกษา').length}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Primary Schools
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Typography variant="h4" color="warning.main">
-                {schools.filter(s => s.type === 'มัธยมศึกษา').length}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Secondary Schools
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={3}>
-          <Card>
-            <CardContent>
-              <Typography variant="h4" color="info.main">
-                {schools.filter(s => s.type !== 'ประถมศึกษา' && s.type !== 'มัธยมศึกษา').length}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Other Schools
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+      {/* Filters */}
+      <Box sx={{ mb: 3 }}>
+        <Button
+          startIcon={<FilterListIcon />}
+          onClick={() => setShowFilters(!showFilters)}
+          variant="outlined"
+          sx={{ mb: 2 }}
+        >
+          {showFilters ? 'Hide Filters' : 'Show Filters'}
+        </Button>
+        
+        {showFilters && (
+          <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1, mb: 2 }}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} sm={4}>
+                <TextField
+                  fullWidth
+                  label="Search"
+                  value={filterSearch}
+                  onChange={(e) => setFilterSearch(e.target.value)}
+                  placeholder="Search schools..."
+                  InputProps={{
+                    startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <FormControl fullWidth>
+                  <InputLabel>Type</InputLabel>
+                  <Select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value)}
+                    label="Type"
+                  >
+                    <MenuItem value="all">All Types</MenuItem>
+                    <MenuItem value="primary">Primary</MenuItem>
+                    <MenuItem value="secondary">Secondary</MenuItem>
+                    <MenuItem value="vocational">Vocational</MenuItem>
+                    <MenuItem value="university">University</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <FormControl fullWidth>
+                  <InputLabel>Province</InputLabel>
+                  <Select
+                    value={filterProvince}
+                    onChange={(e) => setFilterProvince(e.target.value)}
+                    label="Province"
+                  >
+                    <MenuItem value="all">All Provinces</MenuItem>
+                    {Array.from(new Set(schools.map(s => s.address.province).filter(Boolean))).map(province => (
+                      <MenuItem key={province} value={province}>{province}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={2}>
+                <Button
+                  startIcon={<ClearIcon />}
+                  onClick={resetFilters}
+                  variant="outlined"
+                  fullWidth
+                >
+                  Clear
+                </Button>
+              </Grid>
+            </Grid>
+          </Box>
+        )}
+      </Box>
+
+      {/* Schools Grid */}
+      <Grid container spacing={3}>
+        {filteredSchools.map((school) => (
+          <Grid item xs={12} sm={6} md={4} key={school.id}>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <CardContent sx={{ flexGrow: 1 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                  <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold' }}>
+                    {school.name}
+                  </Typography>
+                  <Chip 
+                    label={school.type} 
+                    size="small" 
+                    color="primary" 
+                    variant="outlined"
+                  />
+                </Box>
+                
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  <strong>Code:</strong> {school.school_code}
+                </Typography>
+                
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                    <LocationIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                    {formatAddress(school.address)}
+                  </Typography>
+                </Box>
+                
+                {school.phone && (
+                  <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                    <PhoneIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                    {school.phone}
+                  </Typography>
+                )}
+                
+                {school.email && (
+                  <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <EmailIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                    {school.email}
+                  </Typography>
+                )}
+              </CardContent>
+              
+              <CardActions sx={{ justifyContent: 'space-between', p: 2 }}>
+                <Box>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleView(school)}
+                    color="primary"
+                    title="View Details"
+                  >
+                    <ViewIcon />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleOpenDialog(school)}
+                    color="secondary"
+                    title="Edit School"
+                  >
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleDelete(school.id)}
+                    color="error"
+                    title="Delete School"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
+              </CardActions>
+            </Card>
+          </Grid>
+        ))}
       </Grid>
 
-      {/* Schools Table */}
-      <Card>
-        <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h6">
-              Schools List
-            </Typography>
+      {/* Empty State */}
+      {filteredSchools.length === 0 && !loading && (
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <SchoolIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+          <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+            No schools found
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            {filterSearch || filterType !== 'all' || filterProvince !== 'all' 
+              ? 'Try adjusting your filters or search terms'
+              : 'Get started by adding your first school'
+            }
+          </Typography>
+          {!filterSearch && filterType === 'all' && filterProvince === 'all' && (
             <Button
-              variant="outlined"
-              startIcon={<FilterListIcon />}
-              onClick={() => setShowFilters(!showFilters)}
-              size="small"
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenDialog()}
             >
-              {showFilters ? 'Hide Filters' : 'Show Filters'}
+              Add First School
             </Button>
-          </Box>
+          )}
+        </Box>
+      )}
 
-          {/* Filter Section */}
-          {showFilters && (
-            <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={6} md={4}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Search"
-                    value={filterSearch}
-                    onChange={(e) => setFilterSearch(e.target.value)}
-                    placeholder="Name, Code, Phone, Email..."
-                    InputProps={{
-                      startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>School Type</InputLabel>
-                    <Select
-                      value={filterType}
-                      onChange={(e) => setFilterType(e.target.value)}
-                      label="School Type"
-                    >
-                      <MenuItem value="all">All Types</MenuItem>
-                      {Array.from(new Set(schools.map(s => s.type))).map(type => (
-                        <MenuItem key={type} value={type}>{type}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={6} md={3}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Province</InputLabel>
-                    <Select
-                      value={filterProvince}
-                      onChange={(e) => setFilterProvince(e.target.value)}
-                      label="Province"
-                    >
-                      <MenuItem value="all">All Provinces</MenuItem>
-                      {Array.from(new Set(schools.map(s => s.address.province))).map(province => (
-                        <MenuItem key={province} value={province}>{province}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={6} md={2}>
-                  <Button
-                    variant="outlined"
-                    startIcon={<ClearIcon />}
-                    onClick={resetFilters}
-                    size="small"
-                    fullWidth
+      {/* Add/Edit Dialog */}
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {editingSchool ? 'Edit School' : 'Add New School'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="School Code"
+                  value={formData.school_code}
+                  onChange={(e) => setFormData({ ...formData, school_code: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="School Name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Type</InputLabel>
+                  <Select
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                    label="Type"
+                    required
                   >
-                    Clear
-                  </Button>
+                    <MenuItem value="primary">Primary</MenuItem>
+                    <MenuItem value="secondary">Secondary</MenuItem>
+                    <MenuItem value="vocational">Vocational</MenuItem>
+                    <MenuItem value="university">University</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+              </Grid>
+              
+              {/* Address Fields */}
+              <Grid item xs={12}>
+                <Typography variant="h6" sx={{ mb: 2, mt: 2 }}>Address</Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="House No."
+                  value={formData.address.house_no}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    address: { ...formData.address, house_no: e.target.value }
+                  })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Village No."
+                  value={formData.address.village_no}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    address: { ...formData.address, village_no: e.target.value }
+                  })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Soi"
+                  value={formData.address.soi}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    address: { ...formData.address, soi: e.target.value }
+                  })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Road"
+                  value={formData.address.road}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    address: { ...formData.address, road: e.target.value }
+                  })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Subdistrict"
+                  value={formData.address.subdistrict}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    address: { ...formData.address, subdistrict: e.target.value }
+                  })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="District"
+                  value={formData.address.district}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    address: { ...formData.address, district: e.target.value }
+                  })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Province"
+                  value={formData.address.province}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    address: { ...formData.address, province: e.target.value }
+                  })}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Postal Code"
+                  value={formData.address.postal_code}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    address: { ...formData.address, postal_code: e.target.value }
+                  })}
+                />
+              </Grid>
+            </Grid>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Cancel</Button>
+          <Button onClick={handleSubmit} variant="contained">
+            {editingSchool ? 'Update' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* View Dialog */}
+      <Dialog open={openDialog && !!viewingSchool} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <SchoolIcon sx={{ mr: 1 }} />
+            School Details
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {viewingSchool && (
+            <Box sx={{ pt: 2 }}>
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary">School Code</Typography>
+                  <Typography variant="body1" sx={{ mb: 2 }}>{viewingSchool.school_code}</Typography>
                 </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="text.secondary">Type</Typography>
+                  <Chip label={viewingSchool.type} size="small" color="primary" sx={{ mb: 2 }} />
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" color="text.secondary">Name</Typography>
+                  <Typography variant="body1" sx={{ mb: 2 }}>{viewingSchool.name}</Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" color="text.secondary">Address</Typography>
+                  <Typography variant="body1" sx={{ mb: 2 }}>{formatAddress(viewingSchool.address)}</Typography>
+                </Grid>
+                {viewingSchool.phone && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">Phone</Typography>
+                    <Typography variant="body1" sx={{ mb: 2 }}>{viewingSchool.phone}</Typography>
+                  </Grid>
+                )}
+                {viewingSchool.email && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="subtitle2" color="text.secondary">Email</Typography>
+                    <Typography variant="body1" sx={{ mb: 2 }}>{viewingSchool.email}</Typography>
+                  </Grid>
+                )}
               </Grid>
             </Box>
           )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Close</Button>
+          <Button 
+            onClick={() => {
+              setViewingSchool(null);
+              handleOpenDialog(viewingSchool || undefined);
+            }} 
+            variant="contained"
+          >
+            Edit
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-          <TableContainer>
-            <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>School</TableCell>
-                <TableCell>School Code</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Contact</TableCell>
-                <TableCell>Address</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredSchools.map((school) => (
-                <TableRow key={school.id} hover>
-                  <TableCell>
-                    <Box display="flex" alignItems="center">
-                      <SchoolIcon sx={{ mr: 1, color: 'primary.main' }} />
-                      <Box>
-                        <Typography variant="body2" fontWeight="bold">
-                          {school.name}
-                        </Typography>
-                        <Typography variant="caption" color="textSecondary">
-                          {school.school_code}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </TableCell>
-                  <TableCell>{school.school_code}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={school.type}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Box>
-                      {school.phone && (
-                        <Box display="flex" alignItems="center" mb={0.5}>
-                          <PhoneIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
-                          <Typography variant="body2">{school.phone}</Typography>
-                        </Box>
-                      )}
-                      {school.email && (
-                        <Box display="flex" alignItems="center">
-                          <EmailIcon fontSize="small" sx={{ mr: 0.5, color: 'text.secondary' }} />
-                          <Typography variant="body2">{school.email}</Typography>
-                        </Box>
-                      )}
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                      {formatAddress(school.address)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <IconButton size="small" onClick={() => handleView(school)}>
-                      <ViewIcon />
-                    </IconButton>
-                    <IconButton size="small" onClick={() => handleOpenDialog(school)}>
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton size="small" onClick={() => handleDelete(school.id)}>
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        </CardContent>
-      </Card>
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
 
       {/* Floating Action Button */}
       <Fab
@@ -557,217 +712,6 @@ const EvepSchools: React.FC = () => {
       >
         <AddIcon />
       </Fab>
-
-      {/* Add/Edit Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
-        <DialogTitle>
-          {viewingSchool ? 'View School Details' : editingSchool ? 'Edit School' : 'Add New School'}
-        </DialogTitle>
-        <DialogContent>
-          {viewingSchool ? (
-            <Box>
-              <Typography variant="h6" gutterBottom>School Information</Typography>
-              <Grid container spacing={2} mb={3}>
-                <Grid item xs={6}>
-                  <Typography><strong>Name:</strong> {viewingSchool.name}</Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography><strong>School Code:</strong> {viewingSchool.school_code}</Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography><strong>Type:</strong> {viewingSchool.type}</Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography><strong>Phone:</strong> {viewingSchool.phone || 'N/A'}</Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography><strong>Email:</strong> {viewingSchool.email || 'N/A'}</Typography>
-                </Grid>
-              </Grid>
-
-              <Typography variant="h6" gutterBottom>Address</Typography>
-              <Typography gutterBottom>{formatAddress(viewingSchool.address)}</Typography>
-            </Box>
-          ) : (
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="School Code"
-                  value={formData.school_code}
-                  onChange={(e) => setFormData({ ...formData, school_code: e.target.value })}
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="School Name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>School Type</InputLabel>
-                  <Select
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    label="School Type"
-                  >
-                    <MenuItem value="ประถมศึกษา">ประถมศึกษา (Primary)</MenuItem>
-                    <MenuItem value="มัธยมศึกษา">มัธยมศึกษา (Secondary)</MenuItem>
-                    <MenuItem value="อนุบาล">อนุบาล (Kindergarten)</MenuItem>
-                    <MenuItem value="โรงเรียนเอกชน">โรงเรียนเอกชน (Private School)</MenuItem>
-                    <MenuItem value="โรงเรียนนานาชาติ">โรงเรียนนานาชาติ (International School)</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="Phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="Email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  margin="normal"
-                />
-              </Grid>
-
-              {/* Address Fields */}
-              <Grid item xs={12}>
-                <Typography variant="h6" gutterBottom>Address</Typography>
-              </Grid>
-              <Grid item xs={3}>
-                <TextField
-                  fullWidth
-                  label="House No."
-                  value={formData.address.house_no}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    address: { ...formData.address, house_no: e.target.value }
-                  })}
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={3}>
-                <TextField
-                  fullWidth
-                  label="Village No."
-                  value={formData.address.village_no}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    address: { ...formData.address, village_no: e.target.value }
-                  })}
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={3}>
-                <TextField
-                  fullWidth
-                  label="Soi"
-                  value={formData.address.soi}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    address: { ...formData.address, soi: e.target.value }
-                  })}
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={3}>
-                <TextField
-                  fullWidth
-                  label="Road"
-                  value={formData.address.road}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    address: { ...formData.address, road: e.target.value }
-                  })}
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="Subdistrict"
-                  value={formData.address.subdistrict}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    address: { ...formData.address, subdistrict: e.target.value }
-                  })}
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="District"
-                  value={formData.address.district}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    address: { ...formData.address, district: e.target.value }
-                  })}
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="Province"
-                  value={formData.address.province}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    address: { ...formData.address, province: e.target.value }
-                  })}
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  label="Postal Code"
-                  value={formData.address.postal_code}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    address: { ...formData.address, postal_code: e.target.value }
-                  })}
-                  margin="normal"
-                />
-              </Grid>
-            </Grid>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>
-            {viewingSchool ? 'Close' : 'Cancel'}
-          </Button>
-          {!viewingSchool && (
-            <Button onClick={handleSubmit} variant="contained">
-              {editingSchool ? 'Update' : 'Create'}
-            </Button>
-          )}
-        </DialogActions>
-      </Dialog>
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-      >
-        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };

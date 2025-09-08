@@ -129,7 +129,7 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
     try {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
-      const response = await fetch('http://localhost:8014/api/v1/inventory/glasses', {
+      const response = await fetch('https://stardust.evep.my-firstcare.com/api/v1/inventory/glasses', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -203,8 +203,35 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
     try {
       const token = localStorage.getItem('evep_token');
       const url = editingItem 
-        ? `http://localhost:8014/api/v1/inventory/glasses/${editingItem._id}`
-        : 'http://localhost:8014/api/v1/inventory/glasses';
+        ? `https://stardust.evep.my-firstcare.com/api/v1/inventory/glasses/${editingItem._id}`
+        : 'https://stardust.evep.my-firstcare.com/api/v1/inventory/glasses';
+      
+      // Transform formData to match backend API requirements
+      const apiData = {
+        item_code: formData.item_code,
+        item_name: formData.name,
+        category: formData.category,
+        brand: formData.brand,
+        model: formData.model,
+        specifications: {
+          frame_color: formData.frame_color,
+          lens_type: formData.lens_type,
+          prescription_range: formData.prescription_range,
+          size: formData.size,
+          material: formData.material
+        },
+        unit_price: formData.unit_price,
+        cost_price: formData.unit_price * 0.7, // Estimate cost price as 70% of unit price
+        initial_stock: formData.quantity,
+        reorder_level: formData.min_quantity,
+        supplier_info: {
+          name: formData.supplier,
+          location: formData.location
+        },
+        notes: `${formData.frame_color} ${formData.lens_type} ${formData.size} ${formData.material}`
+      };
+      
+      console.log('Sending data to API:', apiData);
       
       const response = await fetch(url, {
         method: editingItem ? 'PUT' : 'POST',
@@ -212,7 +239,7 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(apiData),
       });
 
       if (response.ok) {
@@ -224,7 +251,9 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
         setOpenDialog(false);
         fetchInventory();
       } else {
-        throw 'Failed to save item';
+        const errorData = await response.json();
+        console.error('API Error:', errorData);
+        throw `Failed to save item: ${errorData.detail || 'Unknown error'}`;
       }
     } catch (error) {
       console.error('Error saving item:', error);
@@ -240,7 +269,7 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
     if (window.confirm('Are you sure you want to delete this item?')) {
       try {
         const token = localStorage.getItem('evep_token');
-        const response = await fetch(`http://localhost:8014/api/v1/inventory/glasses/${itemId}`, {
+        const response = await fetch(`https://stardust.evep.my-firstcare.com/api/v1/inventory/glasses/${itemId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,

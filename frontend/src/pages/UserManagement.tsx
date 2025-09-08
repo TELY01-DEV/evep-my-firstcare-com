@@ -46,6 +46,8 @@ import {
   Group as GroupIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import AvatarUpload from '../components/AvatarUpload';
+import unifiedApi from '../services/unifiedApi';
 
 interface User {
   id: string;
@@ -58,6 +60,7 @@ interface User {
   phone?: string;
   license_number?: string;
   qualifications?: string[];
+  avatar?: string;
   is_active: boolean;
   last_login?: string;
   created_at: string;
@@ -82,7 +85,7 @@ interface UserListResponse {
 
 const UserManagement: React.FC = () => {
   const theme = useTheme();
-  const { token } = useAuth();
+  const { token, refreshToken, isTokenExpired } = useAuth();
   
   // State management
   const [users, setUsers] = useState<User[]>([]);
@@ -116,6 +119,7 @@ const UserManagement: React.FC = () => {
     role: '',
     department: '',
     phone: '',
+    avatar: '',
     is_active: true
   });
   
@@ -126,12 +130,23 @@ const UserManagement: React.FC = () => {
     severity: 'success' as 'success' | 'error' | 'info' | 'warning'
   });
 
-  // API base URL
-  const API_BASE = 'http://localhost:8014/api/v1';
+  // Using unified API service
+
+  // Helper function to ensure valid token
+  const ensureValidToken = async () => {
+    if (isTokenExpired()) {
+      console.log('Token expired, attempting refresh...');
+      const refreshed = await refreshToken();
+      if (!refreshed) {
+        throw new Error('Session expired. Please login again.');
+      }
+    }
+  };
 
   // Fetch users
   const fetchUsers = async () => {
     try {
+      console.log('fetchUsers called - token:', token ? 'present' : 'missing');
       setLoading(true);
       const params = new URLSearchParams({
         page: page.toString(),
@@ -141,18 +156,9 @@ const UserManagement: React.FC = () => {
         ...(statusFilter && { is_active: statusFilter === 'active' ? 'true' : 'false' })
       });
 
-      const response = await fetch(`${API_BASE}/user-management/?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: UserListResponse = await response.json();
+      console.log('Fetching users from:', `https://stardust.evep.my-firstcare.com/api/v1/user-management/?${params}`);
+      const response = await unifiedApi.get(`/api/v1/user-management/?${params}`);
+      const data: UserListResponse = response.data;
       setUsers(data.users);
       setTotal(data.total);
       setTotalPages(data.total_pages);
@@ -166,17 +172,9 @@ const UserManagement: React.FC = () => {
   // Fetch statistics
   const fetchStatistics = async () => {
     try {
-      const response = await fetch(`${API_BASE}/user-management/statistics/overview`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setStatistics(data);
-      }
+      const response = await unifiedApi.get('/api/v1/user-management/statistics/overview');
+      const data = response.data;
+      setStatistics(data);
     } catch (err) {
       console.error('Failed to fetch statistics:', err);
     }
@@ -185,7 +183,15 @@ const UserManagement: React.FC = () => {
   // Create user
   const createUser = async () => {
     try {
-      const response = await fetch(`${API_BASE}/user-management/`, {
+      console.log('Creating user with data:', formData);
+      console.log('Using token:', token ? 'present' : 'missing');
+      
+      // Validate required fields
+      if (!formData.email || !formData.password || !formData.first_name || !formData.last_name || !formData.role) {
+        throw new Error('Please fill in all required fields');
+      }
+
+      const response = await fetch(`https://stardust.evep.my-firstcare.com/api/v1/user-management/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -194,10 +200,22 @@ const UserManagement: React.FC = () => {
         body: JSON.stringify(formData)
       });
 
+      console.log('Create user response status:', response.status);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to create user');
+        let errorMessage = 'Failed to create user';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorMessage;
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
+
+      const result = await response.json();
+      console.log('User created successfully:', result);
 
       setSnackbar({
         open: true,
@@ -210,9 +228,119 @@ const UserManagement: React.FC = () => {
       fetchUsers();
       fetchStatistics();
     } catch (err) {
+      console.error('Create user error:', err);
       setSnackbar({
         open: true,
         message: err instanceof Error ? err.message : 'Failed to create user',
+        severity: 'error'
+      });
+    }
+  };
+
+  // Update user
+  const updateUser = async () => {
+    if (!selectedUser) return;
+    
+    try {
+      const updateData = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        role: formData.role,
+        department: formData.department,
+        phone: formData.phone,
+        avatar: formData.avatar,
+        is_active: formData.is_active
+      };
+
+      const response = await fetch(`https://stardust.evep.my-firstcare.com/api/v1/user-management/${selectedUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updateData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to update user');
+      }
+
+      setSnackbar({
+        open: true,
+        message: 'User updated successfully',
+        severity: 'success'
+      });
+      
+      setEditDialogOpen(false);
+      setSelectedUser(null);
+      resetForm();
+      fetchUsers();
+      fetchStatistics();
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: err instanceof Error ? err.message : 'Failed to update user',
+        severity: 'error'
+      });
+    }
+  };
+
+  // Toggle user status (activate/deactivate)
+  const toggleUserStatus = async (userId: string, currentStatus: boolean) => {
+    try {
+      console.log(`Toggling user status - ID: ${userId}, Current: ${currentStatus}`);
+      console.log('Token available:', token ? 'yes' : 'no');
+      
+      // Ensure we have a valid token
+      await ensureValidToken();
+      
+      const endpoint = currentStatus 
+        ? `https://stardust.evep.my-firstcare.com/api/v1/user-management/${userId}` 
+        : `https://stardust.evep.my-firstcare.com/api/v1/user-management/${userId}/activate`;
+      
+      const method = currentStatus ? 'DELETE' : 'POST';
+
+      console.log(`Making ${method} request to: ${endpoint}`);
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('Toggle status response:', response.status, response.statusText);
+
+      if (!response.ok) {
+        let errorMessage = `Failed to ${currentStatus ? 'deactivate' : 'activate'} user`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorMessage;
+        } catch (parseError) {
+          console.error('Error parsing error response:', parseError);
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('Toggle status result:', result);
+
+      setSnackbar({
+        open: true,
+        message: `User ${currentStatus ? 'deactivated' : 'activated'} successfully`,
+        severity: 'success'
+      });
+      
+      fetchUsers();
+      fetchStatistics();
+    } catch (err) {
+      console.error('Toggle status error:', err);
+      setSnackbar({
+        open: true,
+        message: err instanceof Error ? err.message : 'Failed to update user status',
         severity: 'error'
       });
     }
@@ -228,6 +356,7 @@ const UserManagement: React.FC = () => {
       role: '',
       department: '',
       phone: '',
+      avatar: '',
       is_active: true
     });
   };
@@ -235,6 +364,8 @@ const UserManagement: React.FC = () => {
   // Get role color
   const getRoleColor = (role: string) => {
     const colors: Record<string, string> = {
+      super_admin: 'error',
+      system_admin: 'error',
       medical_admin: 'error',
       doctor: 'primary',
       nurse: 'secondary',
@@ -249,6 +380,8 @@ const UserManagement: React.FC = () => {
   // Get role display name
   const getRoleDisplayName = (role: string) => {
     const names: Record<string, string> = {
+      super_admin: 'Super Admin',
+      system_admin: 'System Admin',
       medical_admin: 'Medical Admin',
       doctor: 'Doctor',
       nurse: 'Nurse',
@@ -265,6 +398,18 @@ const UserManagement: React.FC = () => {
     fetchUsers();
     fetchStatistics();
   }, [page, limit, search, roleFilter, statusFilter]);
+
+  console.log('UserManagement render - users:', users.length, 'loading:', loading);
+
+  // Add error boundary for DOM issues
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('UserManagement DOM error:', event.error);
+    };
+    
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
 
   if (loading && users.length === 0) {
     return (
@@ -384,10 +529,18 @@ const UserManagement: React.FC = () => {
                 fullWidth
                 placeholder="Search users..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  try {
+                    setSearch(e.target.value);
+                  } catch (error) {
+                    console.error('Search input error:', error);
+                  }
+                }}
                 InputProps={{
                   startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
                 }}
+                id="user-search-input"
+                data-testid="user-search-input"
               />
             </Grid>
             
@@ -400,6 +553,8 @@ const UserManagement: React.FC = () => {
                   label="Role"
                 >
                   <MenuItem value="">All Roles</MenuItem>
+                  <MenuItem value="super_admin">Super Admin</MenuItem>
+                  <MenuItem value="system_admin">System Admin</MenuItem>
                   <MenuItem value="medical_admin">Medical Admin</MenuItem>
                   <MenuItem value="doctor">Doctor</MenuItem>
                   <MenuItem value="nurse">Nurse</MenuItem>
@@ -471,12 +626,16 @@ const UserManagement: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id} hover>
+                {users && users.length > 0 ? users.map((user) => (
+                  <TableRow key={user.id || `user-${Math.random()}`}>
                     <TableCell>
                       <Box display="flex" alignItems="center" gap={2}>
-                        <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
-                          {user.first_name[0]}{user.last_name[0]}
+                        <Avatar 
+                          src={user.avatar} 
+                          sx={{ width: 40, height: 40 }}
+                          alt={`${user.first_name} ${user.last_name}`}
+                        >
+                          {!user.avatar && `${user.first_name?.[0] || 'U'}${user.last_name?.[0] || 'U'}`}
                         </Avatar>
                         <Box>
                           <Typography variant="subtitle2" fontWeight="bold">
@@ -524,26 +683,84 @@ const UserManagement: React.FC = () => {
                     </TableCell>
                     
                     <TableCell>
-                      <Box display="flex" gap={1}>
+                      <Box display="flex" gap={1} alignItems="center">
                         <Tooltip title="View Details">
-                          <IconButton size="small">
+                          <IconButton 
+                            size="medium"
+                            sx={{ 
+                              border: '1px solid #ccc',
+                              '&:hover': { backgroundColor: 'primary.light' }
+                            }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              console.log('View button clicked for user:', user);
+                              setSelectedUser(user);
+                              setViewDialogOpen(true);
+                            }}
+                          >
                             <ViewIcon />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Edit User">
-                          <IconButton size="small">
+                          <IconButton 
+                            size="medium"
+                            sx={{ 
+                              border: '1px solid #ccc',
+                              '&:hover': { backgroundColor: 'warning.light' }
+                            }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              console.log('Edit button clicked for user:', user);
+                              setSelectedUser(user);
+                              setFormData({
+                                email: user.email,
+                                password: '',
+                                first_name: user.first_name,
+                                last_name: user.last_name,
+                                role: user.role,
+                                department: user.department || '',
+                                phone: user.phone || '',
+                                avatar: user.avatar || '',
+                                is_active: user.is_active
+                              });
+                              setEditDialogOpen(true);
+                            }}
+                          >
                             <EditIcon />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Deactivate User">
-                          <IconButton size="small" color="error">
-                            <BlockIcon />
+                        <Tooltip title={user.is_active ? "Deactivate User" : "Activate User"}>
+                          <IconButton 
+                            size="medium"
+                            sx={{ 
+                              border: '1px solid #ccc',
+                              '&:hover': { backgroundColor: user.is_active ? 'error.light' : 'success.light' }
+                            }}
+                            color={user.is_active ? "error" : "success"}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              console.log('Toggle status button clicked for user:', user);
+                              toggleUserStatus(user.id, user.is_active);
+                            }}
+                          >
+                            {user.is_active ? <BlockIcon /> : <CheckCircleIcon />}
                           </IconButton>
                         </Tooltip>
                       </Box>
                     </TableCell>
                   </TableRow>
-                ))}
+                )) : (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center">
+                      <Typography variant="body2" color="text.secondary">
+                        No users found
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </TableContainer>
@@ -562,11 +779,232 @@ const UserManagement: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Edit User Dialog */}
+      <Dialog open={editDialogOpen} onClose={() => {
+        setEditDialogOpen(false);
+        setSelectedUser(null);
+        resetForm();
+      }} maxWidth="md" fullWidth>
+        <DialogTitle>Edit User</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            {/* Avatar Upload Section */}
+            <Grid item xs={12} display="flex" justifyContent="center" mb={2}>
+              <AvatarUpload
+                currentAvatar={formData.avatar}
+                userId={selectedUser?.id || "edit-user"}
+                size="large"
+                editable={true}
+                onAvatarUpdate={(avatarUrl) => {
+                  setFormData({ ...formData, avatar: avatarUrl });
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="First Name"
+                value={formData.first_name}
+                onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                required
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Last Name"
+                value={formData.last_name}
+                onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                required
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Email"
+                type="email"
+                value={formData.email}
+                disabled
+                helperText="Email cannot be changed"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="New Password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                helperText="Leave blank to keep current password"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth required>
+                <InputLabel>Role</InputLabel>
+                <Select
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  label="Role"
+                >
+                  <MenuItem value="super_admin">Super Admin</MenuItem>
+                  <MenuItem value="system_admin">System Admin</MenuItem>
+                  <MenuItem value="medical_admin">Medical Admin</MenuItem>
+                  <MenuItem value="doctor">Doctor</MenuItem>
+                  <MenuItem value="nurse">Nurse</MenuItem>
+                  <MenuItem value="optometrist">Optometrist</MenuItem>
+                  <MenuItem value="technician">Technician</MenuItem>
+                  <MenuItem value="coordinator">Coordinator</MenuItem>
+                  <MenuItem value="assistant">Assistant</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Department"
+                value={formData.department}
+                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Phone"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.is_active}
+                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                  />
+                }
+                label="Active User"
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setEditDialogOpen(false);
+            setSelectedUser(null);
+            resetForm();
+          }}>Cancel</Button>
+          <Button onClick={updateUser} variant="contained">Update User</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* View User Dialog */}
+      <Dialog open={viewDialogOpen} onClose={() => {
+        setViewDialogOpen(false);
+        setSelectedUser(null);
+      }} maxWidth="md" fullWidth>
+        <DialogTitle>User Details</DialogTitle>
+        <DialogContent>
+          {selectedUser && (
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} display="flex" justifyContent="center" mb={2}>
+                <Avatar
+                  src={selectedUser.avatar}
+                  sx={{ width: 120, height: 120 }}
+                  alt={`${selectedUser.first_name} ${selectedUser.last_name}`}
+                >
+                  {!selectedUser.avatar && `${selectedUser.first_name?.[0] || 'U'}${selectedUser.last_name?.[0] || 'U'}`}
+                </Avatar>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="text.secondary">Name</Typography>
+                <Typography variant="body1">{selectedUser.first_name} {selectedUser.last_name}</Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="text.secondary">Email</Typography>
+                <Typography variant="body1">{selectedUser.email}</Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="text.secondary">Role</Typography>
+                <Chip
+                  label={getRoleDisplayName(selectedUser.role)}
+                  color={getRoleColor(selectedUser.role) as any}
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="text.secondary">Department</Typography>
+                <Typography variant="body1">{selectedUser.department || 'Not specified'}</Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="text.secondary">Specialization</Typography>
+                <Typography variant="body1">{selectedUser.specialization || 'Not specified'}</Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="text.secondary">Phone</Typography>
+                <Typography variant="body1">{selectedUser.phone || 'Not specified'}</Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="text.secondary">License Number</Typography>
+                <Typography variant="body1">{selectedUser.license_number || 'Not specified'}</Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="text.secondary">Status</Typography>
+                <Chip
+                  label={selectedUser.is_active ? 'Active' : 'Inactive'}
+                  color={selectedUser.is_active ? 'success' : 'default'}
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="text.secondary">Qualifications</Typography>
+                <Box display="flex" gap={1} flexWrap="wrap" mt={1}>
+                  {selectedUser.qualifications && selectedUser.qualifications.length > 0 ? (
+                    selectedUser.qualifications.map((qual, index) => (
+                      <Chip key={index} label={qual} size="small" variant="outlined" />
+                    ))
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">No qualifications specified</Typography>
+                  )}
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="text.secondary">Created At</Typography>
+                <Typography variant="body1">{new Date(selectedUser.created_at).toLocaleDateString()}</Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="text.secondary">Last Login</Typography>
+                <Typography variant="body1">
+                  {selectedUser.last_login ? new Date(selectedUser.last_login).toLocaleDateString() : 'Never'}
+                </Typography>
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setViewDialogOpen(false);
+            setSelectedUser(null);
+          }}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Create User Dialog */}
       <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>Create New User</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
+            {/* Avatar Upload Section */}
+            <Grid item xs={12} display="flex" justifyContent="center" mb={2}>
+              <AvatarUpload
+                currentAvatar={formData.avatar}
+                userId="new-user"
+                size="large"
+                editable={true}
+                onAvatarUpdate={(avatarUrl) => {
+                  setFormData({ ...formData, avatar: avatarUrl });
+                }}
+              />
+            </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
@@ -613,6 +1051,8 @@ const UserManagement: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                   label="Role"
                 >
+                  <MenuItem value="super_admin">Super Admin</MenuItem>
+                  <MenuItem value="system_admin">System Admin</MenuItem>
                   <MenuItem value="medical_admin">Medical Admin</MenuItem>
                   <MenuItem value="doctor">Doctor</MenuItem>
                   <MenuItem value="nurse">Nurse</MenuItem>

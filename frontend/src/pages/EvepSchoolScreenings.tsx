@@ -66,6 +66,7 @@ import {
 } from '@mui/icons-material';
 
 import { useAuth } from '../contexts/AuthContext';
+import { API_ENDPOINTS } from '../config/api';
 
 interface SchoolScreening {
   screening_id: string;
@@ -211,17 +212,25 @@ const EvepSchoolScreenings: React.FC = () => {
 
   const fetchSchoolScreenings = async () => {
     try {
-      const response = await fetch('http://localhost:8014/api/v1/evep/school-screenings', {
+      const response = await fetch(API_ENDPOINTS.EVEP_SCHOOL_SCREENINGS, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
+      if (!response.ok) {
+        // Handle non-200 responses (like 403, 401, etc.)
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
-      setScreenings(data || []);
+      // Ensure data is always an array
+      setScreenings(Array.isArray(data) ? data : (data.screenings || []));
     } catch (error) {
       console.error('Error fetching school screenings:', error);
       setScreenings([]);
       setSnackbar({
         open: true,
-        message: 'Failed to fetch school screenings',
+        message: `Failed to fetch school screenings: ${error instanceof Error ? error.message : 'Unknown error'}`,
         severity: 'error'
       });
     } finally {
@@ -231,13 +240,19 @@ const EvepSchoolScreenings: React.FC = () => {
 
   const fetchStudents = async () => {
     try {
-      const response = await fetch('http://localhost:8014/api/v1/evep/students', {
+      const response = await fetch(API_ENDPOINTS.EVEP_STUDENTS, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
       
       // Filter students based on user role
-      let filteredStudents = data.students || [];
+      let filteredStudents = Array.isArray(data) ? data : (data.students || []);
       
       if (user?.role === 'teacher') {
         // For teachers, only show their assigned students
@@ -246,7 +261,7 @@ const EvepSchoolScreenings: React.FC = () => {
         );
       } else if (user?.role === 'medical_staff') {
         // For medical staff, show all students
-        filteredStudents = data.students || [];
+        filteredStudents = Array.isArray(data) ? data : (data.students || []);
       }
       
       setStudents(filteredStudents);
@@ -258,11 +273,17 @@ const EvepSchoolScreenings: React.FC = () => {
 
   const fetchTeachers = async () => {
     try {
-      const response = await fetch('http://localhost:8014/api/v1/evep/teachers', {
+      const response = await fetch(API_ENDPOINTS.EVEP_TEACHERS, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
-      setTeachers(data.teachers || []);
+      setTeachers(Array.isArray(data) ? data : (data.teachers || []));
     } catch (error) {
       console.error('Error fetching teachers:', error);
       setTeachers([]);
@@ -455,19 +476,8 @@ const EvepSchoolScreenings: React.FC = () => {
         }
       ];
 
-      const screeningData = {
-        results: transformedResults,
-        status: 'completed',
-        notes: screeningResults.notes || formData.notes,
-        recommendations: screeningResults.recommendations,
-        conclusion: screeningResults.notes, // Use notes as conclusion
-        referral_needed: screeningResults.follow_up_required,
-        referral_notes: screeningResults.follow_up_date ? `Follow-up date: ${screeningResults.follow_up_date}` : null
-      };
-
-      console.log('Saving screening data:', screeningData);
-
       if (editingScreening) {
+        // Update existing screening
         const screeningId = editingScreening.screening_id;
         if (!screeningId) {
           setSnackbar({
@@ -478,14 +488,25 @@ const EvepSchoolScreenings: React.FC = () => {
           return;
         }
         
-        console.log('Updating screening with ID:', screeningId);
-        const response = await fetch(`http://localhost:8014/api/v1/evep/school-screenings/${screeningId}`, {
+        const updateData = {
+          results: transformedResults,
+          status: 'completed',
+          notes: screeningResults.notes || formData.notes,
+          recommendations: screeningResults.recommendations,
+          conclusion: screeningResults.notes, // Use notes as conclusion
+          referral_needed: screeningResults.follow_up_required,
+          referral_notes: screeningResults.follow_up_date ? `Follow-up date: ${screeningResults.follow_up_date}` : null
+        };
+
+        console.log('Updating screening with ID:', screeningId, 'Data:', updateData);
+        
+        const response = await fetch(`${API_ENDPOINTS.EVEP_SCHOOL_SCREENINGS}/${screeningId}`, {
           method: 'PUT',
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(screeningData)
+          body: JSON.stringify(updateData)
         });
         
         console.log('Update response status:', response.status);
@@ -505,23 +526,119 @@ const EvepSchoolScreenings: React.FC = () => {
           severity: 'success'
         });
       } else {
-        const response = await fetch('http://localhost:8014/api/v1/evep/school-screenings', {
+        // Create new screening - need to get student and teacher info first
+        if (!formData.patient_id) {
+          setSnackbar({
+            open: true,
+            message: 'Please select a student',
+            severity: 'error'
+          });
+          return;
+        }
+
+        if (!formData.examiner_id) {
+          setSnackbar({
+            open: true,
+            message: 'Please select a teacher/examiner',
+            severity: 'error'
+          });
+          return;
+        }
+
+        if (!formData.screening_type) {
+          setSnackbar({
+            open: true,
+            message: 'Please select a screening type',
+            severity: 'error'
+          });
+          return;
+        }
+
+        // Get student info to find school_id
+        const selectedStudent = students.find(s => s.id === formData.patient_id);
+        if (!selectedStudent) {
+          setSnackbar({
+            open: true,
+            message: 'Selected student not found',
+            severity: 'error'
+          });
+          return;
+        }
+
+        // For now, we'll need to get the school_id from the student or teacher
+        // This might need to be adjusted based on your data structure
+        const selectedTeacher = teachers.find(t => t.id === formData.examiner_id);
+        if (!selectedTeacher) {
+          setSnackbar({
+            open: true,
+            message: 'Selected teacher not found',
+            severity: 'error'
+          });
+          return;
+        }
+
+        // Create the basic screening first
+        const createData = {
+          student_id: formData.patient_id,
+          teacher_id: formData.examiner_id,
+          school_id: selectedTeacher.school || selectedStudent.school_name, // Adjust based on your data structure
+          screening_type: formData.screening_type,
+          screening_date: new Date().toISOString(),
+          notes: formData.notes || ''
+        };
+
+        console.log('Creating screening with data:', createData);
+
+        const createResponse = await fetch(API_ENDPOINTS.EVEP_SCHOOL_SCREENINGS, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(screeningData)
+          body: JSON.stringify(createData)
         });
         
-        if (!response.ok) {
-          const errorData = await response.json();
+        if (!createResponse.ok) {
+          const errorData = await createResponse.json();
+          console.error('Create error:', errorData);
           throw new Error(`Creation failed: ${errorData.detail || 'Unknown error'}`);
+        }
+        
+        const createResult = await createResponse.json();
+        console.log('Create result:', createResult);
+        
+        // Now update the screening with results
+        const screeningId = createResult.screening_id;
+        const updateData = {
+          results: transformedResults,
+          status: 'completed',
+          notes: screeningResults.notes || formData.notes,
+          recommendations: screeningResults.recommendations,
+          conclusion: screeningResults.notes,
+          referral_needed: screeningResults.follow_up_required,
+          referral_notes: screeningResults.follow_up_date ? `Follow-up date: ${screeningResults.follow_up_date}` : null
+        };
+
+        console.log('Updating new screening with results:', updateData);
+
+        const updateResponse = await fetch(`${API_ENDPOINTS.EVEP_SCHOOL_SCREENINGS}/${screeningId}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(updateData)
+        });
+
+        if (!updateResponse.ok) {
+          const errorData = await updateResponse.json();
+          console.error('Update results error:', errorData);
+          throw new Error(`Failed to save screening results: ${errorData.detail || 'Unknown error'}`);
         }
         
         setSnackbar({
           open: true,
-          message: 'School screening created successfully!',
+          message: 'School screening created and completed successfully!',
           severity: 'success'
         });
       }
@@ -554,7 +671,7 @@ const EvepSchoolScreenings: React.FC = () => {
     
     if (window.confirm('Are you sure you want to delete this school screening?')) {
       try {
-        await fetch(`http://localhost:8014/api/v1/evep/school-screenings/${screeningId}`, {
+        await fetch(`${API_ENDPOINTS.EVEP_SCHOOL_SCREENINGS}/${screeningId}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -589,7 +706,7 @@ const EvepSchoolScreenings: React.FC = () => {
   };
 
   // Filter function for screenings
-  const filteredScreenings = screenings.filter(screening => {
+  const filteredScreenings = (Array.isArray(screenings) ? screenings : []).filter(screening => {
     // Filter by status
     if (filterStatus !== 'all' && screening.status !== filterStatus) {
       return false;

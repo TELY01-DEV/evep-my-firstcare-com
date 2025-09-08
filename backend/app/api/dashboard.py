@@ -4,50 +4,22 @@ from datetime import datetime, timedelta
 from bson import ObjectId
 from app.core.config import settings
 from app.core.database import get_database
-import jwt
-import os
-from fastapi import HTTPException, status, Depends
-from fastapi.security import HTTPBearer
+from app.core.db_rbac import has_permission_db, has_role_db, has_any_role_db
+from app.api.auth import get_current_user
 from app.utils.blockchain import generate_blockchain_hash
 from app.utils.timezone import get_current_thailand_time
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
-async def verify_dashboard_token(token: str = Depends(HTTPBearer())):
-    """Simple token verification for dashboard endpoints"""
-    try:
-        # Use the same JWT secret and algorithm as AuthService
-        jwt_secret = os.getenv("JWT_SECRET_KEY", "hardcoded_secret_key")
-        payload = jwt.decode(token.credentials, jwt_secret, algorithms=["HS256"])
-        
-        # Extract user information
-        user_id = payload.get("user_id")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token payload")
-        
-        # Return user data in the expected format
-        return {
-            "id": user_id,
-            "email": payload.get("email", ""),
-            "role": payload.get("role", ""),
-            "organization": payload.get("organization", "")
-        }
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    except Exception:
-        raise HTTPException(status_code=401, detail="Token verification failed")
-
 @router.get("/stats")
-async def get_dashboard_stats(current_user: dict = Depends(verify_dashboard_token)):
+async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     """Get dashboard statistics based on user role"""
     try:
         db = get_database()
         
         # Get user role and organization
         user_role = current_user.get("role")
-        user_id = current_user.get("id")  # AuthModule returns "id" not "user_id"
+        user_id = current_user.get("user_id")  # JWT payload contains "user_id"
         organization = current_user.get("organization")
         
         # Initialize stats
@@ -66,119 +38,165 @@ async def get_dashboard_stats(current_user: dict = Depends(verify_dashboard_toke
             "recentActivity": []
         }
         
-        # Get patients count based on role
-        if user_role == "admin":
-            # Admin sees all patients
+        # Get patients count based on database RBAC permissions
+        if user_role == "super_admin" or await has_permission_db(user_id, "full_access") or await has_permission_db(user_id, "view_all_data") or await has_permission_db(user_id, "*"):
+            # Super admin and users with view_all_data permission see all patients
             stats["totalPatients"] = await db.evep["patients"].count_documents({})
-        elif user_role == "doctor":
-            # Doctor sees patients in their organization
-            if organization:
-                stats["totalPatients"] = await db.evep["patients"].count_documents({
-                    "organization": organization
+        elif await has_permission_db(user_id, "view_patients"):
+            # Users with view_patients permission see patients based on their scope
+            if await has_role_db(user_id, "doctor"):
+                # Doctor sees patients in their organization
+                if organization:
+                    stats["totalPatients"] = await db.evep["patients"].count_documents({
+                        "organization": organization
+                    })
+                else:
+                    stats["totalPatients"] = await db.evep["patients"].count_documents({
+                        "created_by": ObjectId(user_id)
+                    })
+            elif await has_role_db(user_id, "teacher"):
+                # Teacher sees students in their class/school
+                if organization:
+                    stats["totalPatients"] = await db.evep.students.count_documents({
+                        "school_name": organization
+                    })
+            elif await has_role_db(user_id, "parent"):
+                # Parent sees only their children
+                stats["totalPatients"] = await db.evep.students.count_documents({
+                    "parent_id": ObjectId(user_id)
                 })
             else:
+                # Default: users with view_patients permission see their own patients
                 stats["totalPatients"] = await db.evep["patients"].count_documents({
                     "created_by": ObjectId(user_id)
                 })
-        elif user_role == "teacher":
-            # Teacher sees students in their class/school
-            if organization:
-                stats["totalPatients"] = await db.evep["evep.students"].count_documents({
-                    "school_name": organization
-                })
-        elif user_role == "parent":
-            # Parent sees only their children
-            stats["totalPatients"] = await db.evep["evep.students"].count_documents({
-                "parent_id": ObjectId(user_id)
-            })
         
-        # Get screenings count based on role
-        if user_role == "admin":
-            stats["totalScreenings"] = await db.evep["screenings"].count_documents({})
-            stats["pendingScreenings"] = await db.evep["screenings"].count_documents({
+        # Get screenings count based on database RBAC permissions
+        if user_role == "super_admin" or await has_permission_db(user_id, "full_access") or await has_permission_db(user_id, "view_all_data") or await has_permission_db(user_id, "*"):
+            # Super admin and users with view_all_data permission see all screenings
+            stats["totalScreenings"] = await db.evep.screenings.count_documents({})
+            stats["pendingScreenings"] = await db.evep.screenings.count_documents({
                 "status": "pending"
             })
-            stats["completedScreenings"] = await db.evep["screenings"].count_documents({
+            stats["completedScreenings"] = await db.evep.screenings.count_documents({
                 "status": "completed"
             })
-        elif user_role == "doctor":
-            if organization:
-                stats["totalScreenings"] = await db.evep["screenings"].count_documents({
-                    "organization": organization
-                })
-                stats["pendingScreenings"] = await db.evep["screenings"].count_documents({
-                    "organization": organization,
-                    "status": "pending"
-                })
-                stats["completedScreenings"] = await db.evep["screenings"].count_documents({
-                    "organization": organization,
-                    "status": "completed"
-                })
+        elif await has_permission_db(user_id, "manage_screenings") or await has_permission_db(user_id, "view_screenings"):
+            # Users with screening permissions see screenings based on their scope
+            if await has_role_db(user_id, "doctor"):
+                if organization:
+                    stats["totalScreenings"] = await db.evep.screenings.count_documents({
+                        "organization": organization
+                    })
+                    stats["pendingScreenings"] = await db.evep.screenings.count_documents({
+                        "organization": organization,
+                        "status": "pending"
+                    })
+                    stats["completedScreenings"] = await db.evep.screenings.count_documents({
+                        "organization": organization,
+                        "status": "completed"
+                    })
+                else:
+                    stats["totalScreenings"] = await db.evep.screenings.count_documents({
+                        "examiner_id": ObjectId(user_id)
+                    })
+                    stats["pendingScreenings"] = await db.evep.screenings.count_documents({
+                        "examiner_id": ObjectId(user_id),
+                        "status": "pending"
+                    })
+                    stats["completedScreenings"] = await db.evep.screenings.count_documents({
+                        "examiner_id": ObjectId(user_id),
+                        "status": "completed"
+                    })
+            elif await has_role_db(user_id, "teacher"):
+                if organization:
+                    # Teachers see school screenings for their school
+                    stats["totalScreenings"] = await db.evep["school_screenings"].count_documents({
+                        "school_name": organization
+                    })
+                    stats["pendingScreenings"] = await db.evep["school_screenings"].count_documents({
+                        "school_name": organization,
+                        "status": "pending"
+                    })
+                    stats["completedScreenings"] = await db.evep["school_screenings"].count_documents({
+                        "school_name": organization,
+                        "status": "completed"
+                    })
+            elif await has_role_db(user_id, "parent"):
+                # Get screenings for parent's children
+                children = await db.evep.students.find(
+                    {"parent_id": ObjectId(user_id)},
+                    {"_id": 1}
+                ).to_list(None)
+                
+                if children:
+                    children_ids = [child["_id"] for child in children]
+                    stats["totalScreenings"] = await db.evep["school_screenings"].count_documents({
+                        "student_id": {"$in": children_ids}
+                    })
+                    stats["pendingScreenings"] = await db.evep["school_screenings"].count_documents({
+                        "student_id": {"$in": children_ids},
+                        "status": "pending"
+                    })
+                    stats["completedScreenings"] = await db.evep["school_screenings"].count_documents({
+                        "student_id": {"$in": children_ids},
+                        "status": "completed"
+                    })
             else:
-                stats["totalScreenings"] = await db.evep["screenings"].count_documents({
+                # Default: users with screening permissions see their own screenings
+                stats["totalScreenings"] = await db.evep.screenings.count_documents({
                     "examiner_id": ObjectId(user_id)
                 })
-                stats["pendingScreenings"] = await db.evep["screenings"].count_documents({
+                stats["pendingScreenings"] = await db.evep.screenings.count_documents({
                     "examiner_id": ObjectId(user_id),
                     "status": "pending"
                 })
-                stats["completedScreenings"] = await db.evep["screenings"].count_documents({
+                stats["completedScreenings"] = await db.evep.screenings.count_documents({
                     "examiner_id": ObjectId(user_id),
-                    "status": "completed"
-                })
-        elif user_role == "teacher":
-            if organization:
-                # Teachers see school screenings for their school
-                stats["totalScreenings"] = await db.evep["school_screenings"].count_documents({
-                    "school_name": organization
-                })
-                stats["pendingScreenings"] = await db.evep["school_screenings"].count_documents({
-                    "school_name": organization,
-                    "status": "pending"
-                })
-                stats["completedScreenings"] = await db.evep["school_screenings"].count_documents({
-                    "school_name": organization,
-                    "status": "completed"
-                })
-        elif user_role == "parent":
-            # Get screenings for parent's children
-            children = await db.evep["evep.students"].find(
-                {"parent_id": ObjectId(user_id)},
-                {"_id": 1}
-            ).to_list(None)
-            
-            if children:
-                children_ids = [child["_id"] for child in children]
-                stats["totalScreenings"] = await db.evep["school_screenings"].count_documents({
-                    "student_id": {"$in": children_ids}
-                })
-                stats["pendingScreenings"] = await db.evep["school_screenings"].count_documents({
-                    "student_id": {"$in": children_ids},
-                    "status": "pending"
-                })
-                stats["completedScreenings"] = await db.evep["school_screenings"].count_documents({
-                    "student_id": {"$in": children_ids},
                     "status": "completed"
                 })
         
-        # Get EVEP-specific statistics (students, teachers, schools)
-        if user_role == "admin":
-            # Count students, teachers, and schools
-            stats["totalStudents"] = await db.evep["evep.students"].count_documents({"status": "active"})
-            stats["totalTeachers"] = await db.evep["evep.teachers"].count_documents({"status": "active"})
-            stats["totalSchools"] = await db.evep["evep.schools"].count_documents({"status": "active"})
+        # Get EVEP-specific statistics (students, teachers, schools) based on database RBAC
+        print(f"DEBUG: Checking permissions for user {user_id}, role: {user_role}")
+        
+        # For now, use simple role check for super_admin
+        if user_role == "super_admin" or await has_permission_db(user_id, "full_access") or await has_permission_db(user_id, "view_all_data") or await has_permission_db(user_id, "*"):
+            # Users with view_all_data permission see all EVEP statistics
+            stats["totalStudents"] = await db.evep.students.count_documents({"status": "active"})
+            stats["totalTeachers"] = await db.evep.teachers.count_documents({"status": "active"})
+            stats["totalSchools"] = await db.evep.schools.count_documents({"status": "active"})
             
             # Count school screenings
             stats["totalSchoolScreenings"] = await db.evep["school_screenings"].count_documents({})
             
             # Count vision screenings (from screenings collection)
-            stats["totalVisionScreenings"] = await db.evep["screenings"].count_documents({})
+            stats["totalVisionScreenings"] = await db.evep.screenings.count_documents({})
             
             # Count standard vision screenings (completed screenings)
-            stats["totalStandardVisionScreenings"] = await db.evep["screenings"].count_documents({"status": "completed"})
+            stats["totalStandardVisionScreenings"] = await db.evep.screenings.count_documents({"status": "completed"})
             
             # Count hospital mobile unit (pending screenings)
-            stats["totalHospitalMobileUnit"] = await db.evep["screenings"].count_documents({"status": "pending"})
+            stats["totalHospitalMobileUnit"] = await db.evep.screenings.count_documents({"status": "pending"})
+        elif await has_permission_db(user_id, "manage_school_data"):
+            # Users with school data management permissions see school-related statistics
+            if organization:
+                # Filter by organization if user has one
+                stats["totalStudents"] = await db.evep.students.count_documents({
+                    "status": "active",
+                    "school_name": organization
+                })
+                stats["totalTeachers"] = await db.evep.teachers.count_documents({
+                    "status": "active",
+                    "school_name": organization
+                })
+                stats["totalSchoolScreenings"] = await db.evep["school_screenings"].count_documents({
+                    "school_name": organization
+                })
+            else:
+                # Show all school data if no organization filter
+                stats["totalStudents"] = await db.evep.students.count_documents({"status": "active"})
+                stats["totalTeachers"] = await db.evep.teachers.count_documents({"status": "active"})
+                stats["totalSchoolScreenings"] = await db.evep["school_screenings"].count_documents({})
         
         # Get recent activity
         recent_activity = await get_recent_activity(db, current_user)
@@ -215,23 +233,23 @@ async def get_recent_activity(db, current_user: dict) -> List[Dict[str, Any]]:
     """Get recent activity based on user role"""
     try:
         user_role = current_user.get("role")
-        user_id = current_user.get("user_id")
+        user_id = current_user.get("id")
         organization = current_user.get("organization")
         
         activities = []
         
         # Get recent screenings
         screening_filter = {}
-        if user_role == "doctor":
+        if await has_role_db(user_id, "doctor") or await has_permission_db(user_id, "manage_screenings"):
             if organization:
                 screening_filter["organization"] = organization
             else:
                 screening_filter["examiner_id"] = ObjectId(user_id)
-        elif user_role == "teacher":
+        elif await has_role_db(user_id, "teacher") or await has_permission_db(user_id, "manage_school_data"):
             if organization:
                 screening_filter["school_name"] = organization
-        elif user_role == "parent":
-            children = await db.evep["evep.students"].find(
+        elif await has_role_db(user_id, "parent") or await has_permission_db(user_id, "view_patients"):
+            children = await db.evep.students.find(
                 {"parent_id": ObjectId(user_id)},
                 {"_id": 1}
             ).to_list(None)
@@ -248,7 +266,7 @@ async def get_recent_activity(db, current_user: dict) -> List[Dict[str, Any]]:
         for screening in recent_screenings:
             if user_role in ["teacher", "parent"]:
                 # For school screenings, get student info
-                student = await db.evep["evep.students"].find_one({"_id": screening["student_id"]})
+                student = await db.evep.students.find_one({"_id": screening["student_id"]})
                 patient_name = f"{student['first_name']} {student['last_name']}" if student else "Unknown Student"
             else:
                 # For regular screenings, get patient info
@@ -265,15 +283,15 @@ async def get_recent_activity(db, current_user: dict) -> List[Dict[str, Any]]:
         
         # Get recent patient registrations
         patient_filter = {}
-        if user_role == "doctor":
+        if await has_role_db(user_id, "doctor") or await has_permission_db(user_id, "manage_screenings"):
             if organization:
                 patient_filter["organization"] = organization
             else:
                 patient_filter["created_by"] = ObjectId(user_id)
-        elif user_role == "teacher":
+        elif await has_role_db(user_id, "teacher") or await has_permission_db(user_id, "manage_school_data"):
             if organization:
                 patient_filter["organization"] = organization
-        elif user_role == "parent":
+        elif await has_role_db(user_id, "parent") or await has_permission_db(user_id, "view_patients"):
             patient_filter["parent_id"] = ObjectId(user_id)
         
         recent_patients = await db.evep["patients"].find(
@@ -298,11 +316,12 @@ async def get_recent_activity(db, current_user: dict) -> List[Dict[str, Any]]:
         return []
 
 @router.get("/analytics")
-async def get_dashboard_analytics(current_user: dict = Depends(verify_dashboard_token)):
+async def get_dashboard_analytics(current_user: dict = Depends(get_current_user)):
     """Get detailed analytics for dashboard charts"""
     try:
         db = get_database()
         user_role = current_user.get("role")
+        user_id = current_user.get("id")
         organization = current_user.get("organization")
         
         # Get date range (last 30 days)
@@ -317,7 +336,8 @@ async def get_dashboard_analytics(current_user: dict = Depends(verify_dashboard_
             }
         }
         
-        if user_role != "admin" and organization:
+        # Apply organization filter based on database RBAC permissions
+        if not await has_permission_db(user_id, "view_all_data") and not await has_permission_db(user_id, "*") and organization:
             filter_query["organization"] = organization
         
         # Get daily screening counts
@@ -337,7 +357,7 @@ async def get_dashboard_analytics(current_user: dict = Depends(verify_dashboard_
             {"$sort": {"_id": 1}}
         ]
         
-        daily_screenings = await db.evep["screenings"].aggregate(pipeline).to_list(None)
+        daily_screenings = await db.evep.screenings.aggregate(pipeline).to_list(None)
         
         # Get screening results distribution
         results_pipeline = [
@@ -350,7 +370,7 @@ async def get_dashboard_analytics(current_user: dict = Depends(verify_dashboard_
             }
         ]
         
-        results_distribution = await db.evep["screenings"].aggregate(results_pipeline).to_list(None)
+        results_distribution = await db.evep.screenings.aggregate(results_pipeline).to_list(None)
         
         analytics = {
             "dailyScreenings": daily_screenings,

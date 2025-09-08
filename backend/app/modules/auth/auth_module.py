@@ -87,6 +87,10 @@ class AuthModule(BaseModule):
         async def get_current_user(token: str = Depends(HTTPBearer())):
             return await self._get_current_user(token)
         
+        @self.router.put("/profile/avatar")
+        async def update_avatar(avatar_data: dict, token: str = Depends(HTTPBearer())):
+            return await self._update_avatar(avatar_data, token)
+        
         # User management routes
         @self.router.get("/users")
         async def get_users(skip: int = 0, limit: int = 100):
@@ -210,6 +214,9 @@ class AuthModule(BaseModule):
                     return {
                         "id": str(admin_user["_id"]),
                         "email": admin_user["email"],
+                        "first_name": admin_user.get("first_name", ""),
+                        "last_name": admin_user.get("last_name", ""),
+                        "avatar": admin_user.get("avatar"),
                         "name": admin_user.get("name", ""),
                         "role": admin_user["role"],
                         "status": "active" if admin_user.get("is_active", True) else "inactive"
@@ -230,10 +237,59 @@ class AuthModule(BaseModule):
                     return {
                         "id": str(user["_id"]),
                         "email": user["email"],
+                        "first_name": user.get("first_name", ""),
+                        "last_name": user.get("last_name", ""),
+                        "avatar": user.get("avatar"),
                         "name": name,
                         "role": user["role"],
                         "status": "active" if user.get("is_active", True) else "inactive"
                     }
+            except:
+                pass
+            
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Authentication error: {str(e)}")
+    
+    async def _update_avatar(self, avatar_data: dict, token: str):
+        """Update user avatar"""
+        try:
+            # Verify the token and get user data
+            payload = self.auth_service.verify_jwt_token(token.credentials)
+            if not payload:
+                raise HTTPException(status_code=401, detail="Invalid token")
+            
+            user_id = payload.get("user_id")
+            if not user_id:
+                raise HTTPException(status_code=401, detail="Invalid token payload")
+            
+            avatar_url = avatar_data.get("avatar_url", "")
+            
+            # Try to update in admin_users collection first
+            from bson import ObjectId
+            from datetime import datetime
+            
+            try:
+                result = await self.auth_service.db.admin_users.update_one(
+                    {"_id": ObjectId(user_id)},
+                    {"$set": {"avatar": avatar_url, "updated_at": datetime.now().isoformat()}}
+                )
+                if result.matched_count > 0:
+                    return {"success": True, "message": "Avatar updated successfully", "avatar_url": avatar_url}
+            except:
+                pass
+            
+            # If not found in admin_users, try users collection
+            try:
+                result = await self.auth_service.db.users.update_one(
+                    {"_id": ObjectId(user_id)},
+                    {"$set": {"avatar": avatar_url, "updated_at": datetime.now().isoformat()}}
+                )
+                if result.matched_count > 0:
+                    return {"success": True, "message": "Avatar updated successfully", "avatar_url": avatar_url}
             except:
                 pass
             

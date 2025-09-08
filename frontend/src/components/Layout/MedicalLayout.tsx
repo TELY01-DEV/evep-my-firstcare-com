@@ -19,6 +19,7 @@ import {
   Badge,
   Chip,
 } from '@mui/material';
+import ChatBotButton from '../ChatBot/ChatBotButton';
 import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
@@ -49,6 +50,9 @@ import {
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../../contexts/AuthContext';
+import { ADMIN_PANEL_URL } from '../../config/constants';
+import RBACMenuManager from '../RBAC/RBACMenuManager';
+import { filterMenuByRole } from '../../utils/rbacMenuConfig';
 
 const drawerWidth = 280;
 
@@ -257,11 +261,11 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
           description: 'View all users',
         },
         {
-          text: 'Create User',
+          text: 'User Management',
           icon: <AddIcon />,
-          path: '/dashboard/user-management',
+          path: '/dashboard/user-management/management',
           badge: null,
-          description: 'Add new user',
+          description: 'Manage users (CRUD)',
         },
       ],
     },
@@ -349,7 +353,7 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
     ...(isSystemAdmin() ? [{
       text: 'Admin Panel',
       icon: <SettingsIcon />,
-      path: 'http://localhost:3015',
+      path: ADMIN_PANEL_URL,
       badge: 'System',
       external: true,
     }] : []),
@@ -398,8 +402,24 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
         </Box>
       </Box>
 
-      {/* Navigation Menu */}
-      <List sx={{ padding: theme.spacing(2, 0) }}>
+      {/* RBAC-Aware Navigation Menu */}
+      <RBACMenuManager
+        menuItems={menuItems}
+        expandedMenus={expandedMenus}
+        onToggleExpand={handleMenuToggle}
+        onNavigate={(path, external) => {
+          if (external) {
+            window.open(path, '_blank');
+          } else {
+            navigate(path);
+          }
+        }}
+        currentPath={location.pathname}
+        showAccessSummary={false}
+      />
+
+      {/* Original Menu (Hidden) - Keeping for reference */}
+      <List sx={{ padding: theme.spacing(2, 0), display: 'none' }}>
         {menuItems.map((item) => {
           return (
             <React.Fragment key={item.text}>
@@ -998,6 +1018,9 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
         <Toolbar />
         <Outlet />
       </Box>
+      
+      {/* Chat Bot Button */}
+      <ChatBotButton />
       
       {/* Copyright Footer */}
       <Box

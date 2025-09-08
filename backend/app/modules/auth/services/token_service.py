@@ -8,7 +8,10 @@ class TokenService:
     def __init__(self):
         self.config = Config.get_module_config("auth")
         # Use the same JWT secret as the main security module
-        self.jwt_secret = os.getenv("JWT_SECRET_KEY", "hardcoded_secret_key")
+        jwt_secret = os.getenv("JWT_SECRET_KEY")
+        if not jwt_secret:
+            raise ValueError("JWT_SECRET_KEY environment variable is required")
+        self.jwt_secret = jwt_secret
         self.jwt_expires_in = self.config.get("config", {}).get("jwt_expires_in", "24h")
         self.refresh_expires_in = self.config.get("config", {}).get("refresh_expires_in", "7d")
         

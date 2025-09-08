@@ -7,6 +7,7 @@ import { Toaster } from 'react-hot-toast';
 
 // Context
 import { AuthProvider } from './contexts/AuthContext';
+import SystemLoadingIndicator from './components/SystemStartup/SystemLoadingIndicator';
 
 // Pages
 import Dashboard from './pages/Dashboard';
@@ -18,9 +19,14 @@ import MedicalReports from './pages/MedicalReports';
 import AIInsights from './pages/AIInsights';
 import SecurityAudit from './components/SecurityAudit';
 import MedicalStaff from './pages/MedicalStaff';
+import MedicalStaffDirectory from './pages/MedicalStaffDirectory';
 import GeneralPanelSettings from './pages/GeneralPanelSettings';
 import RBACManagement from './pages/RBACManagement';
 import UserManagement from './pages/UserManagement';
+import UserDirectory from './pages/UserDirectory';
+
+// RBAC Components
+import RBACRoute from './components/RBAC/RBACRoute';
 
 // Admin Pages
 import Admin from './pages/Admin';
@@ -68,12 +74,30 @@ const queryClient = new QueryClient({
 function App() {
   const portalConfig = getPortalConfig();
   const isAdmin = isAdminPortal();
+  const [systemReady, setSystemReady] = React.useState(false);
+  const [systemError, setSystemError] = React.useState<string | null>(null);
+  const [showSystemLoader, setShowSystemLoader] = React.useState(true);
 
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider theme={evepTheme}>
           <CssBaseline />
+          
+          {/* System Loading Indicator */}
+          {showSystemLoader && (
+            <SystemLoadingIndicator
+              onComplete={() => {
+                setSystemReady(true);
+                setShowSystemLoader(false);
+              }}
+              onError={(error) => {
+                setSystemError(error);
+                setShowSystemLoader(false);
+              }}
+            />
+          )}
+          
           <Router>
             <div className="App">
               <Routes>
@@ -132,36 +156,109 @@ function App() {
                       <Route path="analytics" element={<AIInsights />} />
                       <Route path="security" element={<SecurityAudit />} />
                       
-                      {/* School Management Routes */}
-                      <Route path="evep/parents" element={<EvepParents />} />
-                      <Route path="evep/students" element={<EvepStudents />} />
-                      <Route path="evep/teachers" element={<EvepTeachers />} />
-                      <Route path="evep/schools" element={<EvepSchools />} />
-                      <Route path="evep/school-screenings" element={<EvepSchoolScreenings />} />
-                      <Route path="evep/appointments" element={<AppointmentScheduler />} />
+                      {/* School Management Routes - RBAC Protected */}
+                      <Route path="evep/parents" element={
+                        <RBACRoute requiredPath="/dashboard/evep/parents">
+                          <EvepParents />
+                        </RBACRoute>
+                      } />
+                      <Route path="evep/students" element={
+                        <RBACRoute requiredPath="/dashboard/evep/students">
+                          <EvepStudents />
+                        </RBACRoute>
+                      } />
+                      <Route path="evep/teachers" element={
+                        <RBACRoute requiredPath="/dashboard/evep/teachers">
+                          <EvepTeachers />
+                        </RBACRoute>
+                      } />
+                      <Route path="evep/schools" element={
+                        <RBACRoute requiredPath="/dashboard/evep/schools">
+                          <EvepSchools />
+                        </RBACRoute>
+                      } />
+                      <Route path="evep/school-screenings" element={
+                        <RBACRoute requiredPath="/dashboard/evep/school-screenings">
+                          <EvepSchoolScreenings />
+                        </RBACRoute>
+                      } />
+                      <Route path="evep/appointments" element={
+                        <RBACRoute requiredPath="/dashboard/evep/appointments">
+                          <AppointmentScheduler />
+                        </RBACRoute>
+                      } />
                       
-                      {/* Medical Screening Routes */}
-                      <Route path="medical-screening/patient-registration" element={<StudentToPatientRegistration />} />
-                      <Route path="medical-screening/va-screening" element={<VAScreeningInterface />} />
-                      <Route path="medical-screening/diagnosis" element={<div>Diagnosis & Treatment</div>} />
+                      {/* Medical Screening Routes - RBAC Protected */}
+                      <Route path="medical-screening/patient-registration" element={
+                        <RBACRoute requiredPath="/dashboard/medical-screening/patient-registration">
+                          <StudentToPatientRegistration />
+                        </RBACRoute>
+                      } />
+                      <Route path="medical-screening/va-screening" element={
+                        <RBACRoute requiredPath="/dashboard/medical-screening/va-screening">
+                          <VAScreeningInterface />
+                        </RBACRoute>
+                      } />
+                      <Route path="medical-screening/diagnosis" element={
+                        <RBACRoute requiredPath="/dashboard/medical-screening/diagnosis">
+                          <div>Diagnosis & Treatment</div>
+                        </RBACRoute>
+                      } />
                       
-                      {/* Glasses Management Routes */}
-                              <Route path="glasses-management/inventory" element={<GlassesInventoryManager mode="inventory" />} />
-        <Route path="glasses-management/delivery" element={<GlassesInventoryManager mode="delivery" />} />
+                      {/* Glasses Management Routes - RBAC Protected */}
+                      <Route path="glasses-management/inventory" element={
+                        <RBACRoute requiredPath="/dashboard/glasses-management/inventory">
+                          <GlassesInventoryManager mode="inventory" />
+                        </RBACRoute>
+                      } />
+                      <Route path="glasses-management/delivery" element={
+                        <RBACRoute requiredPath="/dashboard/glasses-management/delivery">
+                          <GlassesInventoryManager mode="delivery" />
+                        </RBACRoute>
+                      } />
+
+                      {/* Medical Staff Management Routes - RBAC Protected */}
+                      <Route path="medical-staff" element={
+                        <RBACRoute requiredPath="/dashboard/medical-staff">
+                          <MedicalStaffDirectory />
+                        </RBACRoute>
+                      } />
+                      <Route path="medical-staff/management" element={
+                        <RBACRoute requiredPath="/dashboard/medical-staff/management">
+                          <MedicalStaff />
+                        </RBACRoute>
+                      } />
                       
-                      {/* Medical Staff Management Routes */}
-                      <Route path="medical-staff" element={<MedicalStaff />} />
-                      <Route path="medical-staff/management" element={<MedicalStaff />} />
+                      {/* LINE Bot Management Routes - RBAC Protected */}
+                      <Route path="line-notifications" element={
+                        <RBACRoute requiredPath="/dashboard/line-notifications">
+                          <LineNotificationManager />
+                        </RBACRoute>
+                      } />
                       
-                      {/* LINE Bot Management Routes */}
-                      <Route path="line-notifications" element={<LineNotificationManager />} />
+                      {/* Panel Settings Routes - RBAC Protected */}
+                      <Route path="panel-settings/general" element={
+                        <RBACRoute requiredPath="/dashboard/panel-settings/general">
+                          <GeneralPanelSettings />
+                        </RBACRoute>
+                      } />
+                      <Route path="panel-settings/rbac" element={
+                        <RBACRoute requiredPath="/dashboard/panel-settings/rbac">
+                          <RBACManagement />
+                        </RBACRoute>
+                      } />
                       
-                      {/* Panel Settings Routes */}
-                      <Route path="panel-settings/general" element={<GeneralPanelSettings />} />
-                      <Route path="panel-settings/rbac" element={<RBACManagement />} />
-                      
-                      {/* User Management Routes */}
-                      <Route path="user-management" element={<UserManagement />} />
+                      {/* User Management Routes - RBAC Protected */}
+                      <Route path="user-management" element={
+                        <RBACRoute requiredPath="/dashboard/user-management">
+                          <UserDirectory />
+                        </RBACRoute>
+                      } />
+                      <Route path="user-management/management" element={
+                        <RBACRoute requiredPath="/dashboard/user-management/management">
+                          <UserManagement />
+                        </RBACRoute>
+                      } />
                     </Route>
 
                     {/* Admin routes */}

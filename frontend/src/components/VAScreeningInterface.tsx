@@ -33,6 +33,8 @@ import {
   ExpandMore
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import RBACScreeningForm from './RBAC/RBACScreeningForm';
+import RBACScreeningDropdown from './RBAC/RBACScreeningDropdown';
 import axios from 'axios';
 
 interface VAScreeningInterfaceProps {
@@ -251,7 +253,12 @@ const VAScreeningInterface: React.FC<VAScreeningInterfaceProps> = ({
   };
 
   return (
-    <Box>
+    <RBACScreeningForm
+      screeningType="VA Screening"
+      requiredPath="/screening/va-interface"
+      showAccessInfo={true}
+    >
+      <Box>
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
@@ -286,20 +293,13 @@ const VAScreeningInterface: React.FC<VAScreeningInterfaceProps> = ({
             // Start Screening Form
             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth required>
-                  <InputLabel>Screening Type</InputLabel>
-                  <Select
-                    value={screeningType}
-                    label="Screening Type"
-                    onChange={(e) => setScreeningType(e.target.value)}
-                  >
-                    <MenuItem value="comprehensive">Comprehensive Eye Screening</MenuItem>
-                    <MenuItem value="distance">Distance Vision Screening</MenuItem>
-                    <MenuItem value="near">Near Vision Screening</MenuItem>
-                    <MenuItem value="color">Color Vision Screening</MenuItem>
-                    <MenuItem value="depth">Depth Perception Screening</MenuItem>
-                  </Select>
-                </FormControl>
+                <RBACScreeningDropdown
+                  label="Screening Type"
+                  value={screeningType}
+                  onChange={setScreeningType}
+                  required
+                  showAccessInfo
+                />
               </Grid>
 
               <Grid item xs={12} md={6}>
@@ -590,6 +590,7 @@ const VAScreeningInterface: React.FC<VAScreeningInterfaceProps> = ({
         </CardContent>
       </Card>
     </Box>
+    </RBACScreeningForm>
   );
 };
 

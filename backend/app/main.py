@@ -34,14 +34,21 @@ from app.api.patient_registration import router as patient_registration_router
 from app.api.va_screening import router as va_screening_router
 from app.api.glasses_inventory import router as glasses_inventory_router
 from app.api.delivery_management import router as delivery_management_router
+from app.api.glasses_delivery import router as glasses_delivery_router
 from app.api.insights import router as insights_router
 from app.api.mobile_screening import router as mobile_screening_router
 from app.api.medical_staff import router as medical_staff_router
-# from app.api.panel_settings import router as panel_settings_router
+from app.api.panel_settings import router as panel_settings_router
 from app.api.rbac import router as rbac_router
+from app.api.rbac_mongodb import router as rbac_mongodb_router
 from app.api.user_management import router as user_management_router
+from app.api.medical_staff_management import router as medical_staff_management_router
 from app.api.admin_user_management import router as admin_user_management_router
 from app.api.admin_rbac import router as admin_rbac_router
+from app.api.cdn import router as cdn_router
+from app.api.chat_bot import router as chat_bot_router
+from app.api.csv_export import router as csv_export_router
+from app.api.specialized_screenings import router as specialized_screenings_router
 
 # Import medical security API
 from app.api.medical_security import get_medical_security_events, get_medical_security_stats
@@ -72,7 +79,7 @@ app.add_middleware(
         "http://localhost:3015",      # Admin Panel
         "http://localhost:3001",      # Development
         "https://portal.evep.my-firstcare.com",  # Production
-        "*"  # Allow all for development
+        "https://stardust.evep.my-firstcare.com"  # API domain
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -170,9 +177,14 @@ async def startup_event():
     app.include_router(admin_router, prefix="/api/v1", tags=["admin"])
     logger.info("Admin API router included successfully!")
     
-    # Auth router is now handled by AuthModule
+    # Auth router is now handled by AuthModule, but include fallback
     # app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
     # logger.info("Auth API router included successfully!")
+    
+    # Fallback: Include auth router directly in case module system fails
+    from app.api.auth import router as auth_router
+    app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
+    logger.info("Auth API router included as fallback!")
     
     # Include EVEP API router
     app.include_router(evep_router, prefix="/api/v1/evep", tags=["evep"])
@@ -214,14 +226,18 @@ async def startup_event():
     app.include_router(va_screening_router, prefix="/api/v1", tags=["va_screening"])
     logger.info("VA Screening API router included successfully!")
     
-    # Include glasses inventory API router
+        # Include glasses inventory API router
     app.include_router(glasses_inventory_router, prefix="/api/v1", tags=["glasses_inventory"])
     logger.info("Glasses Inventory API router included successfully!")
-    
+
     # Include delivery management API router
     app.include_router(delivery_management_router, prefix="/api/v1", tags=["delivery_management"])
     logger.info("Delivery Management API router included successfully!")
-    
+
+    # Include glasses delivery API router
+    app.include_router(glasses_delivery_router, prefix="/api/v1", tags=["glasses_delivery"])
+    logger.info("Glasses Delivery API router included successfully!")
+
     # Include mobile screening API router
     app.include_router(mobile_screening_router, prefix="/api/v1", tags=["mobile_screening"])
     logger.info("Mobile Screening API router included successfully!")
@@ -231,16 +247,23 @@ async def startup_event():
     logger.info("Medical Staff Management API router included successfully!")
     
     # Include panel settings API router
-    # app.include_router(panel_settings_router, prefix="/api/v1/panel-settings", tags=["panel_settings"])
+    app.include_router(panel_settings_router, prefix="/api/v1/panel-settings", tags=["panel_settings"])
     logger.info("Panel Settings API router included successfully!")
     
-    # Include RBAC management API router
+    # Include RBAC management API router (file-based)
     app.include_router(rbac_router, prefix="/api/v1/rbac", tags=["rbac"])
     logger.info("RBAC Management API router included successfully!")
+    
+    # Include MongoDB RBAC management API router
+    app.include_router(rbac_mongodb_router, prefix="/api/v1/rbac-mongodb", tags=["rbac_mongodb"])
+    logger.info("MongoDB RBAC Management API router included successfully!")
     
     # Include User Management API router
     app.include_router(user_management_router, prefix="/api/v1/user-management", tags=["user_management"])
     logger.info("User Management API router included successfully!")
+    
+    app.include_router(medical_staff_management_router, prefix="/api/v1/medical-staff-management", tags=["medical_staff_management"])
+    logger.info("Medical Staff Management API router included successfully!")
     
     # Include Admin User Management API router
     app.include_router(admin_user_management_router, prefix="/api/v1/admin/user-management", tags=["admin_user_management"])
@@ -249,6 +272,20 @@ async def startup_event():
     # Include Admin RBAC Management API router
     app.include_router(admin_rbac_router, prefix="/api/v1/admin/rbac", tags=["admin_rbac"])
     logger.info("Admin RBAC Management API router included successfully!")
+    
+    # Include CDN API router
+    app.include_router(cdn_router, prefix="/api/v1/cdn", tags=["cdn"])
+    logger.info("CDN API router included successfully!")
+    
+    app.include_router(chat_bot_router, prefix="/api/v1/chat-bot", tags=["chat-bot"])
+    
+    # Include CSV export API router
+    app.include_router(csv_export_router, prefix="/api/v1", tags=["csv-export"])
+    logger.info("CSV Export API router included successfully!")
+    
+    # Include specialized screenings API router
+    app.include_router(specialized_screenings_router, prefix="/api/v1", tags=["specialized_screenings"])
+    logger.info("Specialized Screenings API router included successfully!")
     
     # Add medical portal security endpoints
     @app.get("/api/v1/medical/security/events", tags=["medical-security"])

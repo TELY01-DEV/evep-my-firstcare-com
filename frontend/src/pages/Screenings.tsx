@@ -37,6 +37,8 @@ import {
   Fab,
   Breadcrumbs,
   Link,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import {
   Add,
@@ -63,6 +65,9 @@ import { useAuth } from '../contexts/AuthContext';
 import MobileVisionScreeningForm from '../components/MobileVisionScreeningForm';
 import StandardVisionScreeningForm from '../components/StandardVisionScreeningForm';
 import EnhancedScreeningInterface from '../components/EnhancedScreeningInterface';
+import RBACScreeningForm from '../components/RBAC/RBACScreeningForm';
+import { hasMenuAccess } from '../utils/rbacMenuConfig';
+import { API_ENDPOINTS } from '../config/api';
 
 interface ScreeningSession {
   _id: string;
@@ -122,6 +127,29 @@ const Screenings: React.FC = () => {
   const [enhancedScreeningDialogOpen, setEnhancedScreeningDialogOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   
+  // CRUD Dialog states
+  const [viewResultsDialogOpen, setViewResultsDialogOpen] = useState(false);
+  const [editScreeningDialogOpen, setEditScreeningDialogOpen] = useState(false);
+  const [deleteConfirmDialogOpen, setDeleteConfirmDialogOpen] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<ScreeningSession | null>(null);
+
+  // Helper function to ensure results have all required fields
+  const createCompleteResults = (existingResults: Partial<ScreeningResults> | undefined, updates: Partial<ScreeningResults>): ScreeningResults => {
+    return {
+      left_eye_distance: '',
+      right_eye_distance: '',
+      left_eye_near: '',
+      right_eye_near: '',
+      color_vision: 'normal' as const,
+      depth_perception: 'normal' as const,
+      notes: '',
+      recommendations: '',
+      follow_up_required: false,
+      ...existingResults,
+      ...updates
+    };
+  };
+  
   // Form states
   const [screeningType, setScreeningType] = useState('');
   const [equipmentUsed, setEquipmentUsed] = useState('');
@@ -155,7 +183,7 @@ const Screenings: React.FC = () => {
       const token = localStorage.getItem('evep_token');
       
       // Fetch screening sessions
-      const sessionsResponse = await fetch('http://localhost:8014/api/v1/screenings/sessions/', {
+      const sessionsResponse = await fetch(API_ENDPOINTS.SCREENINGS_SESSIONS, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -171,7 +199,7 @@ const Screenings: React.FC = () => {
       }
 
       // Fetch patients (students)
-      const patientsResponse = await fetch('http://localhost:8014/api/v1/evep/students', {
+      const patientsResponse = await fetch(API_ENDPOINTS.EVEP_STUDENTS, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -190,10 +218,51 @@ const Screenings: React.FC = () => {
     }
   };
 
-  const handleStartScreening = () => {
-    setActiveStep(0);
-    setCurrentSession(null);
-    setScreeningDialogOpen(true);
+  const handleStartScreening = async () => {
+    if (!selectedPatient || !screeningType) {
+      setError('Please select a patient and screening type');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('evep_token');
+      
+      const screeningData = {
+        patient_id: selectedPatient._id,
+        patient_name: `${selectedPatient.first_name} ${selectedPatient.last_name}`,
+        screening_type: screeningType,
+        equipment_used: equipmentUsed,
+        status: 'in_progress',
+        start_time: new Date().toISOString(),
+        notes: results.notes
+      };
+
+      const response = await fetch(API_ENDPOINTS.SCREENINGS_SESSIONS, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(screeningData),
+      });
+
+      if (response.ok) {
+        const newScreening = await response.json();
+        setSessions(prev => [newScreening, ...prev]);
+        setSuccess('Screening session started successfully!');
+        setScreeningDialogOpen(false);
+        resetScreeningForm();
+      } else {
+        const errorData = await response.json();
+        setError(errorData.detail || 'Failed to start screening session');
+      }
+    } catch (error) {
+      console.error('Error starting screening:', error);
+      setError('Failed to start screening session');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleStartMobileScreening = () => {
@@ -250,7 +319,7 @@ const Screenings: React.FC = () => {
         status: 'completed'
       };
 
-      const response = await fetch('http://localhost:8014/api/v1/screenings/sessions', {
+      const response = await fetch(API_ENDPOINTS.SCREENINGS_SESSIONS, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -276,7 +345,6 @@ const Screenings: React.FC = () => {
   };
 
   const resetScreeningForm = () => {
-    setActiveStep(0);
     setSelectedPatient(null);
     setScreeningType('');
     setEquipmentUsed('');
@@ -291,6 +359,7 @@ const Screenings: React.FC = () => {
       recommendations: '',
       follow_up_required: false,
     });
+    setActiveStep(0);
   };
 
   const getStatusColor = (status: string) => {
@@ -326,8 +395,108 @@ const Screenings: React.FC = () => {
   const getScreeningTypeIcon = (type: string) => {
     if (type.toLowerCase().includes('mobile')) {
       return <LocalHospital />;
+    } else if (type.toLowerCase().includes('standard')) {
+      return <Assessment />;
+    } else if (type.toLowerCase().includes('enhanced')) {
+      return <Visibility />;
     }
     return <Assessment />;
+  };
+
+  // CRUD action handlers for Recent Screening Sessions
+  const handleViewResults = (session: ScreeningSession) => {
+    setSelectedSession(session);
+    setViewResultsDialogOpen(true);
+  };
+
+  const handleContinueScreening = (session: ScreeningSession) => {
+    // Redirect to the appropriate screening form based on type
+    if (session.screening_type.toLowerCase().includes('mobile')) {
+      setSelectedSession(session);
+      setMobileScreeningPageOpen(true);
+    } else if (session.screening_type.toLowerCase().includes('standard')) {
+      setSelectedSession(session);
+      setStandardScreeningPageOpen(true);
+    } else {
+      setSelectedSession(session);
+      setEnhancedScreeningDialogOpen(true);
+    }
+  };
+
+  const handleEditScreening = (session: ScreeningSession) => {
+    setSelectedSession(session);
+    setEditScreeningDialogOpen(true);
+  };
+
+  const handleDeleteScreening = (session: ScreeningSession) => {
+    setSelectedSession(session);
+    setDeleteConfirmDialogOpen(true);
+  };
+
+  const handleSaveScreeningChanges = async () => {
+    if (!selectedSession || !selectedSession._id) {
+      console.error('Cannot save screening: selectedSession or _id is missing', selectedSession);
+      setError('Cannot save screening: Session ID is missing');
+      return;
+    }
+    
+    try {
+      setSaving(true);
+      setError(null);
+      
+      const token = localStorage.getItem('evep_token');
+      
+      // Prepare the updated session data
+      const updatedSession = {
+        ...selectedSession,
+        updated_at: new Date().toISOString()
+      };
+      
+      const response = await fetch(`${API_ENDPOINTS.SCREENINGS_SESSIONS}/${selectedSession._id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedSession),
+      });
+      
+      if (response.ok) {
+        setSuccess('Screening session updated successfully!');
+        setEditScreeningDialogOpen(false);
+        setSelectedSession(null);
+        fetchData(); // Refresh the data
+      } else {
+        setError('Failed to update screening session');
+      }
+    } catch (err) {
+      console.error('Update error:', err);
+      setError('Failed to update screening session');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Helper function to safely update session state
+  const updateSessionField = (field: string, value: any, subField?: string) => {
+    setSelectedSession(prev => {
+      if (!prev) return null;
+      
+      if (subField && prev.results) {
+        return {
+          ...prev,
+          results: {
+            ...prev.results,
+            [subField]: value
+          }
+        };
+      }
+      
+      return {
+        ...prev,
+        [field]: value
+      };
+    });
   };
 
   if (loading) {
@@ -341,28 +510,40 @@ const Screenings: React.FC = () => {
   // If mobile screening page is open, show the mobile screening form
   if (mobileScreeningPageOpen) {
     return (
-      <MobileVisionScreeningForm
-        onScreeningCompleted={(screening) => {
-          setSuccess('Mobile vision screening completed successfully!');
-          setMobileScreeningPageOpen(false);
-          fetchData();
-        }}
-        onCancel={() => setMobileScreeningPageOpen(false)}
-      />
+      <RBACScreeningForm
+        screeningType="Mobile Vision"
+        requiredPath="/screening/mobile-vision"
+        showAccessInfo={true}
+      >
+        <MobileVisionScreeningForm
+          onScreeningCompleted={(screening) => {
+            setSuccess('Mobile vision screening completed successfully!');
+            setMobileScreeningPageOpen(false);
+            fetchData();
+          }}
+          onCancel={() => setMobileScreeningPageOpen(false)}
+        />
+      </RBACScreeningForm>
     );
   }
 
   // If standard screening page is open, show the standard screening form
   if (standardScreeningPageOpen) {
     return (
-      <StandardVisionScreeningForm
-        onComplete={(screening: any) => {
-          setSuccess('Standard vision screening completed successfully!');
-          setStandardScreeningPageOpen(false);
-          fetchData();
-        }}
-        onCancel={() => setStandardScreeningPageOpen(false)}
-      />
+      <RBACScreeningForm
+        screeningType="Standard Vision"
+        requiredPath="/screening/standard-vision"
+        showAccessInfo={true}
+      >
+        <StandardVisionScreeningForm
+          onComplete={(screening: any) => {
+            setSuccess('Standard vision screening completed successfully!');
+            setStandardScreeningPageOpen(false);
+            fetchData();
+          }}
+          onCancel={() => setStandardScreeningPageOpen(false)}
+        />
+      </RBACScreeningForm>
     );
   }
 
@@ -401,31 +582,37 @@ const Screenings: React.FC = () => {
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="outlined"
-            startIcon={<Assessment />}
-            onClick={handleStartStandardScreening}
-            sx={{ borderRadius: 2 }}
-          >
-            Standard Screening
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<LocalHospital />}
-            onClick={handleStartMobileScreening}
-            sx={{ borderRadius: 2 }}
-          >
-            Mobile Unit Screening
-          </Button>
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<Visibility />}
-            onClick={() => setEnhancedScreeningDialogOpen(true)}
-            sx={{ borderRadius: 2 }}
-          >
-            Enhanced Screening
-          </Button>
+          {hasMenuAccess(user?.role || '', '/screening/standard-vision') && (
+            <Button
+              variant="outlined"
+              startIcon={<Assessment />}
+              onClick={handleStartStandardScreening}
+              sx={{ borderRadius: 2 }}
+            >
+              Standard Screening
+            </Button>
+          )}
+          {hasMenuAccess(user?.role || '', '/screening/mobile-vision') && (
+            <Button
+              variant="contained"
+              startIcon={<LocalHospital />}
+              onClick={handleStartMobileScreening}
+              sx={{ borderRadius: 2 }}
+            >
+              Mobile Unit Screening
+            </Button>
+          )}
+          {hasMenuAccess(user?.role || '', '/screening/enhanced-interface') && (
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<Visibility />}
+              onClick={() => setEnhancedScreeningDialogOpen(true)}
+              sx={{ borderRadius: 2 }}
+            >
+              Enhanced Screening
+            </Button>
+          )}
         </Box>
       </Box>
 
@@ -520,20 +707,39 @@ const Screenings: React.FC = () => {
                     <TableCell>
                       <Box display="flex" gap={1}>
                         <Tooltip title="View Results">
-                          <IconButton size="small">
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleViewResults(session)}
+                          >
                             <Visibility />
                           </IconButton>
                         </Tooltip>
                         {session.status === 'in_progress' && (
                           <Tooltip title="Continue Screening">
-                            <IconButton size="small" color="primary">
+                            <IconButton 
+                              size="small" 
+                              color="primary"
+                              onClick={() => handleContinueScreening(session)}
+                            >
                               <PlayArrow />
                             </IconButton>
                           </Tooltip>
                         )}
                         <Tooltip title="Edit">
-                          <IconButton size="small">
+                          <IconButton 
+                            size="small"
+                            onClick={() => handleEditScreening(session)}
+                          >
                             <Edit />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton 
+                            size="small" 
+                            color="error"
+                            onClick={() => handleDeleteScreening(session)}
+                          >
+                            <Delete />
                           </IconButton>
                         </Tooltip>
                       </Box>
@@ -935,6 +1141,431 @@ const Screenings: React.FC = () => {
         </DialogActions>
       </Dialog>
 
+      {/* View Results Dialog */}
+      <Dialog 
+        open={viewResultsDialogOpen} 
+        onClose={() => setViewResultsDialogOpen(false)} 
+        maxWidth="md" 
+        fullWidth
+      >
+        <DialogTitle>
+          Screening Results - {selectedSession?.patient_name}
+        </DialogTitle>
+        <DialogContent>
+          {selectedSession && (
+            <Box>
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <Typography variant="h6" gutterBottom>
+                    Patient Information
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Name:</strong> {selectedSession.patient_name}<br/>
+                    <strong>Screening Type:</strong> {selectedSession.screening_type}<br/>
+                    <strong>Status:</strong> {selectedSession.status}<br/>
+                    <strong>Date:</strong> {new Date(selectedSession.created_at).toLocaleDateString()}
+                  </Typography>
+                </Grid>
+                
+                {selectedSession.results && (
+                  <Grid item xs={12}>
+                    <Typography variant="h6" gutterBottom>
+                      Screening Results
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={6}>
+                        <Typography variant="body2">
+                          <strong>Left Eye Distance:</strong> {selectedSession.results.left_eye_distance || 'Not recorded'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="body2">
+                          <strong>Right Eye Distance:</strong> {selectedSession.results.right_eye_distance || 'Not recorded'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="body2">
+                          <strong>Left Eye Near:</strong> {selectedSession.results.left_eye_near || 'Not recorded'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="body2">
+                          <strong>Right Eye Near:</strong> {selectedSession.results.right_eye_near || 'Not recorded'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="body2">
+                          <strong>Color Vision:</strong> {selectedSession.results.color_vision || 'Not recorded'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="body2">
+                          <strong>Depth Perception:</strong> {selectedSession.results.depth_perception || 'Not recorded'}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                    
+                    {selectedSession.results.notes && (
+                      <Box mt={2}>
+                        <Typography variant="body2">
+                          <strong>Notes:</strong> {selectedSession.results.notes}
+                        </Typography>
+                      </Box>
+                    )}
+                    
+                    {selectedSession.results.recommendations && (
+                      <Box mt={2}>
+                        <Typography variant="body2">
+                          <strong>Recommendations:</strong> {selectedSession.results.recommendations}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Grid>
+                )}
+                
+                {!selectedSession.results && (
+                  <Grid item xs={12}>
+                    <Typography variant="body2" color="text.secondary" textAlign="center">
+                      No detailed results available for this screening session.
+                    </Typography>
+                  </Grid>
+                )}
+              </Grid>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewResultsDialogOpen(false)}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Screening Dialog */}
+      <Dialog 
+        open={editScreeningDialogOpen} 
+        onClose={() => setEditScreeningDialogOpen(false)} 
+        maxWidth="lg" 
+        fullWidth
+      >
+        <DialogTitle>
+          Edit Screening Session - {selectedSession?.patient_name}
+        </DialogTitle>
+        <DialogContent>
+          {selectedSession && (
+            <Box sx={{ mt: 2 }}>
+              <Alert severity="warning" sx={{ mb: 3 }}>
+                <strong>Medical Record Warning:</strong> Editing screening results affects medical records. Please ensure all changes are accurate and medically appropriate.
+              </Alert>
+              
+              <Grid container spacing={3}>
+                {/* Basic Information */}
+                <Grid item xs={12}>
+                  <Typography variant="h6" gutterBottom>
+                    Basic Information
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Patient Name"
+                        value={selectedSession.patient_name}
+                        disabled
+                        margin="normal"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Screening Type"
+                        value={selectedSession.screening_type}
+                        disabled
+                        margin="normal"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth margin="normal">
+                        <InputLabel>Status</InputLabel>
+                        <Select
+                          value={selectedSession.status}
+                          label="Status"
+                          onChange={(e) => {
+                            setSelectedSession(prev => prev ? {
+                              ...prev,
+                              status: e.target.value as any
+                            } : null);
+                          }}
+                        >
+                          <MenuItem value="pending">Pending</MenuItem>
+                          <MenuItem value="in_progress">In Progress</MenuItem>
+                          <MenuItem value="completed">Completed</MenuItem>
+                          <MenuItem value="cancelled">Cancelled</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Equipment Used"
+                        value={selectedSession.equipment_used || ''}
+                        onChange={(e) => {
+                          setSelectedSession(prev => prev ? {
+                            ...prev,
+                            equipment_used: e.target.value
+                          } : null);
+                        }}
+                        margin="normal"
+                        placeholder="e.g., Snellen Chart, Ishihara Test"
+                      />
+                    </Grid>
+                  </Grid>
+                </Grid>
+
+                {/* Vision Test Results */}
+                <Grid item xs={12}>
+                  <Typography variant="h6" gutterBottom>
+                    Vision Test Results
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Left Eye Distance Vision"
+                        value={selectedSession.results?.left_eye_distance || ''}
+                        onChange={(e) => {
+                          setSelectedSession(prev => prev ? {
+                            ...prev,
+                            results: createCompleteResults(prev.results, { left_eye_distance: e.target.value })
+                          } : null);
+                        }}
+                        margin="normal"
+                        placeholder="e.g., 20/20, 20/40"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Right Eye Distance Vision"
+                        value={selectedSession.results?.right_eye_distance || ''}
+                        onChange={(e) => {
+                          setSelectedSession(prev => prev ? {
+                            ...prev,
+                            results: createCompleteResults(prev.results, { right_eye_distance: e.target.value })
+                          } : null);
+                        }}
+                        margin="normal"
+                        placeholder="e.g., 20/20, 20/40"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Left Eye Near Vision"
+                        value={selectedSession.results?.left_eye_near || ''}
+                        onChange={(e) => {
+                          setSelectedSession(prev => prev ? {
+                            ...prev,
+                            results: createCompleteResults(prev.results, { left_eye_near: e.target.value })
+                          } : null);
+                        }}
+                        margin="normal"
+                        placeholder="e.g., N8, N12"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        fullWidth
+                        label="Right Eye Near Vision"
+                        value={selectedSession.results?.right_eye_near || ''}
+                        onChange={(e) => {
+                          setSelectedSession(prev => prev ? {
+                            ...prev,
+                            results: createCompleteResults(prev.results, { right_eye_near: e.target.value })
+                          } : null);
+                        }}
+                        margin="normal"
+                        placeholder="e.g., N8, N12"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth margin="normal">
+                        <InputLabel>Color Vision</InputLabel>
+                        <Select
+                          value={selectedSession.results?.color_vision || 'normal'}
+                          label="Color Vision"
+                          onChange={(e) => {
+                                                          setSelectedSession(prev => prev ? {
+                                ...prev,
+                                results: createCompleteResults(prev.results, { color_vision: e.target.value as any })
+                              } : null);
+                          }}
+                        >
+                          <MenuItem value="normal">Normal</MenuItem>
+                          <MenuItem value="deficient">Deficient</MenuItem>
+                          <MenuItem value="failed">Failed</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth margin="normal">
+                        <InputLabel>Depth Perception</InputLabel>
+                        <Select
+                          value={selectedSession.results?.depth_perception || 'normal'}
+                          label="Depth Perception"
+                          onChange={(e) => {
+                                                          setSelectedSession(prev => prev ? {
+                                ...prev,
+                                results: createCompleteResults(prev.results, { depth_perception: e.target.value as any })
+                              } : null);
+                          }}
+                        >
+                          <MenuItem value="normal">Normal</MenuItem>
+                          <MenuItem value="impaired">Impaired</MenuItem>
+                          <MenuItem value="failed">Failed</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  </Grid>
+                </Grid>
+
+                {/* Additional Information */}
+                <Grid item xs={12}>
+                  <Typography variant="h6" gutterBottom>
+                    Additional Information
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Notes"
+                        value={selectedSession.results?.notes || ''}
+                        onChange={(e) => {
+                          setSelectedSession(prev => prev ? {
+                            ...prev,
+                            results: createCompleteResults(prev.results, { notes: e.target.value })
+                          } : null);
+                        }}
+                        margin="normal"
+                        multiline
+                        rows={3}
+                        placeholder="Additional observations, findings, or notes..."
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Recommendations"
+                        value={selectedSession.results?.recommendations || ''}
+                        onChange={(e) => {
+                          setSelectedSession(prev => prev ? {
+                            ...prev,
+                            results: createCompleteResults(prev.results, { recommendations: e.target.value })
+                          } : null);
+                        }}
+                        margin="normal"
+                        multiline
+                        rows={2}
+                        placeholder="Recommendations for follow-up care, treatment, or monitoring..."
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={selectedSession.results?.follow_up_required || false}
+                            onChange={(e) => {
+                                                              setSelectedSession(prev => prev ? {
+                                  ...prev,
+                                  results: createCompleteResults(prev.results, { follow_up_required: e.target.checked })
+                                } : null);
+                            }}
+                          />
+                        }
+                        label="Follow-up Required"
+                      />
+                    </Grid>
+                    {selectedSession.results?.follow_up_required && (
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Follow-up Date"
+                          type="date"
+                          value={selectedSession.results?.follow_up_date || ''}
+                          onChange={(e) => {
+                            setSelectedSession(prev => prev ? {
+                              ...prev,
+                              results: createCompleteResults(prev.results, { follow_up_date: e.target.value })
+                            } : null);
+                          }}
+                          margin="normal"
+                          InputLabelProps={{
+                            shrink: true,
+                          }}
+                        />
+                      </Grid>
+                    )}
+                  </Grid>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditScreeningDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={handleSaveScreeningChanges}
+            startIcon={<Save />}
+          >
+            Save Changes
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog 
+        open={deleteConfirmDialogOpen} 
+        onClose={() => setDeleteConfirmDialogOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+      >
+        <DialogTitle>
+          Confirm Deletion
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Are you sure you want to delete this screening session?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            <strong>Patient:</strong> {selectedSession?.patient_name}<br/>
+            <strong>Type:</strong> {selectedSession?.screening_type}<br/>
+            <strong>Date:</strong> {selectedSession ? new Date(selectedSession.created_at).toLocaleDateString() : ''}
+          </Typography>
+          <Typography variant="body2" color="error" sx={{ mt: 2 }}>
+            <strong>Warning:</strong> This action cannot be undone. All screening data will be permanently deleted.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirmDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="contained" 
+            color="error"
+            onClick={() => {
+              // TODO: Implement actual deletion
+              console.log('Deleting session:', selectedSession);
+              setDeleteConfirmDialogOpen(false);
+              setSelectedSession(null);
+            }}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
 
     </Box>
   );

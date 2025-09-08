@@ -8,6 +8,7 @@ from app.core.database import get_database
 from app.core.security import log_security_event
 from app.api.auth import get_current_user
 from app.utils.timezone import get_current_thailand_time
+from app.core.db_rbac import has_permission_db, has_role_db, get_user_roles_from_db
 
 router = APIRouter()
 
@@ -68,7 +69,7 @@ async def create_appointment(
     db = get_database()
     
     # Check permissions - only hospital staff can create appointments
-    if current_user["role"] not in ["medical_staff", "doctor", "admin"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to create appointments"
@@ -175,7 +176,7 @@ async def create_appointment(
 @router.get("/appointments", response_model=List[AppointmentResponse])
 async def get_appointments(
     school_id: Optional[str] = Query(None, description="Filter by school ID"),
-    status: Optional[str] = Query(None, description="Filter by status"),
+    appointment_status: Optional[str] = Query(None, description="Filter by status"),
     date_from: Optional[str] = Query(None, description="Filter from date (YYYY-MM-DD)"),
     date_to: Optional[str] = Query(None, description="Filter to date (YYYY-MM-DD)"),
     current_user: dict = Depends(get_current_user)
@@ -183,8 +184,12 @@ async def get_appointments(
     """Get appointments with optional filtering"""
     db = get_database()
     
+    # Extract user information
+    user_id = current_user.get("user_id")
+    user_role = current_user.get("role")
+    
     # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "admin", "teacher"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "admin", "teacher", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view appointments"
@@ -196,8 +201,8 @@ async def get_appointments(
     if school_id:
         query["school_id"] = ObjectId(school_id)
     
-    if status:
-        query["status"] = status
+    if appointment_status:
+        query["status"] = appointment_status
     
     if date_from:
         try:
@@ -223,7 +228,10 @@ async def get_appointments(
             )
     
     # Role-based filtering
-    if current_user["role"] == "teacher":
+    if user_role == "super_admin":
+        # Super admin can see all appointments
+        pass
+    elif await has_role_db(user_id, "teacher") or await has_permission_db(user_id, "manage_school_data"):
         # Teachers can only see appointments for their school
         teacher = await db.evep.teachers.find_one({"user_id": ObjectId(current_user["user_id"])})
         if teacher and teacher.get("school"):
@@ -284,7 +292,7 @@ async def get_appointment(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "admin", "teacher"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "admin", "teacher", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view appointments"
@@ -334,7 +342,7 @@ async def update_appointment(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "admin"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to update appointments"
@@ -412,7 +420,7 @@ async def delete_appointment(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "admin"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to delete appointments"
@@ -473,7 +481,7 @@ async def get_available_slots(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "admin", "teacher"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "admin", "teacher", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view available slots"

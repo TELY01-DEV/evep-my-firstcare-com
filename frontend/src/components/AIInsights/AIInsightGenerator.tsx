@@ -52,7 +52,7 @@ import {
   Insights,
   SmartToy,
 } from '@mui/icons-material';
-import axios from 'axios';
+import unifiedApi from '../../services/unifiedApi';
 
 interface AIInsightGeneratorProps {
   screeningData?: any;
@@ -155,14 +155,9 @@ const AIInsightGenerator: React.FC<AIInsightGeneratorProps> = ({
         insight_type: selectedInsightType,
       };
 
-      const response = await axios.post(
-        'http://localhost:8014/api/v1/ai-insights/generate-screening-insight',
-        requestData,
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('evep_token')}`,
-          },
-        }
+      const response = await unifiedApi.post(
+        '/api/v1/ai-insights/generate-screening-insight',
+        requestData
       );
 
       if (response.data.success) {

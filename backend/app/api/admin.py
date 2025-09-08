@@ -118,7 +118,7 @@ async def get_system_stats(
     """Get system statistics"""
     
     # Check if user has admin permissions
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -179,7 +179,7 @@ async def get_system_monitoring(
     """Get system monitoring metrics for the monitoring dashboard"""
     
     # Check if user has admin permissions
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -225,7 +225,7 @@ async def get_users(
     """Get all users"""
     
     # Check if user has admin permissions
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -277,7 +277,7 @@ async def create_user(
     """Create a new user"""
     
     # Check if user has admin permissions
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -309,8 +309,8 @@ async def create_user(
             "organization": user_data.organization,
             "hashed_password": hash_password(user_data.password),
             "is_active": user_data.is_active,
-            "created_at": settings.get_current_timestamp(),
-            "updated_at": settings.get_current_timestamp(),
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
             "created_by": current_user["user_id"],
             "audit_hash": audit_hash,
             "last_login": None,
@@ -326,7 +326,7 @@ async def create_user(
             "action": "user_created",
             "user_id": current_user["user_id"],
             "target_user_id": str(result.inserted_id),
-            "timestamp": settings.get_current_timestamp(),
+            "timestamp": datetime.utcnow().isoformat(),
             "audit_hash": audit_hash,
             "details": {
                 "user_email": user_data.email,
@@ -363,7 +363,7 @@ async def update_user(
     """Update a user"""
     
     # Check if user has admin permissions
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -390,7 +390,7 @@ async def update_user(
         
         # Prepare update data
         update_data = {k: v for k, v in user_data.dict().items() if v is not None}
-        update_data["updated_at"] = settings.get_current_timestamp()
+        update_data["updated_at"] = datetime.utcnow().isoformat()
         
         # Generate blockchain hash for audit
         audit_hash = generate_blockchain_hash(
@@ -415,7 +415,7 @@ async def update_user(
             "action": "user_updated",
             "user_id": current_user["user_id"],
             "target_user_id": user_id,
-            "timestamp": settings.get_current_timestamp(),
+            "timestamp": datetime.utcnow().isoformat(),
             "audit_hash": audit_hash,
             "details": {
                 "updated_fields": list(update_data.keys()),
@@ -447,7 +447,7 @@ async def update_user_status(
     """Update user status (activate/deactivate)"""
     
     # Check if user has admin permissions
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -483,7 +483,7 @@ async def update_user_status(
             {
                 "$set": {
                     "is_active": status_data.is_active,
-                    "updated_at": settings.get_current_timestamp(),
+                    "updated_at": datetime.utcnow().isoformat(),
                     "audit_hash": audit_hash
                 }
             }
@@ -500,7 +500,7 @@ async def update_user_status(
             "action": "user_status_updated",
             "user_id": current_user["user_id"],
             "target_user_id": user_id,
-            "timestamp": settings.get_current_timestamp(),
+            "timestamp": datetime.utcnow().isoformat(),
             "audit_hash": audit_hash,
             "details": {
                 "new_status": "active" if status_data.is_active else "inactive",
@@ -531,7 +531,7 @@ async def delete_user(
     """Delete a user"""
     
     # Check if user has admin permissions
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -574,7 +574,7 @@ async def delete_user(
             {
                 "$set": {
                     "is_active": False,
-                    "deleted_at": settings.get_current_timestamp(),
+                    "deleted_at": datetime.utcnow().isoformat(),
                     "audit_hash": audit_hash
                 }
             }
@@ -591,7 +591,7 @@ async def delete_user(
             "action": "user_deleted",
             "user_id": current_user["user_id"],
             "target_user_id": user_id,
-            "timestamp": settings.get_current_timestamp(),
+            "timestamp": datetime.utcnow().isoformat(),
             "audit_hash": audit_hash,
             "details": {
                 "user_email": existing_user["email"],
@@ -629,7 +629,7 @@ async def get_system_settings(current_user: dict = Depends(get_current_user)):
     """Get system settings"""
     
     # Check if user has admin permissions
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -694,7 +694,7 @@ async def get_system_settings_list(
     """Get system settings as a list for the admin panel"""
     
     # Check if user has admin permissions
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -1012,7 +1012,7 @@ async def update_system_setting(
     """Update a specific system setting"""
     
     # Check if user has admin permissions
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -1053,7 +1053,7 @@ async def create_system_setting(
     """Create a new system setting"""
     
     # Check if user has admin permissions
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -1095,7 +1095,7 @@ async def delete_system_setting(
     """Delete a system setting"""
     
     # Check if user has admin permissions
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -1133,7 +1133,7 @@ async def initialize_system_settings(
     """Initialize system settings with default values"""
     
     # Check if user has admin permissions
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -1172,7 +1172,7 @@ async def update_system_settings(
     """Update system settings"""
     
     # Check if user has admin permissions
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required"
@@ -1193,7 +1193,7 @@ async def update_system_settings(
         await audit_logs_collection.insert_one({
             "action": "settings_updated",
             "user_id": current_user["user_id"],
-            "timestamp": settings.get_current_timestamp(),
+            "timestamp": datetime.utcnow().isoformat(),
             "audit_hash": audit_hash,
             "details": {
                 "updated_by": current_user["email"],

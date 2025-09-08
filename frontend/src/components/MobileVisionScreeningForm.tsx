@@ -82,6 +82,7 @@ import {
 
 import { useAuth } from '../contexts/AuthContext';
 import DoctorDiagnosisForm from './DoctorDiagnosisForm';
+import { API_ENDPOINTS } from '../config/api';
 
 
 interface MobileVisionScreeningFormProps {
@@ -101,6 +102,11 @@ interface Patient {
   parent_consent?: boolean;
   registration_status?: 'pending' | 'registered' | 'screened';
   photos?: string[]; // Array of photo URLs/base64 strings
+  screening_status?: 'pending' | 'completed' | 'follow_up_needed';
+  follow_up_needed?: boolean;
+  registration_date?: string;
+  parent_phone?: string;
+  parent_email?: string;
 }
 
 interface VisionResults {
@@ -245,7 +251,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-              const response = await fetch('http://localhost:8014/api/v1/evep/students', {
+              const response = await fetch(API_ENDPOINTS.EVEP_STUDENTS, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -272,7 +278,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
     try {
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8014/api/v1/appointments/', {
+      const response = await fetch(API_ENDPOINTS.APPOINTMENTS, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -339,7 +345,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
         delivery_scheduled: deliveryScheduled,
       };
 
-              const response = await fetch('http://localhost:8014/api/v1/screenings/sessions/', {
+              const response = await fetch(API_ENDPOINTS.SCREENINGS_SESSIONS, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

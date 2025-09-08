@@ -11,7 +11,7 @@ MODULE_REGISTRY = {
             "version": "1.0.0",
             "dependencies": [],
             "config": {
-                "jwt_secret": os.getenv("JWT_SECRET_KEY", "hardcoded_secret_key"),
+                "jwt_secret": os.getenv("JWT_SECRET_KEY"),
                 "jwt_expires_in": "24h",
                 "bcrypt_rounds": 12,
                 "session_timeout": 3600,
@@ -206,7 +206,7 @@ class Settings(BaseSettings):
     
     # CDN Configuration
     CDN_ENABLED: bool = Field(default=True, env="CDN_ENABLED")
-    FILE_STORAGE_PATH: str = Field(default="/app/storage", env="FILE_STORAGE_PATH")
+    FILE_STORAGE_PATH: str = Field(default="/tmp/uploads", env="FILE_STORAGE_PATH")
     SECURE_FILE_ACCESS: bool = Field(default=True, env="SECURE_FILE_ACCESS")
     
     # JWT Configuration

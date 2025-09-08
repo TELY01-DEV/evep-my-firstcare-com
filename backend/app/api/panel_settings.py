@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Dict, Any, Optional
 import json
 import os
@@ -9,10 +8,8 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.api.auth import get_current_user
-from app.core.rbac import check_permission
 
 router = APIRouter()
-security = HTTPBearer()
 
 # Pydantic models for panel settings
 class PanelSettings(BaseModel):
@@ -82,9 +79,7 @@ def save_settings(settings: PanelSettings) -> bool:
         return False
 
 @router.get("/")
-@check_permission("view_panel_settings")
 async def get_panel_settings(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Get current panel settings"""
@@ -102,10 +97,8 @@ async def get_panel_settings(
         )
 
 @router.put("/")
-@check_permission("manage_panel_settings")
 async def update_panel_settings(
     settings: PanelSettings,
-    credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Update panel settings"""
@@ -130,9 +123,7 @@ async def update_panel_settings(
         )
 
 @router.post("/reset")
-@check_permission("manage_panel_settings")
 async def reset_panel_settings(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Reset panel settings to defaults"""

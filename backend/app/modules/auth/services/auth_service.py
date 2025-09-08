@@ -10,8 +10,11 @@ from app.shared.models.user import User, UserCreate, UserRole, UserStatus
 class AuthService:
     def __init__(self):
         self.config = Config.get_module_config("auth")
-        # Use the same JWT secret as the main security module
-        self.jwt_secret = os.getenv("JWT_SECRET_KEY", "hardcoded_secret_key")
+        # Use JWT secret from configuration
+        jwt_secret = os.getenv("JWT_SECRET_KEY")
+        if not jwt_secret:
+            raise ValueError("JWT_SECRET_KEY environment variable is required")
+        self.jwt_secret = jwt_secret
         print(f"🔐 AuthService JWT Secret: {self.jwt_secret[:10]}... (from env)")
         self.jwt_expires_in = self.config.get("config", {}).get("jwt_expires_in", "24h")
         self.bcrypt_rounds = self.config.get("config", {}).get("bcrypt_rounds", 12)

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends, Query, status
+from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import status as http_status
 from typing import List, Optional
 from bson import ObjectId
 from datetime import datetime, timedelta
@@ -58,7 +59,7 @@ class ConsentRequestResponse(BaseModel):
     appointment_id: str
     consent_type: str
     consent_details: str
-    status: str
+    consent_status: str
     response: Optional[str] = None
     response_notes: Optional[str] = None
     response_date: Optional[str] = None
@@ -87,9 +88,9 @@ async def send_line_notification(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "teacher", "admin"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "teacher", "admin", "super_admin"]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to send LINE notifications"
         )
     
@@ -97,7 +98,7 @@ async def send_line_notification(
     student = await db.evep.students.find_one({"_id": ObjectId(notification_data.student_id)})
     if not student:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Student not found"
         )
     
@@ -105,7 +106,7 @@ async def send_line_notification(
     parent = await db.evep.parents.find_one({"_id": ObjectId(notification_data.parent_id)})
     if not parent:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Parent not found"
         )
     
@@ -113,7 +114,7 @@ async def send_line_notification(
     appointment = await db.evep.appointments.find_one({"_id": ObjectId(notification_data.appointment_id)})
     if not appointment:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Appointment not found"
         )
     
@@ -121,7 +122,7 @@ async def send_line_notification(
     line_user_id = notification_data.line_user_id or parent.get("line_user_id")
     if not line_user_id:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail="Parent does not have LINE user ID configured"
         )
     
@@ -210,9 +211,9 @@ async def send_consent_notification(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "teacher", "admin"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "teacher", "admin", "super_admin"]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to send consent notifications"
         )
     
@@ -220,7 +221,7 @@ async def send_consent_notification(
     student = await db.evep.students.find_one({"_id": ObjectId(consent_data.student_id)})
     if not student:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Student not found"
         )
     
@@ -228,7 +229,7 @@ async def send_consent_notification(
     parent = await db.evep.parents.find_one({"_id": ObjectId(consent_data.parent_id)})
     if not parent:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Parent not found"
         )
     
@@ -236,7 +237,7 @@ async def send_consent_notification(
     appointment = await db.evep.appointments.find_one({"_id": ObjectId(consent_data.appointment_id)})
     if not appointment:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Appointment not found"
         )
     
@@ -259,7 +260,7 @@ async def send_consent_notification(
     line_user_id = parent.get("line_user_id")
     if not line_user_id:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail="Parent does not have LINE user ID configured"
         )
     
@@ -361,9 +362,9 @@ async def get_notification_status(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "teacher", "admin"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "teacher", "admin", "super_admin"]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view notification status"
         )
     
@@ -371,7 +372,7 @@ async def get_notification_status(
     notification = await db.evep.line_notifications.find_one({"_id": ObjectId(notification_id)})
     if not notification:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Notification not found"
         )
     
@@ -398,53 +399,112 @@ async def get_notification_status(
 async def get_consent_requests(
     student_id: Optional[str] = Query(None, description="Filter by student ID"),
     parent_id: Optional[str] = Query(None, description="Filter by parent ID"),
-    status: Optional[str] = Query(None, description="Filter by status"),
+    status_filter: Optional[str] = Query(None, description="Filter by status"),
     current_user: dict = Depends(get_current_user)
 ):
     """Get consent requests with optional filtering"""
-    db = get_database()
-    
-    # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "teacher", "admin"]:
+    try:
+        db = get_database()
+        
+        # Check permissions
+        if current_user["role"] not in ["medical_staff", "doctor", "teacher", "admin", "super_admin"]:
+            raise HTTPException(
+                status_code=http_status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to view consent requests"
+            )
+        
+        # Build query
+        query = {}
+        
+        if student_id:
+            try:
+                query["student_id"] = ObjectId(student_id)
+            except Exception:
+                raise HTTPException(
+                    status_code=http_status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid student ID format"
+                )
+        
+        if parent_id:
+            try:
+                query["parent_id"] = ObjectId(parent_id)
+            except Exception:
+                raise HTTPException(
+                    status_code=http_status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid parent ID format"
+                )
+        
+        if status_filter:
+            query["status"] = status_filter
+        
+        # Get consent requests
+        consent_requests = await db.evep.consent_requests.find(query).sort("created_at", -1).to_list(None)
+        
+        result = []
+        for consent in consent_requests:
+            try:
+                # Safely access fields with defaults
+                consent_id = str(consent.get("_id", ""))
+                student_id_val = str(consent.get("student_id", ""))
+                parent_id_val = str(consent.get("parent_id", ""))
+                appointment_id = str(consent.get("appointment_id", ""))
+                consent_type = consent.get("consent_type", "")
+                consent_details = consent.get("consent_details", "")
+                consent_status = consent.get("status", "")
+                
+                # Handle datetime fields safely
+                response_date = None
+                if consent.get("response_date"):
+                    try:
+                        response_date = consent["response_date"].isoformat()
+                    except (AttributeError, TypeError):
+                        response_date = None
+                
+                created_at = ""
+                if consent.get("created_at"):
+                    try:
+                        created_at = consent["created_at"].isoformat()
+                    except (AttributeError, TypeError):
+                        created_at = ""
+                
+                updated_at = ""
+                if consent.get("updated_at"):
+                    try:
+                        updated_at = consent["updated_at"].isoformat()
+                    except (AttributeError, TypeError):
+                        updated_at = ""
+                
+                result.append(ConsentRequestResponse(
+                    consent_id=consent_id,
+                    student_id=student_id_val,
+                    parent_id=parent_id_val,
+                    appointment_id=appointment_id,
+                    consent_type=consent_type,
+                    consent_details=consent_details,
+                    consent_status=consent_status,
+                    response=consent.get("response"),
+                    response_notes=consent.get("response_notes"),
+                    response_date=response_date,
+                    expiry_date=consent.get("expiry_date"),
+                    created_at=created_at,
+                    updated_at=updated_at
+                ))
+            except Exception as e:
+                # Log the error but continue processing other records
+                print(f"Error processing consent request {consent.get('_id', 'unknown')}: {str(e)}")
+                continue
+        
+        return result
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        # Handle any other unexpected errors
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions to view consent requests"
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while fetching consent requests: {str(e)}"
         )
-    
-    # Build query
-    query = {}
-    
-    if student_id:
-        query["student_id"] = ObjectId(student_id)
-    
-    if parent_id:
-        query["parent_id"] = ObjectId(parent_id)
-    
-    if status:
-        query["status"] = status
-    
-    # Get consent requests
-    consent_requests = await db.evep.consent_requests.find(query).sort("created_at", -1).to_list(None)
-    
-    result = []
-    for consent in consent_requests:
-        result.append(ConsentRequestResponse(
-            consent_id=str(consent["_id"]),
-            student_id=str(consent["student_id"]),
-            parent_id=str(consent["parent_id"]),
-            appointment_id=str(consent["appointment_id"]),
-            consent_type=consent["consent_type"],
-            consent_details=consent["consent_details"],
-            status=consent["status"],
-            response=consent.get("response"),
-            response_notes=consent.get("response_notes"),
-            response_date=consent.get("response_date").isoformat() if consent.get("response_date") else None,
-            expiry_date=consent.get("expiry_date"),
-            created_at=consent["created_at"].isoformat(),
-            updated_at=consent["updated_at"].isoformat()
-        ))
-    
-    return result
 
 
 @router.put("/consent/{consent_id}/response")
@@ -460,7 +520,7 @@ async def update_consent_response(
     consent = await db.evep.consent_requests.find_one({"_id": ObjectId(consent_id)})
     if not consent:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Consent request not found"
         )
     
@@ -480,7 +540,7 @@ async def update_consent_response(
     
     if result.matched_count == 0:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Consent request not found"
         )
     
@@ -516,9 +576,9 @@ async def get_notification_templates(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "teacher", "admin"]:
+    if current_user["role"] not in ["medical_staff", "doctor", "teacher", "admin", "super_admin"]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view notification templates"
         )
     
@@ -556,9 +616,9 @@ async def create_notification_template(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin"]:
+    if current_user["role"] not in ["admin", "super_admin"]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to create notification templates"
         )
     

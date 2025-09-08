@@ -11,7 +11,7 @@ services:
       - .env
     environment:
       - ENVIRONMENT=production
-      - MONGODB_URL=mongodb://mongo-primary:27017/evep
+      - MONGODB_URL=mongodb://admin:Sim!44335599@mongo-primary:27017,mongo-secondary-1:27017,mongo-secondary-2:27017/evep?replicaSet=rs0&authSource=admin
       - REDIS_URL=redis://redis-master-1:6379
       - AI_SERVICE_ENABLED=${AI_SERVICE_ENABLED:-false}
       - AI_SERVICE_URL=${AI_SERVICE_URL:-http://ai-service:8001}
@@ -24,6 +24,9 @@ services:
       - ./logs:/app/logs
     depends_on:
       - mongo-primary
+      - mongo-secondary-1
+      - mongo-secondary-2
+      - mongo-arbiter
       - redis-master-1
     networks:
       - evep-network
@@ -173,56 +176,65 @@ services:
       - "27030:27017"
     environment:
       - MONGO_INITDB_DATABASE=${MONGO_DATABASE}
+      - MONGO_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
     volumes:
       - mongo_primary_data:/data/db
       - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - ./mongo-keyfile:/etc/mongo-keyfile:ro
     networks:
       - evep-network
     restart: unless-stopped
-    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--auth", "--keyFile", "/etc/mongo-keyfile"]
 
-  # MongoDB Replica Set (Secondary 1)
+  # MongoDB Replica Set (Secondary 1) - Secured (No External Access)
   mongo-secondary-1:
     image: mongo:6.0
     container_name: evep-mongo-secondary-1
-    ports:
-      - "27031:27017"
+    ports: []  # No external ports - internal access only
+    environment:
+      - MONGO_INITDB_DATABASE=${MONGO_DATABASE}
     volumes:
       - mongo_secondary1_data:/data/db
+      - ./mongo-keyfile:/etc/mongo-keyfile:ro
     networks:
       - evep-network
     restart: unless-stopped
-    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--auth", "--keyFile", "/etc/mongo-keyfile"]
     depends_on:
       - mongo-primary
 
-  # MongoDB Replica Set (Secondary 2)
+  # MongoDB Replica Set (Secondary 2) - Secured (No External Access)
   mongo-secondary-2:
     image: mongo:6.0
     container_name: evep-mongo-secondary-2
-    ports:
-      - "27032:27017"
+    ports: []  # No external ports - internal access only
+    environment:
+      - MONGO_INITDB_DATABASE=${MONGO_DATABASE}
     volumes:
       - mongo_secondary2_data:/data/db
+      - ./mongo-keyfile:/etc/mongo-keyfile:ro
     networks:
       - evep-network
     restart: unless-stopped
-    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--auth", "--keyFile", "/etc/mongo-keyfile"]
     depends_on:
       - mongo-primary
 
-  # MongoDB Arbiter
+  # MongoDB Arbiter - Secured (No External Access)
   mongo-arbiter:
     image: mongo:6.0
     container_name: evep-mongo-arbiter
-    ports:
-      - "27033:27017"
+    ports: []  # No external ports - internal access only
+    environment:
+      - MONGO_INITDB_DATABASE=${MONGO_DATABASE}
     volumes:
       - mongo_arbiter_data:/data/db
+      - ./mongo-keyfile:/etc/mongo-keyfile:ro
     networks:
       - evep-network
     restart: unless-stopped
-    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--auth", "--keyFile", "/etc/mongo-keyfile"]
     depends_on:
       - mongo-primary
 
@@ -314,6 +326,7 @@ services:
       - "8013:8000"
     environment:
       - DATABASE_URL=${DATABASE_URL}
+      - MONGODB_URL=mongodb://admin:Sim!44335599@mongo-primary:27017,mongo-secondary-1:27017,mongo-secondary-2:27017/evep?replicaSet=rs0&authSource=admin
       - REDIS_URL=${REDIS_URL}
       - SECRET_KEY=${SECRET_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -326,6 +339,9 @@ services:
       - MONGO_DATABASE=${MONGO_DATABASE}
       - MONGO_REPLICA_SET_NAME=${MONGO_REPLICA_SET_NAME}
       - REDIS_CLUSTER_ENABLED=${REDIS_CLUSTER_ENABLED}
+      - FILE_STORAGE_PATH=/tmp/uploads
+      - CDN_ENABLED=true
+      - SECURE_FILE_ACCESS=true
       - SWAGGER_UI_ENABLED=true
       - DOCS_URL=/docs
       - REDOC_URL=/redoc
@@ -336,6 +352,7 @@ services:
       - mongo-primary
       - mongo-secondary-1
       - mongo-secondary-2
+      - mongo-arbiter
       - redis-master-1
       - redis-master-2
       - redis-master-3
@@ -354,6 +371,7 @@ services:
       - "3014:8000"
     environment:
       - DATABASE_URL=${DATABASE_URL}
+      - MONGODB_URL=mongodb://admin:Sim!44335599@mongo-primary:27017,mongo-secondary-1:27017,mongo-secondary-2:27017/evep?replicaSet=rs0&authSource=admin
       - REDIS_URL=${REDIS_URL}
       - SECRET_KEY=${SECRET_KEY}
       - MONGO_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
@@ -363,7 +381,7 @@ services:
       - REDIS_CLUSTER_ENABLED=${REDIS_CLUSTER_ENABLED}
       - FILE_STORAGE_PATH=/app/storage
       - CDN_ENABLED=true
-      - SECURE_FILE_ACCESS=true
+      - SECURE_FILE_ACCESS=false
     volumes:
       - ./backend:/app
       - cdn_storage:/app/storage
@@ -371,6 +389,7 @@ services:
       - mongo-primary
       - mongo-secondary-1
       - mongo-secondary-2
+      - mongo-arbiter
       - redis-master-1
       - redis-master-2
       - redis-master-3
@@ -380,87 +399,87 @@ services:
     command: ["uvicorn", "app.cdn:app", "--host", "0.0.0.0", "--port", "8000"]
 
   # Prometheus Monitoring
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: evep-prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    networks:
-      - evep-network
-    restart: unless-stopped
-    profiles:
-      - monitoring
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: evep-prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #     - prometheus_data:/prometheus
+  #   networks:
+  #     - evep-network
+  #   restart: unless-stopped
+  #   profiles:
+  #     - monitoring
 
   # Grafana Dashboard
-  grafana:
-    image: grafana/grafana:latest
-    container_name: evep-grafana
-    ports:
-      - "3001:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
-    networks:
-      - evep-network
-    restart: unless-stopped
-    profiles:
-      - monitoring
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: evep-grafana
+  #   ports:
+  #     - "3001:3000"
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #     - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+  #     - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+  #   networks:
+  #     - evep-network
+  #   restart: unless-stopped
+  #   profiles:
+  #     - monitoring
 
   # Elasticsearch for Logging
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
-    container_name: evep-elasticsearch
-    ports:
-      - "9200:9200"
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - evep-network
-    restart: unless-stopped
-    profiles:
-      - monitoring
+  # elasticsearch:
+  #   image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+  #   container_name: evep-elasticsearch
+  #   ports:
+  #     - "9200:9200"
+  #   environment:
+  #     - discovery.type=single-node
+  #     - xpack.security.enabled=false
+  #     - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+  #   volumes:
+  #     - elasticsearch_data:/usr/share/elasticsearch/data
+  #   networks:
+  #     - evep-network
+  #   restart: unless-stopped
+  #   profiles:
+  #     - monitoring
 
   # Kibana for Log Visualization
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.8.0
-    container_name: evep-kibana
-    ports:
-      - "5601:5601"
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    depends_on:
-      - elasticsearch
-    networks:
-      - evep-network
-    restart: unless-stopped
-    profiles:
-      - monitoring
+  # kibana:
+  #   image: docker.elastic.co/kibana/kibana:8.8.0
+  #   container_name: evep-kibana
+  #   ports:
+  #     - "5601:5601"
+  #   environment:
+  #     - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+  #   depends_on:
+  #     - elasticsearch
+  #   networks:
+  #     - evep-network
+  #   restart: unless-stopped
+  #   profiles:
+  #     - monitoring
 
   # Filebeat for Log Collection
-  filebeat:
-    image: docker.elastic.co/beats/filebeat:8.8.0
-    container_name: evep-filebeat
-    volumes:
-      - ./monitoring/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    depends_on:
-      - elasticsearch
-    networks:
-      - evep-network
-    restart: unless-stopped
-    profiles:
-      - monitoring
+  # filebeat:
+  #   image: docker.elastic.co/beats/filebeat:8.8.0
+  #   container_name: evep-filebeat
+  #   volumes:
+  #     - ./monitoring/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+  #     - /var/lib/docker/containers:/var/lib/docker/containers:ro
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #   depends_on:
+  #     - elasticsearch
+  #   networks:
+  #     - evep-network
+  #   restart: unless-stopped
+  #   profiles:
+  #     - monitoring
 
   # Socket.IO Service for Real-time Communication
   socketio:
@@ -473,6 +492,7 @@ services:
     environment:
       - ENVIRONMENT=production
       - DATABASE_URL=${DATABASE_URL}
+      - MONGODB_URL=mongodb://admin:Sim!44335599@mongo-primary:27017,mongo-secondary-1:27017,mongo-secondary-2:27017/evep?replicaSet=rs0&authSource=admin
       - REDIS_URL=${REDIS_URL}
       - SECRET_KEY=${SECRET_KEY}
       - MONGO_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
@@ -487,6 +507,9 @@ services:
       - ./logs:/app/logs
     depends_on:
       - mongo-primary
+      - mongo-secondary-1
+      - mongo-secondary-2
+      - mongo-arbiter
       - redis-master-1
     networks:
       - evep-network
@@ -527,12 +550,12 @@ volumes:
     driver: local
   
   # Monitoring Volumes
-  prometheus_data:
-    driver: local
-  grafana_data:
-    driver: local
-  elasticsearch_data:
-    driver: local
+  # prometheus_data:
+  #   driver: local
+  # grafana_data:
+  #   driver: local
+  # elasticsearch_data:
+  #   driver: local
   ai_chroma_data:
     driver: local
   ai_model_cache:

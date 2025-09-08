@@ -11,8 +11,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 
 from app.core.config import settings
-from app.core.security import verify_token, hash_password, verify_password, generate_blockchain_hash
-from app.modules.auth.services.auth_service import AuthService
+from app.core.security import hash_password, verify_password, generate_blockchain_hash
+from app.core.jwt_service import verify_jwt_token, create_jwt_token, create_jwt_token_pair
 from app.core.database import get_users_collection, get_admin_users_collection, get_audit_logs_collection
 from bson import ObjectId
 
@@ -35,10 +35,16 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
 class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: Optional[str] = None
     token_type: str = "bearer"
     expires_in: int
+    session_hash: Optional[str] = None
+    security_level: Optional[str] = None
     user: dict
 
 class UserProfile(BaseModel):
@@ -49,19 +55,42 @@ class UserProfile(BaseModel):
     role: str
     organization: Optional[str] = None
     phone: Optional[str] = None
+    avatar: Optional[str] = None
     is_active: bool
     created_at: str
     last_login: Optional[str] = None
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
-    """Get current authenticated user"""
-    payload = verify_token(credentials.credentials)
+    """Get current authenticated user with logout validation"""
+    payload = verify_jwt_token(credentials.credentials)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    # Check if token was issued before user's last logout
+    users_collection = get_users_collection()
+    admin_users_collection = get_admin_users_collection()
+    
+    # Try to find user in both collections
+    user = await users_collection.find_one({"_id": ObjectId(payload["user_id"])})
+    if not user:
+        user = await admin_users_collection.find_one({"_id": ObjectId(payload["user_id"])})
+    
+    if user and user.get("last_logout"):
+        token_issued_at = datetime.fromtimestamp(payload["iat"])
+        last_logout = user["last_logout"]
+        
+        # If token was issued before last logout, it's invalid
+        if token_issued_at < last_logout:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token invalidated by logout",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    
     return payload
 
 @router.post("/register", response_model=TokenResponse)
@@ -114,9 +143,8 @@ async def register_user(user_data: UserRegister):
     result = await users_collection.insert_one(user_doc)
     user_doc["_id"] = result.inserted_id
     
-    # Create access token using auth service
-    auth_service = AuthService()
-    access_token = auth_service.create_jwt_token({
+    # Create access token using centralized JWT service
+    access_token = create_jwt_token({
         "id": str(result.inserted_id),
         "email": user_data.email,
         "role": user_data.role
@@ -220,30 +248,38 @@ async def login_user(login_data: UserLogin):
         }
     )
     
-    # Create access token using auth service
-    auth_service = AuthService()
-    access_token = auth_service.create_jwt_token(user)
+    # Get client IP address (TODO: implement proper IP extraction)
+    client_ip = "127.0.0.1"  # Placeholder for now
     
-    # Generate audit hash
-    audit_hash = generate_blockchain_hash(f"user_login:{user['email']}")
+    # Create access and refresh tokens using enhanced JWT service with blockchain
+    token_data = create_jwt_token_pair(user, client_ip)
     
-    # Log successful login
+    # Generate comprehensive audit hash
+    audit_hash = generate_blockchain_hash(f"user_login:{user['email']}:{client_ip}:{token_data['session_hash']}")
+    
+    # Log successful login with blockchain audit trail
     await audit_logs_collection.insert_one({
         "action": "user_login",
         "user_id": str(user["_id"]),
         "email": user["email"],
         "timestamp": settings.get_current_timestamp(),
-        "ip_address": "127.0.0.1",  # TODO: Get from request
+        "ip_address": client_ip,
         "audit_hash": audit_hash,
+        "session_hash": token_data["session_hash"],
+        "security_level": "blockchain_verified",
         "details": {
             "role": user["role"],
-            "login_method": "email_password"
+            "login_method": "email_password",
+            "token_type": "access_refresh_pair"
         }
     })
     
     return TokenResponse(
-        access_token=access_token,
-        expires_in=int(os.getenv("JWT_EXPIRATION_HOURS", "24")) * 3600,
+        access_token=token_data["access_token"],
+        refresh_token=token_data.get("refresh_token"),
+        expires_in=token_data["expires_in"],
+        session_hash=token_data["session_hash"],
+        security_level=token_data["security_level"],
         user={
             "user_id": str(user["_id"]),
             "email": user["email"],
@@ -275,10 +311,44 @@ async def get_current_user_profile(current_user: dict = Depends(get_current_user
         role=user["role"],
         organization=user.get("organization"),
         phone=user.get("phone"),
-        is_active=user["is_active"],
+        avatar=user.get("avatar"),
+        is_active=user.get("is_active", True),
         created_at=user["created_at"],
         last_login=user.get("last_login")
     )
+
+class AvatarUpdateRequest(BaseModel):
+    avatar_url: str
+
+@router.put("/profile/avatar")
+async def update_user_avatar(
+    request: AvatarUpdateRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update user avatar"""
+    users_collection = get_users_collection()
+    admin_users_collection = get_admin_users_collection()
+    
+    # Try to update in users collection first
+    result = await users_collection.update_one(
+        {"_id": ObjectId(current_user["user_id"])},
+        {"$set": {"avatar": request.avatar_url, "updated_at": datetime.now().isoformat()}}
+    )
+    
+    # If not found in users, try admin_users
+    if result.matched_count == 0:
+        result = await admin_users_collection.update_one(
+            {"_id": ObjectId(current_user["user_id"])},
+            {"$set": {"avatar": request.avatar_url, "updated_at": datetime.now().isoformat()}}
+        )
+    
+    if result.matched_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    return {"success": True, "message": "Avatar updated successfully", "avatar_url": request.avatar_url}
 
 @router.post("/refresh")
 async def refresh_token(current_user: dict = Depends(get_current_user)):
@@ -293,9 +363,8 @@ async def refresh_token(current_user: dict = Depends(get_current_user)):
             detail="User not found or inactive"
         )
     
-    # Create new access token using auth service
-    auth_service = AuthService()
-    access_token = auth_service.create_jwt_token(user)
+    # Create new access token using centralized JWT service
+    access_token = create_jwt_token(user)
     
     return TokenResponse(
         access_token=access_token,
@@ -311,25 +380,56 @@ async def refresh_token(current_user: dict = Depends(get_current_user)):
     )
 
 @router.post("/logout")
-async def logout_user(current_user: dict = Depends(get_current_user)):
-    """Logout user (client should discard token)"""
+async def logout_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    current_user: dict = Depends(get_current_user)
+):
+    """Logout user and invalidate token"""
     
     audit_logs_collection = get_audit_logs_collection()
+    users_collection = get_users_collection()
+    admin_users_collection = get_admin_users_collection()
     
-    # Log logout
+    # Get the token from the request
+    token = credentials.credentials
+    
+    # Invalidate the token by adding it to a blacklist
+    # For now, we'll update the user's last_logout timestamp to invalidate older tokens
+    logout_timestamp = settings.get_utc_timestamp()
+    
+    # Update user's logout timestamp in both collections
+    await users_collection.update_one(
+        {"_id": ObjectId(current_user["user_id"])},
+        {"$set": {"last_logout": logout_timestamp}}
+    )
+    
+    await admin_users_collection.update_one(
+        {"_id": ObjectId(current_user["user_id"])},
+        {"$set": {"last_logout": logout_timestamp}}
+    )
+    
+    # Log logout with enhanced security information
     await audit_logs_collection.insert_one({
         "action": "user_logout",
         "user_id": current_user["user_id"],
         "email": current_user["email"],
         "timestamp": settings.get_current_timestamp(),
         "ip_address": "127.0.0.1",  # TODO: Get from request
-        "audit_hash": generate_blockchain_hash(f"user_logout:{current_user['email']}"),
+        "audit_hash": generate_blockchain_hash(f"user_logout:{current_user['email']}:{logout_timestamp}"),
+        "session_hash": current_user.get("session_hash"),
+        "security_level": "blockchain_verified",
         "details": {
-            "role": current_user["role"]
+            "role": current_user["role"],
+            "token_invalidated": True,
+            "logout_method": "explicit_logout"
         }
     })
     
-    return {"message": "Successfully logged out"}
+    return {
+        "message": "Successfully logged out",
+        "timestamp": logout_timestamp.isoformat(),
+        "security_level": "blockchain_verified"
+    }
 
 @router.post("/change-password")
 async def change_password(
@@ -649,3 +749,72 @@ async def change_user_password(
     })
     
     return {"message": "Password changed successfully"}
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(request: RefreshTokenRequest):
+    """Refresh access token using refresh token with blockchain validation"""
+    try:
+        from app.core.jwt_service import refresh_jwt_token
+        
+        # Get client IP address (TODO: implement proper IP extraction)
+        client_ip = "127.0.0.1"  # Placeholder for now
+        
+        # Refresh the token with blockchain validation
+        token_data = refresh_jwt_token(request.refresh_token, client_ip)
+        
+        if not token_data:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired refresh token"
+            )
+        
+        # Get user data from the new token for response
+        payload = verify_jwt_token(token_data["access_token"])
+        
+        if not payload:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Token refresh failed"
+            )
+        
+        # Log token refresh with blockchain audit
+        audit_logs_collection = get_audit_logs_collection()
+        audit_hash = generate_blockchain_hash(f"token_refresh:{payload['email']}:{client_ip}:{token_data.get('refresh_audit_hash', '')}")
+        
+        await audit_logs_collection.insert_one({
+            "action": "token_refresh",
+            "user_id": payload["user_id"],
+            "email": payload["email"],
+            "timestamp": settings.get_current_timestamp(),
+            "ip_address": client_ip,
+            "audit_hash": audit_hash,
+            "refresh_audit_hash": token_data.get("refresh_audit_hash"),
+            "security_level": "blockchain_verified",
+            "details": {
+                "role": payload["role"],
+                "refresh_method": "refresh_token"
+            }
+        })
+        
+        return TokenResponse(
+            access_token=token_data["access_token"],
+            token_type=token_data["token_type"],
+            expires_in=token_data["expires_in"],
+            security_level=token_data["security_level"],
+            user={
+                "user_id": payload["user_id"],
+                "email": payload["email"],
+                "role": payload["role"],
+                "name": payload.get("name", "")
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Token refresh error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Token refresh failed"
+        )

@@ -43,7 +43,7 @@ import {
   AccessTime as AccessTimeIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { useAuthenticatedFetch } from '../utils/api';
+import api from '../services/api';
 
 interface DashboardStats {
   totalPatients: number;
@@ -74,7 +74,6 @@ interface DashboardStats {
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const authenticatedFetch = useAuthenticatedFetch();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,16 +90,12 @@ const Dashboard: React.FC = () => {
 
   const fetchUserProfile = async () => {
     try {
-      const response = await authenticatedFetch('http://localhost:8014/api/v1/auth/me');
-
-      if (response.ok) {
-        const profileData = await response.json();
-        console.log('User profile data:', profileData);
-        // Update localStorage with complete user data
-        const currentUser = JSON.parse(localStorage.getItem('evep_user') || '{}');
-        const updatedUser = { ...currentUser, ...profileData };
-        localStorage.setItem('evep_user', JSON.stringify(updatedUser));
-      }
+      const response = await api.get('/api/v1/auth/me');
+      console.log('User profile data:', response.data);
+      // Update localStorage with complete user data
+      const currentUser = JSON.parse(localStorage.getItem('evep_user') || '{}');
+      const updatedUser = { ...currentUser, ...response.data };
+      localStorage.setItem('evep_user', JSON.stringify(updatedUser));
     } catch (error) {
       console.error('Error fetching user profile:', error);
     }
@@ -110,68 +105,95 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       
+      console.log('🔍 Dashboard - Starting data fetch...');
+      console.log('🔍 Dashboard - User context:', {
+        user_id: user?.user_id,
+        role: user?.role,
+        email: user?.email,
+        organization: user?.organization
+      });
+      
       // Fetch data from dashboard endpoint
-      const dashboardResponse = await authenticatedFetch('http://localhost:8014/api/v1/dashboard/stats');
+      const dashboardResponse = await api.get('/api/v1/dashboard/stats');
 
-      if (dashboardResponse.ok) {
-        const dashboardData = await dashboardResponse.json();
-        console.log('Dashboard data received:', dashboardData);
-        
-        // Use the dashboard data directly
-        setStats({
-          totalPatients: dashboardData.totalPatients || 0,
-          totalScreenings: dashboardData.totalScreenings || 0,
-          pendingScreenings: dashboardData.pendingScreenings || 0,
-          completedScreenings: dashboardData.completedScreenings || 0,
-          totalStudents: dashboardData.totalStudents || 0,
-          totalTeachers: dashboardData.totalTeachers || 0,
-          totalSchools: dashboardData.totalSchools || 0,
-          schoolBasedScreenings: dashboardData.totalSchoolScreenings || 0,
-          visionScreenings: dashboardData.totalVisionScreenings || 0,
-          standardVisionScreenings: dashboardData.totalStandardVisionScreenings || 0,
-          hospitalMobileUnit: dashboardData.totalHospitalMobileUnit || 0,
-          chartData: {
-            studentGenderBreakdown: [],
-            gradeLevelBreakdown: [],
-            patientGenderBreakdown: [],
-            patientAgeBreakdown: [],
-          },
-          recentActivity: dashboardData.recentActivity || [],
-        });
-        return;
-      }
+      console.log('📊 Dashboard - Raw API response:', dashboardResponse);
+      console.log('📊 Dashboard - Response data:', dashboardResponse.data);
+      console.log('📊 Dashboard - Response status:', dashboardResponse.status);
+      console.log('📊 Dashboard - Response headers:', dashboardResponse.headers);
+      
+      // Use the dashboard data directly
+      const processedStats = {
+        totalPatients: dashboardResponse.data.totalPatients || 0,
+        totalScreenings: dashboardResponse.data.totalScreenings || 0,
+        pendingScreenings: dashboardResponse.data.pendingScreenings || 0,
+        completedScreenings: dashboardResponse.data.completedScreenings || 0,
+        totalStudents: dashboardResponse.data.totalStudents || 0,
+        totalTeachers: dashboardResponse.data.totalTeachers || 0,
+        totalSchools: dashboardResponse.data.totalSchools || 0,
+        schoolBasedScreenings: dashboardResponse.data.totalSchoolScreenings || 0,
+        visionScreenings: dashboardResponse.data.totalVisionScreenings || 0,
+        standardVisionScreenings: dashboardResponse.data.totalStandardVisionScreenings || 0,
+        hospitalMobileUnit: dashboardResponse.data.totalHospitalMobileUnit || 0,
+        chartData: {
+          studentGenderBreakdown: [],
+          gradeLevelBreakdown: [],
+          patientGenderBreakdown: [],
+          patientAgeBreakdown: [],
+        },
+        recentActivity: dashboardResponse.data.recentActivity || [],
+      };
+      
+      console.log('📊 Dashboard - Processed stats:', processedStats);
+      console.log('📊 Dashboard - Setting stats state...');
+      setStats(processedStats);
+      console.log('✅ Dashboard - Stats set successfully');
+      return;
+      
+    } catch (error: any) {
+      console.error('❌ Dashboard endpoint failed, falling back to individual endpoints:', error);
+      console.error('❌ Dashboard error details:', {
+        message: error?.message,
+        status: error?.response?.status,
+        statusText: error?.response?.statusText,
+        data: error?.response?.data,
+        config: error?.config
+      });
       
       // Fallback: Fetch data from individual endpoints if dashboard fails
-      console.log('Dashboard endpoint failed, falling back to individual endpoints');
-      const [patientsResponse, screeningsResponse, schoolsResponse, teachersResponse] = await Promise.all([
-        authenticatedFetch('http://localhost:8014/api/v1/evep/students'),
-        authenticatedFetch('http://localhost:8014/api/v1/screenings/sessions'),
-        authenticatedFetch('http://localhost:8014/api/v1/evep/schools'),
-        authenticatedFetch('http://localhost:8014/api/v1/evep/teachers')
-      ]);
+      try {
+        const [patientsResponse, screeningsResponse, schoolsResponse, teachersResponse] = await Promise.all([
+          api.get('/api/v1/evep/students'),
+          api.get('/api/v1/screenings/sessions'),
+          api.get('/api/v1/evep/schools'),
+          api.get('/api/v1/evep/teachers')
+        ]);
 
-      // Parse responses
-      const patientsData = await patientsResponse.json();
-      const screeningsData = await screeningsResponse.json();
-      const schoolsData = await schoolsResponse.json();
-      const teachersData = await teachersResponse.json();
+        // Parse responses
+        const patientsData = patientsResponse.data;
+        const screeningsData = screeningsResponse.data;
+        const schoolsData = schoolsResponse.data;
+        const teachersData = teachersResponse.data;
 
-      // Calculate statistics
-      const totalPatients = patientsData.students?.length || patientsData.total_count || 0;
-      const totalScreenings = screeningsData.length || 0; // screeningsData is already an array
-      const completedScreenings = screeningsData.filter((s: any) => s.status === 'completed').length || 0;
-      const pendingScreenings = screeningsData.filter((s: any) => s.status === 'pending').length || 0;
-      const totalSchools = schoolsData.schools?.length || 0;
-      const totalTeachers = teachersData.teachers?.length || 0;
+        // Calculate statistics with proper type checking
+        const totalPatients = patientsData.students?.length || patientsData.total_count || 0;
+        
+        // Ensure screeningsData is an array before processing
+        const screeningsArray = Array.isArray(screeningsData) ? screeningsData : [];
+        const totalScreenings = screeningsArray.length || 0;
+        const completedScreenings = screeningsArray.filter((s: any) => s.status === 'completed').length || 0;
+        const pendingScreenings = screeningsArray.filter((s: any) => s.status === 'pending').length || 0;
+        
+        const totalSchools = schoolsData.schools?.length || 0;
+        const totalTeachers = teachersData.teachers?.length || 0;
 
-      // Get today's date for recent activity
-      const today = new Date().toISOString().split('T')[0];
-      const screeningsToday = screeningsData.filter((s: any) => 
-        s.created_at?.startsWith(today)
-      ).length || 0;
+        // Get today's date for recent activity
+        const today = new Date().toISOString().split('T')[0];
+        const screeningsToday = screeningsArray.filter((s: any) => 
+          s.created_at?.startsWith(today)
+        ).length || 0;
 
-      // Calculate chart data
-      const students = patientsData.students || [];
+        // Calculate chart data
+        const students = patientsData.students || [];
       
       // Student Gender Breakdown
       const studentGenderCount = students.reduce((acc: any, student: any) => {
@@ -270,8 +292,8 @@ const Dashboard: React.FC = () => {
           },
         ],
       });
-    } catch (err) {
-      console.error('Dashboard data fetch error:', err);
+      } catch (err) {
+        console.error('Dashboard data fetch error:', err);
       setError('Failed to load dashboard data');
       setStats({
         totalPatients: 0,
@@ -295,6 +317,7 @@ const Dashboard: React.FC = () => {
       });
     } finally {
       setLoading(false);
+    }
     }
   };
 
@@ -465,7 +488,9 @@ const Dashboard: React.FC = () => {
 
       {/* Statistics Cards */}
       {stats && (
-        <Grid container spacing={3} mb={4}>
+        <>
+          {console.log('🎨 Dashboard - Rendering stats:', stats)}
+          <Grid container spacing={3} mb={4}>
           <Grid item xs={12} sm={6} md={3}>
             <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
               <CardContent>
@@ -687,6 +712,7 @@ const Dashboard: React.FC = () => {
             </Card>
           </Grid>
         </Grid>
+        </>
       )}
 
       {/* Charts Section */}

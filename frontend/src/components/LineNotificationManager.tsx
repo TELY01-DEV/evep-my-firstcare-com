@@ -36,7 +36,7 @@ import {
   History
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
+import unifiedApi from '../services/unifiedApi';
 
 interface LineNotificationManagerProps {
   appointmentId?: string;
@@ -125,9 +125,7 @@ const LineNotificationManager: React.FC<LineNotificationManagerProps> = ({
 
   const loadStudents = async () => {
     try {
-      const response = await axios.get('/api/v1/evep/students', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await unifiedApi.get('/api/v1/evep/students');
       setStudents(response.data.students || []);
     } catch (err: any) {
       setError('Failed to load students');
@@ -136,9 +134,7 @@ const LineNotificationManager: React.FC<LineNotificationManagerProps> = ({
 
   const loadParents = async () => {
     try {
-      const response = await axios.get('/api/v1/evep/parents', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await unifiedApi.get('/api/v1/evep/parents');
       setParents(response.data.parents || []);
     } catch (err: any) {
       setError('Failed to load parents');
@@ -147,9 +143,7 @@ const LineNotificationManager: React.FC<LineNotificationManagerProps> = ({
 
   const loadTemplates = async () => {
     try {
-      const response = await axios.get('/api/v1/notifications/templates', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await unifiedApi.get('/api/v1/notifications/templates');
       setTemplates(response.data || []);
     } catch (err: any) {
       setError('Failed to load notification templates');
@@ -158,9 +152,7 @@ const LineNotificationManager: React.FC<LineNotificationManagerProps> = ({
 
   const loadConsentRequests = async () => {
     try {
-      const response = await axios.get('/api/v1/consent/requests', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await unifiedApi.get('/api/v1/consent/requests');
       setConsentRequests(response.data || []);
     } catch (err: any) {
       setError('Failed to load consent requests');
@@ -185,12 +177,9 @@ const LineNotificationManager: React.FC<LineNotificationManagerProps> = ({
         message_template: customMessage || messageTemplate
       };
 
-      const response = await axios.post(
+      const response = await unifiedApi.post(
         '/api/v1/notifications/line/send',
-        notificationData,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        notificationData
       );
 
       setSuccess('Notification sent successfully!');
@@ -222,12 +211,9 @@ const LineNotificationManager: React.FC<LineNotificationManagerProps> = ({
         consent_details: consentDetails
       };
 
-      const response = await axios.post(
+      const response = await unifiedApi.post(
         '/api/v1/notifications/line/send-consent',
-        consentData,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+        consentData
       );
 
       setSuccess('Consent request sent successfully!');

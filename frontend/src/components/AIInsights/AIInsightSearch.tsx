@@ -44,7 +44,7 @@ import {
   FilterList,
   Clear,
 } from '@mui/icons-material';
-import axios from 'axios';
+import unifiedApi from '../../services/unifiedApi';
 
 interface AIInsightSearchProps {
   onInsightSelected?: (insight: any) => void;
@@ -98,14 +98,9 @@ const AIInsightSearch: React.FC<AIInsightSearchProps> = ({
     setError(null);
 
     try {
-      const response = await axios.post(
-        'http://localhost:8014/api/v1/ai-insights/search-insights',
-        filters,
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('evep_token')}`,
-          },
-        }
+      const response = await unifiedApi.post(
+        '/api/v1/ai-insights/search-insights',
+        filters
       );
 
       if (response.data.success) {

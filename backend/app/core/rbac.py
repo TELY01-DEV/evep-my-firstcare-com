@@ -9,6 +9,33 @@ from functools import wraps
 
 # Define role permissions
 ROLE_PERMISSIONS = {
+    "super_admin": {
+        "portal_access": ["medical", "admin"],
+        "permissions": [
+            "full_access",
+            "manage_users",
+            "manage_system_settings",
+            "view_all_data",
+            "manage_security",
+            "access_admin_panel",
+            "access_medical_portal",
+            "view_audit_logs",
+            "manage_backups",
+            "view_patients",
+            "manage_screenings",
+            "view_reports",
+            "manage_glasses_inventory",
+            "view_medical_staff",
+            "view_analytics",
+            "manage_appointments",
+            "manage_school_data",
+            "view_user_management",
+            "manage_user_management",
+            "view_panel_settings",
+            "manage_panel_settings"
+        ],
+        "restricted_endpoints": []
+    },
     "medical_admin": {
         "portal_access": ["medical"],
         "permissions": [

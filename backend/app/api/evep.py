@@ -10,6 +10,7 @@ from app.models.evep_models import (
 )
 from app.core.database import get_database
 from app.core.security import log_security_event
+from app.core.db_rbac import has_permission_db, has_role_db, has_any_role_db, get_user_permissions_from_db
 from app.utils.timezone import get_current_thailand_time
 from app.api.auth import get_current_user
 
@@ -25,7 +26,7 @@ async def get_parents(
 ):
     """Get all parents with pagination"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view parents")
     parents = await db.evep["evep.parents"].find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
     result = []
@@ -49,7 +50,7 @@ async def get_parent(
 ):
     """Get a specific parent by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view parent details")
     parent = await db.evep["evep.parents"].find_one({"_id": ObjectId(parent_id)})
     if not parent:
@@ -71,7 +72,7 @@ async def create_parent(
 ):
     """Create a new parent"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to create parent")
     
     # Prepare parent data
@@ -104,7 +105,7 @@ async def update_parent(
 ):
     """Update a specific parent by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to update parent")
     
     # Check if parent exists
@@ -141,7 +142,7 @@ async def delete_parent(
 ):
     """Delete a specific parent by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to delete parent")
     
     # Check if parent exists
@@ -178,7 +179,7 @@ async def get_students(
 ):
     """Get all students with pagination"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view students")
     students = await db.evep["evep.students"].find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
     result = []
@@ -215,7 +216,7 @@ async def get_student(
 ):
     """Get a specific student by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view student details")
     student = await db.evep["evep.students"].find_one({"_id": ObjectId(student_id)})
     if not student:
@@ -250,7 +251,7 @@ async def create_student(
 ):
     """Create a new student"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to create student")
     
     # Prepare student data
@@ -283,7 +284,7 @@ async def update_student(
 ):
     """Update a specific student by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to update student")
     
     # Check if student exists
@@ -320,7 +321,7 @@ async def delete_student(
 ):
     """Delete a specific student by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to delete student")
     
     # Check if student exists
@@ -357,9 +358,9 @@ async def get_teachers(
 ):
     """Get all teachers with pagination"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view teachers")
-    teachers = await db.evep["evep.teachers"].find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
+    teachers = await db.evep.teachers.find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
     result = []
     for teacher in teachers:
         result.append({
@@ -372,7 +373,7 @@ async def get_teachers(
             "phone": teacher.get("phone", ""),
             "status": teacher.get("status", "")
         })
-    total_count = await db.evep["evep.teachers"].count_documents({"status": "active"})
+    total_count = await db.evep.teachers.count_documents({"status": "active"})
     return {"teachers": result, "total_count": total_count}
 
 @router.get("/teachers/{teacher_id}")
@@ -382,7 +383,7 @@ async def get_teacher(
 ):
     """Get a specific teacher by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view teacher details")
     teacher = await db.evep.teachers.find_one({"_id": ObjectId(teacher_id)})
     if not teacher:
@@ -406,7 +407,7 @@ async def update_teacher(
 ):
     """Update a specific teacher by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to update teacher")
     
     # Check if teacher exists
@@ -443,7 +444,7 @@ async def create_teacher(
 ):
     """Create a new teacher"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to create teacher")
     
     # Prepare teacher data
@@ -475,7 +476,7 @@ async def delete_teacher(
 ):
     """Delete a specific teacher by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to delete teacher")
     
     # Check if teacher exists
@@ -512,9 +513,9 @@ async def get_schools(
 ):
     """Get all schools with pagination"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view schools")
-    schools = await db.evep["evep.schools"].find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
+    schools = await db.evep.schools.find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
     result = []
     for school in schools:
         result.append({
@@ -530,7 +531,7 @@ async def get_schools(
             "principal_name": school.get("principal_name", ""),
             "status": school.get("status", "")
         })
-    total_count = await db.evep["evep.schools"].count_documents({"status": "active"})
+    total_count = await db.evep.schools.count_documents({"status": "active"})
     return {"schools": result, "total_count": total_count}
 
 @router.get("/schools/{school_id}")
@@ -540,7 +541,7 @@ async def get_school(
 ):
     """Get a specific school by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view school details")
     school = await db.evep.schools.find_one({"_id": ObjectId(school_id)})
     if not school:
@@ -566,7 +567,7 @@ async def create_school(
 ):
     """Create a new school"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to create school")
     
     # Prepare school data
@@ -599,7 +600,7 @@ async def update_school(
 ):
     """Update a specific school by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to update school")
     
     # Check if school exists
@@ -636,7 +637,7 @@ async def delete_school(
 ):
     """Delete a specific school by ID"""
     db = get_database()
-    if current_user["role"] not in ["admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to delete school")
     
     # Check if school exists
@@ -674,14 +675,14 @@ async def get_teacher_students(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "teacher"]:
+    if current_user["role"] not in ["admin", "super_admin", "teacher"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view teacher-student relationships"
         )
     
     # Teachers can only view their own students
-    if current_user["role"] == "teacher" and current_user["user_id"] != teacher_id:
+    if await has_role_db(user_id, "teacher") or await has_permission_db(user_id, "manage_school_data") and current_user["user_id"] != teacher_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only view your own students"
@@ -728,7 +729,7 @@ async def assign_student_to_teacher(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "teacher"]:
+    if current_user["role"] not in ["admin", "super_admin", "teacher"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to assign students"
@@ -800,7 +801,7 @@ async def remove_student_from_teacher(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "teacher"]:
+    if current_user["role"] not in ["admin", "super_admin", "teacher"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to remove student assignments"
@@ -847,7 +848,7 @@ async def get_school_teachers(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view school teachers"
@@ -884,14 +885,14 @@ async def get_parent_students(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "parent", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "parent", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view parent-student relationships"
         )
     
     # Parents can only view their own children
-    if current_user["role"] == "parent" and current_user["user_id"] != parent_id:
+    if await has_role_db(user_id, "parent") or await has_permission_db(user_id, "view_patients") and current_user["user_id"] != parent_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only view your own children"
@@ -933,7 +934,7 @@ async def get_students(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view students"
@@ -981,7 +982,7 @@ async def get_student(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view student details"
@@ -1029,7 +1030,7 @@ async def get_teachers(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view teachers"
@@ -1065,7 +1066,7 @@ async def get_teacher(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "teacher", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "super_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view teacher details"
@@ -1221,7 +1222,7 @@ async def get_student_photos(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "medical_admin", "medical_staff", "doctor", "teacher"]:
+    if current_user["role"] not in ["admin", "super_admin", "medical_admin", "medical_staff", "doctor", "teacher"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view student photos"
@@ -1365,9 +1366,20 @@ async def create_school_screening(
     """Create a new school screening session"""
     db = get_database()
     
-    # Check permissions - teachers and school staff can create screenings
-    if current_user["role"] not in ["teacher", "school_staff", "admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to create school screening")
+    # Check permissions using database-based RBAC
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User ID not found"
+        )
+    
+    # Check permission from database
+    if not await has_permission_db(user_id, "screenings_create"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to create school screening"
+        )
     
     # Verify student exists
     student = await db.evep.students.find_one({"_id": ObjectId(screening_data.student_id)})
@@ -1420,22 +1432,26 @@ async def get_school_screenings(
     student_id: Optional[str] = None,
     teacher_id: Optional[str] = None,
     school_id: Optional[str] = None,
-    status: Optional[str] = None,
+    screening_status: Optional[str] = None,
     skip: int = 0,
     limit: int = 100
 ):
     """Get school screenings with filters"""
     db = get_database()
     
+    # Extract user information
+    user_id = current_user.get("user_id")
+    user_role = current_user.get("role")
+    
     # Check permissions
-    if current_user["role"] not in ["teacher", "school_staff", "admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["teacher", "school_staff", "admin", "system_admin", "medical_admin", "medical_staff", "doctor", "super_admin"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view school screenings")
     
     # Build filter query
     filter_query = {}
     
     # Teachers can only see screenings from their school
-    if current_user["role"] == "teacher":
+    if await has_role_db(user_id, "teacher") or await has_permission_db(user_id, "manage_school_data"):
         teacher = await db.evep.teachers.find_one({"email": current_user["email"]})
         if teacher:
             filter_query["school_id"] = str(teacher.get("_id"))
@@ -1446,8 +1462,8 @@ async def get_school_screenings(
         filter_query["teacher_id"] = teacher_id
     if school_id:
         filter_query["school_id"] = school_id
-    if status:
-        filter_query["status"] = status
+    if screening_status:
+        filter_query["status"] = screening_status
     
     # Get screenings
     screenings = await db.evep.school_screenings.find(filter_query).skip(skip).limit(limit).to_list(length=None)
@@ -1496,7 +1512,7 @@ async def get_school_screening(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="School screening not found")
     
     # Teachers can only see screenings from their school
-    if current_user["role"] == "teacher":
+    if await has_role_db(user_id, "teacher") or await has_permission_db(user_id, "manage_school_data"):
         teacher = await db.evep.teachers.find_one({"email": current_user["email"]})
         if teacher and screening.get("school_id") != str(teacher.get("_id")):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to this screening")
@@ -1542,7 +1558,7 @@ async def update_school_screening(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="School screening not found")
     
     # Teachers can only update screenings they conducted
-    if current_user["role"] == "teacher":
+    if await has_role_db(user_id, "teacher") or await has_permission_db(user_id, "manage_school_data"):
         teacher = await db.evep.teachers.find_one({"email": current_user["email"]})
         if teacher and screening.get("teacher_id") != str(teacher.get("_id")):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Can only update screenings you conducted")
@@ -1587,7 +1603,7 @@ async def delete_school_screening(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="School screening not found")
     
     # Teachers can only delete screenings they created or for their school
-    if current_user["role"] == "teacher":
+    if await has_role_db(user_id, "teacher") or await has_permission_db(user_id, "manage_school_data"):
         teacher = await db.evep.teachers.find_one({"email": current_user["email"]})
         if teacher:
             if screening.get("teacher_id") != str(teacher["_id"]) and screening.get("school_name") != teacher.get("school"):
@@ -1619,7 +1635,7 @@ async def get_school_screening_stats(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="School not found")
     
     # Teachers can only see stats for their school
-    if current_user["role"] == "teacher":
+    if await has_role_db(user_id, "teacher") or await has_permission_db(user_id, "manage_school_data"):
         teacher = await db.evep.teachers.find_one({"email": current_user["email"]})
         if teacher and school_id != str(teacher.get("_id")):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Can only view stats for your school")
@@ -1693,7 +1709,7 @@ async def get_student_screenings(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
     
     # Teachers can only see screenings for students in their school
-    if current_user["role"] == "teacher":
+    if await has_role_db(user_id, "teacher") or await has_permission_db(user_id, "manage_school_data"):
         teacher = await db.evep.teachers.find_one({"email": current_user["email"]})
         if teacher and student.get("school_name") != teacher.get("school"):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Can only view screenings for students in your school")

@@ -50,7 +50,7 @@ import {
   Search,
   CheckCircle,
 } from '@mui/icons-material';
-import axios from 'axios';
+import unifiedApi from '../../services/unifiedApi';
 import AIInsightGenerator from './AIInsightGenerator';
 import AIInsightSearch from './AIInsightSearch';
 
@@ -111,11 +111,7 @@ const AIInsightDashboard: React.FC<AIInsightDashboardProps> = ({
     try {
       // Load statistics (with fallback for permission issues)
       try {
-        const statsResponse = await axios.get('http://localhost:8014/api/v1/ai-insights/statistics', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('evep_token')}`,
-          },
-        });
+        const statsResponse = await unifiedApi.get('/api/v1/ai-insights/statistics');
 
         if (statsResponse.data.success) {
           setStatistics(statsResponse.data.statistics);
@@ -134,16 +130,11 @@ const AIInsightDashboard: React.FC<AIInsightDashboardProps> = ({
 
       // Load recent insights
       try {
-        const insightsResponse = await axios.post(
-          'http://localhost:8014/api/v1/ai-insights/search-insights',
+        const insightsResponse = await unifiedApi.post(
+          '/api/v1/ai-insights/search-insights',
           {
             query: '',
             n_results: 5,
-          },
-          {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('evep_token')}`,
-            },
           }
         );
 

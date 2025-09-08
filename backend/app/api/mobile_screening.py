@@ -12,6 +12,7 @@ import uuid
 from bson import ObjectId
 
 from app.api.auth import get_current_user
+from app.core.db_rbac import has_permission_db, has_any_role_db, get_user_permissions_from_db
 from app.models.mobile_screening_models import (
     # Registration
     RegistrationData,
@@ -82,8 +83,16 @@ async def register_patient(
     """
     try:
         # Validate user permissions
-        user_role = current_user.get("role", "")
-        if user_role not in ["doctor", "nurse", "medical_staff", "teacher"]:
+        # Check permissions using database-based RBAC
+        user_id = current_user.get("id")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User ID not found"
+            )
+        
+        # Check permission from database
+        if not await has_permission_db(user_id, "patients_create"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions to register patients"
@@ -113,6 +122,66 @@ async def register_patient(
             detail=f"Error registering patient: {str(e)}"
         )
 
+@router.get("/sessions", response_model=List[MobileScreeningSessionResponse])
+async def get_screening_sessions(
+    patient_id: Optional[str] = Query(None, description="Filter by patient ID"),
+    examiner_id: Optional[str] = Query(None, description="Filter by examiner ID"),
+    session_status: Optional[str] = Query(None, description="Filter by status"),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Number of records to return"),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get mobile screening sessions with optional filtering"""
+    try:
+        # Check permissions using database-based RBAC
+        user_id = current_user.get("user_id")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User ID not found"
+            )
+        
+        # Check permission from database
+        if not await has_permission_db(user_id, "screenings_read"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to read screening sessions"
+            )
+        
+        # Filter sessions
+        filtered_sessions = mobile_screening_sessions.copy()
+        
+        if patient_id:
+            filtered_sessions = [s for s in filtered_sessions if s.get("patient_id") == patient_id]
+        if examiner_id:
+            filtered_sessions = [s for s in filtered_sessions if s.get("examiner_id") == examiner_id]
+        if session_status:
+            filtered_sessions = [s for s in filtered_sessions if s.get("status") == session_status]
+        
+        # Apply pagination
+        start_idx = skip
+        end_idx = skip + limit
+        paginated_sessions = filtered_sessions[start_idx:end_idx]
+        
+        # Convert to response format
+        result = []
+        for session in paginated_sessions:
+            result.append(MobileScreeningSessionResponse(
+                success=True,
+                session=MobileScreeningSession(**session),
+                message="Session retrieved successfully"
+            ))
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving screening sessions: {str(e)}"
+        )
+
 @router.post("/sessions", response_model=MobileScreeningSessionResponse)
 async def create_screening_session(
     session_data: MobileScreeningSessionCreate,
@@ -124,9 +193,16 @@ async def create_screening_session(
     This endpoint initializes a screening session with equipment calibration.
     """
     try:
-        # Validate user permissions
-        user_role = current_user.get("role", "")
-        if user_role not in ["doctor", "nurse", "medical_staff", "teacher"]:
+        # Check permissions using database-based RBAC
+        user_id = current_user.get("user_id")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User ID not found"
+            )
+        
+        # Check permission from database
+        if not await has_permission_db(user_id, "screenings_create"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions to create screening sessions"
@@ -153,6 +229,112 @@ async def create_screening_session(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error creating screening session: {str(e)}"
+        )
+
+@router.put("/sessions/{session_id}", response_model=MobileScreeningSessionResponse)
+async def update_screening_session(
+    session_id: str,
+    update_data: Dict[str, Any],
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Update a mobile screening session"""
+    try:
+        # Check permissions using database-based RBAC
+        user_id = current_user.get("user_id")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User ID not found"
+            )
+        
+        # Check permission from database
+        if not await has_permission_db(user_id, "screenings_update"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to update screening sessions"
+            )
+        
+        # Find the session
+        session_index = None
+        for i, session in enumerate(mobile_screening_sessions):
+            if session.get("session_id") == session_id:
+                session_index = i
+                break
+        
+        if session_index is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Screening session not found"
+            )
+        
+        # Update the session
+        mobile_screening_sessions[session_index].update(update_data)
+        mobile_screening_sessions[session_index]["updated_at"] = datetime.utcnow()
+        
+        return MobileScreeningSessionResponse(
+            success=True,
+            session=MobileScreeningSession(**mobile_screening_sessions[session_index]),
+            message="Screening session updated successfully"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating screening session: {str(e)}"
+        )
+
+@router.delete("/sessions/{session_id}")
+async def delete_screening_session(
+    session_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Delete a mobile screening session"""
+    try:
+        # Check permissions using database-based RBAC
+        user_id = current_user.get("user_id")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User ID not found"
+            )
+        
+        # Check permission from database
+        if not await has_permission_db(user_id, "screenings_delete"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to delete screening sessions"
+            )
+        
+        # Find and remove the session
+        session_index = None
+        for i, session in enumerate(mobile_screening_sessions):
+            if session.get("session_id") == session_id:
+                session_index = i
+                break
+        
+        if session_index is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Screening session not found"
+            )
+        
+        # Remove the session
+        deleted_session = mobile_screening_sessions.pop(session_index)
+        
+        return {
+            "success": True,
+            "message": "Screening session deleted successfully",
+            "deleted_session_id": session_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting screening session: {str(e)}"
         )
 
 @router.post("/assessments", response_model=InitialAssessmentResponse)

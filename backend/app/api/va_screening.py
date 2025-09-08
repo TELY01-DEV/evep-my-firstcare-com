@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from app.core.database import get_database
 from app.core.security import log_security_event
+from app.core.db_rbac import has_permission_db, has_any_role_db, get_user_permissions_from_db
 from app.api.auth import get_current_user
 from app.utils.timezone import get_current_thailand_time
 
@@ -109,6 +110,56 @@ class TreatmentPlanResponse(BaseModel):
     updated_at: str
 
 # VA Screening Endpoints
+@router.get("/screenings/va", response_model=List[VAScreeningResponse])
+async def get_va_screenings(
+    patient_id: Optional[str] = Query(None, description="Filter by patient ID"),
+    appointment_id: Optional[str] = Query(None, description="Filter by appointment ID"),
+    screening_type: Optional[str] = Query(None, description="Filter by screening type"),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Number of records to return"),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get VA screening sessions with optional filtering"""
+    db = get_database()
+    
+    # Check permissions using database-based RBAC
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User ID not found"
+        )
+    
+    # Check permission from database
+    if not await has_permission_db(user_id, "screenings_read"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to read VA screenings"
+        )
+    
+    # Build filter query
+    filter_query = {}
+    if patient_id:
+        filter_query["patient_id"] = patient_id
+    if appointment_id:
+        filter_query["appointment_id"] = appointment_id
+    if screening_type:
+        filter_query["screening_type"] = screening_type
+    
+    # Get screenings from database
+    cursor = db.evep.va_screenings.find(filter_query).skip(skip).limit(limit)
+    screenings = await cursor.to_list(length=limit)
+    
+    # Convert to response format
+    result = []
+    for screening in screenings:
+        screening["screening_id"] = str(screening["_id"])
+        screening["created_at"] = screening.get("created_at", "").isoformat() if screening.get("created_at") else ""
+        screening["updated_at"] = screening.get("updated_at", "").isoformat() if screening.get("updated_at") else ""
+        result.append(VAScreeningResponse(**screening))
+    
+    return result
+
 @router.post("/screenings/va", response_model=VAScreeningResponse)
 async def create_va_screening(
     screening_data: VAScreeningCreate,
@@ -117,8 +168,16 @@ async def create_va_screening(
     """Create a new VA screening session"""
     db = get_database()
     
-    # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "admin"]:
+    # Check permissions using database-based RBAC
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User ID not found"
+        )
+    
+    # Check permission from database
+    if not await has_permission_db(user_id, "screenings_create"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to create VA screenings"
@@ -190,8 +249,16 @@ async def get_va_screening(
     """Get a specific VA screening by ID"""
     db = get_database()
     
-    # Check permissions
-    if current_user["role"] not in ["medical_staff", "doctor", "admin"]:
+    # Check permissions using database-based RBAC
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User ID not found"
+        )
+    
+    # Check permission from database
+    if not await has_permission_db(user_id, "screenings_view"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view VA screenings"
@@ -583,4 +650,77 @@ async def get_va_screening_statistics(
         "completed_screenings": completed_screenings,
         "screening_types": {stat["_id"]: stat["count"] for stat in type_stats},
         "assessments": {stat["_id"]: stat["count"] for stat in assessment_stats}
+    }
+
+@router.delete("/screenings/va/{screening_id}")
+async def delete_va_screening(
+    screening_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a VA screening record"""
+    
+    # Check if user has permission to delete VA screenings using database-based RBAC
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User ID not found"
+        )
+    
+    # Check permission from database
+    if not await has_permission_db(user_id, "screenings_delete"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to delete VA screenings"
+        )
+    
+    db = get_database()
+    
+    # Validate ObjectId format
+    if not ObjectId.is_valid(screening_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid screening ID format"
+        )
+    
+    # Check if screening exists
+    screening = await db.evep.va_screenings.find_one({"_id": ObjectId(screening_id)})
+    if not screening:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="VA screening not found"
+        )
+    
+    # Check if screening is completed (prevent deletion of completed screenings)
+    if screening.get("status") == "completed":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete completed VA screenings"
+        )
+    
+    # Delete the screening
+    result = await db.evep.va_screenings.delete_one({"_id": ObjectId(screening_id)})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="VA screening not found or already deleted"
+        )
+    
+    # Log security event
+    await log_security_event(
+        action="delete_va_screening",
+        user_id=current_user["id"],
+        details={
+            "screening_id": screening_id,
+            "patient_id": str(screening.get("patient_id", "")),
+            "screening_type": screening.get("screening_type", ""),
+            "deleted_at": get_current_thailand_time().isoformat()
+        }
+    )
+    
+    return {
+        "message": "VA screening deleted successfully",
+        "screening_id": screening_id,
+        "deleted_at": get_current_thailand_time().isoformat()
     }

@@ -129,7 +129,7 @@ async def create_glasses_item(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "medical_staff"]:
+    if current_user["role"] not in ["admin", "medical_staff", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to create inventory items"
@@ -179,11 +179,20 @@ async def create_glasses_item(
         await db.evep.stock_adjustments.insert_one(adjustment_doc)
     
     # Log audit
-    await log_security_event(
-        user_id=current_user["user_id"],
-        action="create_glasses_item",
-        details=f"Created glasses item: {item_data.item_name}",
-        ip_address="system"
+    from app.core.security import log_security_event
+    from fastapi import Request
+    
+    # Create a mock request object for logging
+    class MockRequest:
+        def __init__(self):
+            self.client = type('obj', (object,), {'host': 'system'})()
+    
+    mock_request = MockRequest()
+    log_security_event(
+        request=mock_request,
+        event_type="create_glasses_item",
+        description=f"Created glasses item: {item_data.item_name}",
+        portal="inventory"
     )
     
     # Get creator name
@@ -221,7 +230,7 @@ async def get_glasses_inventory(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "medical_staff", "doctor", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view inventory"
@@ -278,7 +287,7 @@ async def get_glasses_item(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "medical_staff", "doctor", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view inventory"
@@ -322,7 +331,7 @@ async def update_glasses_item(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "medical_staff"]:
+    if current_user["role"] not in ["admin", "medical_staff", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to update inventory items"
@@ -406,7 +415,7 @@ async def adjust_stock(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "medical_staff"]:
+    if current_user["role"] not in ["admin", "medical_staff", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to adjust stock"
@@ -505,7 +514,7 @@ async def get_available_glasses(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "medical_staff", "doctor", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view inventory"
@@ -553,7 +562,7 @@ async def get_low_stock_items(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "medical_staff"]:
+    if current_user["role"] not in ["admin", "medical_staff", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view inventory"
@@ -593,7 +602,7 @@ async def get_inventory_statistics(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "medical_staff"]:
+    if current_user["role"] not in ["admin", "medical_staff", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view inventory statistics"

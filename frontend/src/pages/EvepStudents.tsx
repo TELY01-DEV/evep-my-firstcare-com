@@ -172,7 +172,7 @@ const EvepStudents: React.FC = () => {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const response = await authenticatedFetch('http://localhost:8014/api/v1/evep/students');
+      const response = await authenticatedFetch('https://stardust.evep.my-firstcare.com/api/v1/evep/students');
       if (response.ok) {
         const data = await response.json();
         setStudents(data.students || []);
@@ -190,7 +190,7 @@ const EvepStudents: React.FC = () => {
 
   const fetchParents = async () => {
     try {
-      const response = await authenticatedFetch('http://localhost:8014/api/v1/evep/parents');
+      const response = await authenticatedFetch('https://stardust.evep.my-firstcare.com/api/v1/evep/parents');
       if (response.ok) {
         const data = await response.json();
         setParents(data.parents || []);
@@ -205,7 +205,7 @@ const EvepStudents: React.FC = () => {
 
   const fetchTeachers = async () => {
     try {
-      const response = await authenticatedFetch('http://localhost:8014/api/v1/evep/teachers');
+      const response = await authenticatedFetch('https://stardust.evep.my-firstcare.com/api/v1/evep/teachers');
       if (response.ok) {
         const data = await response.json();
         setTeachers(data.teachers || []);
@@ -220,7 +220,7 @@ const EvepStudents: React.FC = () => {
 
   const fetchSchools = async () => {
     try {
-      const response = await authenticatedFetch('http://localhost:8014/api/v1/evep/schools');
+      const response = await authenticatedFetch('https://stardust.evep.my-firstcare.com/api/v1/evep/schools');
       if (response.ok) {
         const data = await response.json();
         setSchools(data.schools || []);
@@ -387,7 +387,7 @@ const EvepStudents: React.FC = () => {
     
     try {
       if (editingStudent) {
-        const response = await fetch(`http://localhost:8014/api/v1/evep/students/${editingStudent.id}`, {
+        const response = await fetch(`https://stardust.evep.my-firstcare.com/api/v1/evep/students/${editingStudent.id}`, {
           method: 'PUT',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -404,7 +404,7 @@ const EvepStudents: React.FC = () => {
           throw new Error(errorMessage);
         }
       } else {
-        const response = await fetch('http://localhost:8014/api/v1/evep/students', {
+        const response = await fetch('https://stardust.evep.my-firstcare.com/api/v1/evep/students', {
           method: 'POST',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -433,7 +433,7 @@ const EvepStudents: React.FC = () => {
   const handleDelete = async (studentId: string) => {
     if (window.confirm('Are you sure you want to delete this student?')) {
       try {
-        const response = await fetch(`http://localhost:8014/api/v1/evep/students/${studentId}`, {
+        const response = await fetch(`https://stardust.evep.my-firstcare.com/api/v1/evep/students/${studentId}`, {
           method: 'DELETE',
           headers: { 
             'Authorization': `Bearer ${token}`,
