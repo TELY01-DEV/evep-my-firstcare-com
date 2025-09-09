@@ -63,25 +63,32 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 
 interface GlassesItem {
-  _id: string;
+  item_id: string;
   item_code: string;
-  name: string;
+  item_name: string;
   category: string;
-  brand: string;
-  model: string;
-  frame_color: string;
-  lens_type: string;
-  prescription_range: string;
-  size: string;
-  material: string;
-  quantity: number;
-  min_quantity: number;
+  brand?: string;
+  model?: string;
+  specifications?: {
+    frame_color?: string;
+    lens_type?: string;
+    prescription_range?: string;
+    size?: string;
+    material?: string;
+  };
+  current_stock: number;
+  reorder_level: number;
   unit_price: number;
-  supplier: string;
-  location: string;
-  status: 'in_stock' | 'low_stock' | 'out_of_stock' | 'discontinued';
-  last_updated: string;
+  cost_price: number;
+  supplier_info?: {
+    name?: string;
+    contact?: string;
+    location?: string;
+  };
+  notes?: string;
+  is_active: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 interface GlassesInventoryManagerProps {
@@ -105,20 +112,27 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
 
   const [formData, setFormData] = useState({
     item_code: '',
-    name: '',
+    item_name: '',
     category: '',
     brand: '',
     model: '',
-    frame_color: '',
-    lens_type: '',
-    prescription_range: '',
-    size: '',
-    material: '',
-    quantity: 0,
-    min_quantity: 5,
+    specifications: {
+      frame_color: '',
+      lens_type: '',
+      prescription_range: '',
+      size: '',
+      material: '',
+    },
+    initial_stock: 0,
+    reorder_level: 5,
     unit_price: 0,
-    supplier: '',
-    location: '',
+    cost_price: 0,
+    supplier_info: {
+      name: '',
+      contact: '',
+      location: '',
+    },
+    notes: '',
   });
 
   useEffect(() => {
@@ -129,7 +143,8 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
     try {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
-      const response = await fetch('https://stardust.evep.my-firstcare.com/api/v1/inventory/glasses', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/inventory/glasses`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -138,10 +153,16 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
 
       if (response.ok) {
         const data = await response.json();
-        setItems(data.items || []);
+        // Backend returns array directly, not wrapped in {items: []}
+        setItems(Array.isArray(data) ? data : []);
       } else {
-        console.error('Failed to fetch inventory from API');
+        console.error('Failed to fetch inventory from API:', response.status, response.statusText);
         setItems([]);
+        setSnackbar({
+          open: true,
+          message: `Failed to fetch inventory: ${response.status} ${response.statusText}`,
+          severity: 'error'
+        });
       }
     } catch (error) {
       console.error('Error fetching inventory:', error);
@@ -159,20 +180,27 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
     setEditingItem(null);
     setFormData({
       item_code: '',
-      name: '',
+      item_name: '',
       category: '',
       brand: '',
       model: '',
-      frame_color: '',
-      lens_type: '',
-      prescription_range: '',
-      size: '',
-      material: '',
-      quantity: 0,
-      min_quantity: 5,
+      specifications: {
+        frame_color: '',
+        lens_type: '',
+        prescription_range: '',
+        size: '',
+        material: '',
+      },
+      initial_stock: 0,
+      reorder_level: 5,
       unit_price: 0,
-      supplier: '',
-      location: '',
+      cost_price: 0,
+      supplier_info: {
+        name: '',
+        contact: '',
+        location: '',
+      },
+      notes: '',
     });
     setOpenDialog(true);
   };
@@ -181,20 +209,27 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
     setEditingItem(item);
     setFormData({
       item_code: item.item_code,
-      name: item.name,
+      item_name: item.item_name,
       category: item.category,
-      brand: item.brand,
-      model: item.model,
-      frame_color: item.frame_color,
-      lens_type: item.lens_type,
-      prescription_range: item.prescription_range,
-      size: item.size,
-      material: item.material,
-      quantity: item.quantity,
-      min_quantity: item.min_quantity,
+      brand: item.brand || '',
+      model: item.model || '',
+      specifications: {
+        frame_color: item.specifications?.frame_color || '',
+        lens_type: item.specifications?.lens_type || '',
+        prescription_range: item.specifications?.prescription_range || '',
+        size: item.specifications?.size || '',
+        material: item.specifications?.material || '',
+      },
+      initial_stock: item.current_stock,
+      reorder_level: item.reorder_level,
       unit_price: item.unit_price,
-      supplier: item.supplier,
-      location: item.location,
+      cost_price: item.cost_price,
+      supplier_info: {
+        name: item.supplier_info?.name || '',
+        contact: item.supplier_info?.contact || '',
+        location: item.supplier_info?.location || '',
+      },
+      notes: item.notes || '',
     });
     setOpenDialog(true);
   };
@@ -202,9 +237,10 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
   const handleSaveItem = async () => {
     try {
       const token = localStorage.getItem('evep_token');
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
       const url = editingItem 
-        ? `https://stardust.evep.my-firstcare.com/api/v1/inventory/glasses/${editingItem._id}`
-        : 'https://stardust.evep.my-firstcare.com/api/v1/inventory/glasses';
+        ? `${baseUrl}/api/v1/inventory/glasses/${editingItem._id}`
+        : `${baseUrl}/api/v1/inventory/glasses`;
       
       // Transform formData to match backend API requirements
       const apiData = {
@@ -269,7 +305,8 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
     if (window.confirm('Are you sure you want to delete this item?')) {
       try {
         const token = localStorage.getItem('evep_token');
-        const response = await fetch(`https://stardust.evep.my-firstcare.com/api/v1/inventory/glasses/${itemId}`, {
+        const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+        const response = await fetch(`${baseUrl}/api/v1/inventory/glasses/${itemId}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -329,22 +366,31 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
 
   const filteredItems = items.filter(item => {
     const matchesSearch = 
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.item_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.item_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.brand.toLowerCase().includes(searchTerm.toLowerCase());
+      item.brand?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesCategory = filterCategory === 'all' || item.category === filterCategory;
-    const matchesStatus = filterStatus === 'all' || item.status === filterStatus;
+    
+    // Determine status based on stock levels
+    let itemStatus = 'in_stock';
+    if (item.current_stock === 0) {
+      itemStatus = 'out_of_stock';
+    } else if (item.current_stock <= item.reorder_level) {
+      itemStatus = 'low_stock';
+    }
+    
+    const matchesStatus = filterStatus === 'all' || itemStatus === filterStatus;
     
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
   const getInventoryStats = () => {
     const totalItems = items.length;
-    const inStock = items.filter(item => item.status === 'in_stock').length;
-    const lowStock = items.filter(item => item.status === 'low_stock').length;
-    const outOfStock = items.filter(item => item.status === 'out_of_stock').length;
-    const totalValue = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    const inStock = items.filter(item => item.current_stock > item.reorder_level).length;
+    const lowStock = items.filter(item => item.current_stock > 0 && item.current_stock <= item.reorder_level).length;
+    const outOfStock = items.filter(item => item.current_stock === 0).length;
+    const totalValue = items.reduce((sum, item) => sum + (item.current_stock * item.unit_price), 0);
 
     return { totalItems, inStock, lowStock, outOfStock, totalValue };
   };
@@ -510,52 +556,61 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredItems.map((item) => (
-                  <TableRow key={item._id}>
-                    <TableCell>
-                      <Typography variant="subtitle2" fontWeight="bold">
-                        {item.item_code}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="subtitle2">
-                          {item.name}
+                {filteredItems.map((item) => {
+                  // Determine status based on stock levels
+                  let itemStatus = 'in_stock';
+                  if (item.current_stock === 0) {
+                    itemStatus = 'out_of_stock';
+                  } else if (item.current_stock <= item.reorder_level) {
+                    itemStatus = 'low_stock';
+                  }
+                  
+                  return (
+                    <TableRow key={item.item_id}>
+                      <TableCell>
+                        <Typography variant="subtitle2" fontWeight="bold">
+                          {item.item_code}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {item.model} • {item.frame_color}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={item.category} 
-                        size="small" 
-                        color="primary" 
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    <TableCell>{item.brand}</TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body2">
-                          {item.quantity}
-                        </Typography>
-                        {item.quantity <= item.min_quantity && (
-                          <Warning color="warning" fontSize="small" />
-                        )}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        icon={getStatusIcon(item.status)}
-                        label={item.status.replace('_', ' ')}
-                        size="small"
-                        color={getStatusColor(item.status) as any}
-                      />
-                    </TableCell>
-                    <TableCell>฿{item.unit_price.toLocaleString()}</TableCell>
-                    <TableCell>{item.location}</TableCell>
+                      </TableCell>
+                      <TableCell>
+                        <Box>
+                          <Typography variant="subtitle2">
+                            {item.item_name}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {item.model} • {item.specifications?.frame_color}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={item.category} 
+                          size="small" 
+                          color="primary" 
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell>{item.brand}</TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Typography variant="body2">
+                            {item.current_stock}
+                          </Typography>
+                          {item.current_stock <= item.reorder_level && (
+                            <Warning color="warning" fontSize="small" />
+                          )}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          icon={getStatusIcon(itemStatus)}
+                          label={itemStatus.replace('_', ' ')}
+                          size="small"
+                          color={getStatusColor(itemStatus) as any}
+                        />
+                      </TableCell>
+                      <TableCell>฿{item.unit_price.toLocaleString()}</TableCell>
+                      <TableCell>{item.supplier_info?.location}</TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <Tooltip title="View Details">
@@ -576,7 +631,7 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
                           <IconButton 
                             size="small" 
                             color="error"
-                            onClick={() => handleDeleteItem(item._id)}
+                            onClick={() => handleDeleteItem(item.item_id)}
                           >
                             <Delete />
                           </IconButton>

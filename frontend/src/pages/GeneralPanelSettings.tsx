@@ -150,7 +150,8 @@ const GeneralPanelSettings: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8014/api/v1/panel-settings/', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/panel-settings/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -176,7 +177,8 @@ const GeneralPanelSettings: React.FC = () => {
       setSaving(true);
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8014/api/v1/panel-settings/', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/panel-settings/`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

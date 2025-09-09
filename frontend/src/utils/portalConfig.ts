@@ -56,29 +56,24 @@ export const getPortalConfig = (): PortalConfig => {
 export const isAdminPortal = (): boolean => {
   // Check environment variable
   if (process.env.REACT_APP_PORTAL_TYPE === 'admin') {
-    console.log('🔧 Admin Portal detected via REACT_APP_PORTAL_TYPE=admin');
     return true;
   }
   
   // Check URL for admin subdomain
   if (typeof window !== 'undefined' && window.location.hostname.includes('admin.')) {
-    console.log('🔧 Admin Portal detected via admin subdomain');
     return true;
   }
   
   // Check port number for admin panel (3015)
   if (typeof window !== 'undefined' && window.location.port === '3015') {
-    console.log('🔧 Admin Portal detected via port 3015');
     return true;
   }
   
   // Check URL path
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
-    console.log('🔧 Admin Portal detected via /admin path');
     return true;
   }
   
-  console.log('🏥 Medical Portal detected (default)');
   // Default to medical portal
   return false;
 };

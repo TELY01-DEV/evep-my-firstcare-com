@@ -116,8 +116,6 @@ transfer_files() {
         --exclude='uploads/*' \
         --exclude='backups/*' \
         --exclude='temp_deploy.tar.gz' \
-        --exclude='.env.local' \
-        --exclude='.env.development' \
         -czf "$temp_tar" .
     
     # Transfer the tar file
@@ -144,12 +142,11 @@ setup_environment() {
     ssh -i "$SSH_KEY" -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" << EOF
         cd "$REMOTE_PATH"
         
-        # Copy production environment file
-        if [ -f "env.production" ]; then
-            cp env.production .env
-            echo "Production environment file copied"
+        # Ensure .env file exists (should be copied from local)
+        if [ -f ".env" ]; then
+            echo "Environment file found"
         else
-            echo "Warning: env.production not found"
+            echo "Warning: .env file not found - please ensure it's copied from local"
         fi
         
         # Set production environment variables

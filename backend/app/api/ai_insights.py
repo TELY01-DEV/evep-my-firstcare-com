@@ -10,7 +10,9 @@ from datetime import datetime
 from app.api.auth import get_current_user
 from app.modules.ai_insights import InsightGenerator
 from app.models.evep_models import PyObjectId
+from app.core.database import get_ai_insights_collection
 from pydantic import BaseModel
+from bson import ObjectId
 
 router = APIRouter(prefix="/ai-insights", tags=["AI Insights"])
 
@@ -56,6 +58,7 @@ class ScreeningInsightRequest(BaseModel):
     patient_info: Optional[Dict[str, Any]] = None
     role: str = "doctor"
     insight_type: str = "screening_analysis"
+    language: str = "en"  # Default to English
 
 class BatchInsightRequest(BaseModel):
     """Request model for generating batch insights"""
@@ -79,6 +82,64 @@ class MobileUnitInsightRequest(BaseModel):
     """Request model for mobile unit insights"""
     mobile_screening_data: Dict[str, Any]
     patient_info: Optional[Dict[str, Any]] = None
+
+class AIInsightDocument(BaseModel):
+    """MongoDB document model for AI insights"""
+    insight_id: str
+    screening_id: Optional[str] = None
+    patient_id: Optional[str] = None
+    user_id: str
+    user_role: str
+    role: str
+    insight_type: str
+    language: str
+    content: str
+    recommendations: List[str] = []
+    confidence: float = 0.0
+    model_used: str = ""
+    template_used: str = ""
+    success: bool = True
+    error_message: Optional[str] = None
+    screening_data: Dict[str, Any] = {}
+    patient_info: Optional[Dict[str, Any]] = None
+    created_at: datetime
+    updated_at: datetime
+
+async def save_insight_to_mongodb(insight_data: Dict[str, Any], current_user: Dict[str, Any], request: ScreeningInsightRequest) -> str:
+    """Save AI insight to MongoDB"""
+    try:
+        collection = get_ai_insights_collection()
+        
+        # Create insight document
+        insight_doc = {
+            "insight_id": insight_data.get("insight_id", f"insight_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"),
+            "screening_id": request.screening_data.get("screening_id"),
+            "patient_id": request.screening_data.get("patient_id") or request.patient_info.get("patient_id") if request.patient_info else None,
+            "user_id": current_user.get("user_id", current_user.get("id")),
+            "user_role": current_user.get("role", "user"),
+            "role": request.role,
+            "insight_type": request.insight_type,
+            "language": request.language,
+            "content": insight_data.get("content", ""),
+            "recommendations": insight_data.get("recommendations", []),
+            "confidence": insight_data.get("confidence", 0.0),
+            "model_used": insight_data.get("model", ""),
+            "template_used": insight_data.get("template_used", ""),
+            "success": insight_data.get("success", True),
+            "error_message": insight_data.get("error"),
+            "screening_data": request.screening_data,
+            "patient_info": request.patient_info,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+        
+        # Insert into MongoDB
+        result = collection.insert_one(insight_doc)
+        return str(result.inserted_id)
+        
+    except Exception as e:
+        print(f"Error saving insight to MongoDB: {e}")
+        return None
 
 @router.post("/generate-screening-insight")
 async def generate_screening_insight(
@@ -132,7 +193,8 @@ async def generate_screening_insight(
             screening_data=request.screening_data,
             patient_info=patient_info,
             role=request.role,
-            insight_type=request.insight_type
+            insight_type=request.insight_type,
+            language=request.language
         )
         
         if not insight.get("success", False):
@@ -155,11 +217,16 @@ async def generate_screening_insight(
                 "note": "Fallback insight - AI service error"
             }
         
+        # Save insight to MongoDB
+        mongo_id = await save_insight_to_mongodb(insight, current_user, request)
+        
         return {
             "success": True,
             "insight": insight,
             "generated_by": current_user.get("user_id"),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
+            "mongo_id": mongo_id,
+            "saved_to_database": bool(mongo_id)
         }
         
     except HTTPException:
@@ -503,3 +570,103 @@ async def ai_insights_health_check(
             "checked_by": current_user.get("user_id"),
             "timestamp": datetime.utcnow().isoformat()
         }
+
+@router.get("/insights")
+async def get_saved_insights(
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    limit: int = 20,
+    offset: int = 0,
+    role: Optional[str] = None,
+    insight_type: Optional[str] = None,
+    language: Optional[str] = None
+):
+    """
+    Retrieve saved AI insights from MongoDB
+    """
+    try:
+        collection = get_ai_insights_collection()
+        
+        # Build query filter
+        query_filter = {
+            "user_id": current_user.get("user_id", current_user.get("id"))
+        }
+        
+        if role:
+            query_filter["role"] = role
+        if insight_type:
+            query_filter["insight_type"] = insight_type
+        if language:
+            query_filter["language"] = language
+        
+        # Get insights with pagination
+        cursor = collection.find(query_filter).sort("created_at", -1).skip(offset).limit(limit)
+        insights = list(cursor)
+        
+        # Convert ObjectId to string
+        for insight in insights:
+            insight["_id"] = str(insight["_id"])
+            if "created_at" in insight:
+                insight["created_at"] = insight["created_at"].isoformat()
+            if "updated_at" in insight:
+                insight["updated_at"] = insight["updated_at"].isoformat()
+        
+        # Get total count
+        total_count = collection.count_documents(query_filter)
+        
+        return {
+            "success": True,
+            "insights": insights,
+            "total_count": total_count,
+            "limit": limit,
+            "offset": offset,
+            "has_more": (offset + limit) < total_count
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving insights: {str(e)}"
+        )
+
+@router.get("/insights/{insight_id}")
+async def get_insight_by_id(
+    insight_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Retrieve a specific AI insight by ID
+    """
+    try:
+        collection = get_ai_insights_collection()
+        
+        # Find insight by ID and user
+        insight = collection.find_one({
+            "_id": ObjectId(insight_id),
+            "user_id": current_user.get("user_id", current_user.get("id"))
+        })
+        
+        if not insight:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Insight not found"
+            )
+        
+        # Convert ObjectId to string
+        insight["_id"] = str(insight["_id"])
+        if "created_at" in insight:
+            insight["created_at"] = insight["created_at"].isoformat()
+        if "updated_at" in insight:
+            insight["updated_at"] = insight["updated_at"].isoformat()
+        
+        return {
+            "success": True,
+            "insight": insight
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving insight: {str(e)}"
+        )

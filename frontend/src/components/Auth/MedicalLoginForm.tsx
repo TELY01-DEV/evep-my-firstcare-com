@@ -80,7 +80,8 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8014/api/v1/auth/login', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,7 +124,8 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
     const credentials = demoCredentials[role as keyof typeof demoCredentials];
     
     try {
-      const response = await fetch('http://localhost:8014/api/v1/auth/login', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

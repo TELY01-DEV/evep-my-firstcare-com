@@ -69,7 +69,7 @@ cd evep-my-firstcare-com
 ### 3. Environment Configuration
 ```bash
 # Create environment file
-cp .env.example .env
+# Copy your .env file to the server
 
 # Edit environment variables
 nano .env

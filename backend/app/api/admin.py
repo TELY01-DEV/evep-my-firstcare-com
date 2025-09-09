@@ -1818,3 +1818,185 @@ async def get_system_health(request: Request, current_user: dict = Depends(get_c
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get system health: {str(e)}")
+
+# User Approval Management Endpoints
+
+class UserApprovalAction(BaseModel):
+    action: str  # "approve" or "reject"
+    reason: Optional[str] = None
+
+@router.get("/users/pending")
+async def get_pending_users(
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all users pending approval"""
+    
+    # Check if user has admin permissions
+    if current_user["role"] not in ["admin", "super_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    try:
+        users_collection = get_users_collection()
+        
+        # Find all users with pending status
+        pending_users = await users_collection.find({
+            "status": "pending",
+            "is_active": False
+        }).to_list(length=None)
+        
+        # Format response
+        formatted_users = []
+        for user in pending_users:
+            formatted_users.append({
+                "user_id": str(user["_id"]),
+                "email": user["email"],
+                "first_name": user["first_name"],
+                "last_name": user["last_name"],
+                "role": user["role"],
+                "organization": user.get("organization"),
+                "phone": user.get("phone"),
+                "created_at": user["created_at"],
+                "status": user.get("status", "pending")
+            })
+        
+        return {
+            "pending_users": formatted_users,
+            "total_count": len(formatted_users)
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get pending users: {str(e)}"
+        )
+
+@router.post("/users/{user_id}/approve")
+async def approve_user(
+    user_id: str,
+    approval_data: UserApprovalAction,
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    """Approve or reject a pending user"""
+    
+    # Check if user has admin permissions
+    if current_user["role"] not in ["admin", "super_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    try:
+        users_collection = get_users_collection()
+        audit_logs_collection = get_audit_logs_collection()
+        
+        # Validate ObjectId
+        if not ObjectId.is_valid(user_id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid user ID format"
+            )
+        
+        # Check if user exists
+        existing_user = await users_collection.find_one({"_id": ObjectId(user_id)})
+        if not existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Check if user is actually pending
+        if existing_user.get("status") != "pending":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User is not pending approval"
+            )
+        
+        # Generate blockchain hash for audit
+        audit_hash = generate_blockchain_hash(
+            f"user_approval:{user_id}:{current_user['user_id']}:{approval_data.action}"
+        )
+        
+        if approval_data.action == "approve":
+            # Approve the user
+            result = await users_collection.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "is_active": True,
+                        "status": "active",
+                        "approved_at": datetime.utcnow().isoformat(),
+                        "approved_by": current_user["user_id"],
+                        "updated_at": datetime.utcnow().isoformat(),
+                        "audit_hash": audit_hash
+                    }
+                }
+            )
+            
+            action_message = "approved"
+            
+        elif approval_data.action == "reject":
+            # Reject the user
+            result = await users_collection.update_one(
+                {"_id": ObjectId(user_id)},
+                {
+                    "$set": {
+                        "is_active": False,
+                        "status": "rejected",
+                        "rejected_at": datetime.utcnow().isoformat(),
+                        "rejected_by": current_user["user_id"],
+                        "rejection_reason": approval_data.reason,
+                        "updated_at": datetime.utcnow().isoformat(),
+                        "audit_hash": audit_hash
+                    }
+                }
+            )
+            
+            action_message = "rejected"
+            
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid action. Must be 'approve' or 'reject'"
+            )
+        
+        if result.modified_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update user status"
+            )
+        
+        # Log the approval action
+        await audit_logs_collection.insert_one({
+            "action": f"user_{action_message}",
+            "user_id": user_id,
+            "admin_user_id": current_user["user_id"],
+            "admin_email": current_user["email"],
+            "timestamp": datetime.utcnow().isoformat(),
+            "ip_address": get_client_ip(request),
+            "audit_hash": audit_hash,
+            "details": {
+                "target_user_email": existing_user["email"],
+                "action": approval_data.action,
+                "reason": approval_data.reason
+            }
+        })
+        
+        return {
+            "message": f"User {action_message} successfully",
+            "user_id": user_id,
+            "action": approval_data.action,
+            "status": "active" if approval_data.action == "approve" else "rejected"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to {approval_data.action} user: {str(e)}"
+        )

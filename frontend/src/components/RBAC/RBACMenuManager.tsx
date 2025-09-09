@@ -46,6 +46,7 @@ const RBACMenuManager: React.FC<RBACMenuManagerProps> = ({
   const accessibleMenuItems = menuItems.filter(item => {
     const hasMainAccess = hasMenuAccess(userRole, item.path);
     
+    
     if (!hasMainAccess) {
       return false;
     }
@@ -55,6 +56,11 @@ const RBACMenuManager: React.FC<RBACMenuManagerProps> = ({
       item.children = item.children.filter((child: any) => 
         hasMenuAccess(userRole, child.path)
       );
+      
+      // If no children are accessible, hide the parent menu
+      if (item.children.length === 0) {
+        return false;
+      }
     }
     
     return true;

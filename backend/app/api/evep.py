@@ -1307,7 +1307,8 @@ from app.utils.timezone import format_datetime_for_frontend
 class SchoolScreeningCreate(BaseModel):
     student_id: str = Field(..., description="Student ID")
     teacher_id: str = Field(..., description="Teacher conducting the screening")
-    school_id: str = Field(..., description="School ID")
+    school_id: Optional[str] = Field(None, description="School ID")
+    school_name: Optional[str] = Field(None, description="School Name (used if school_id not provided)")
     screening_type: str = Field(..., description="Type of screening: basic_school, vision_test, color_blindness, depth_perception")
     screening_date: Optional[datetime] = Field(None, description="Screening date and time")
     notes: Optional[str] = Field(None, description="Additional notes")
@@ -1374,8 +1375,9 @@ async def create_school_screening(
             detail="User ID not found"
         )
     
-    # Check permission from database
-    if not await has_permission_db(user_id, "screenings_create"):
+    # Check permission from database - allow super_admin to create screenings
+    user_role = current_user.get("role")
+    if user_role != "super_admin" and not await has_permission_db(user_id, "full_access") and not await has_permission_db(user_id, "screenings_create"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to create school screening"
@@ -1391,10 +1393,28 @@ async def create_school_screening(
     if not teacher:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Teacher not found")
     
-    # Verify school exists
-    school = await db.evep.schools.find_one({"_id": ObjectId(screening_data.school_id)})
+    # Verify school exists - handle both school_id and school_name
+    school = None
+    school_id = None
+    
+    if screening_data.school_id:
+        # Use provided school_id
+        school = await db.evep.schools.find_one({"_id": ObjectId(screening_data.school_id)})
+        school_id = screening_data.school_id
+    elif screening_data.school_name:
+        # Look up school by name
+        school = await db.evep.schools.find_one({"name": screening_data.school_name})
+        if school:
+            school_id = str(school["_id"])
+    else:
+        # Try to get school from teacher
+        if teacher and teacher.get("school"):
+            school = await db.evep.schools.find_one({"name": teacher["school"]})
+            if school:
+                school_id = str(school["_id"])
+    
     if not school:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="School not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="School not found. Please provide school_id or school_name, or ensure teacher has a valid school.")
     
     # Create screening session
     screening_id = f"school_screening_{screening_data.student_id}_{int(datetime.now().timestamp())}"
@@ -1404,6 +1424,7 @@ async def create_school_screening(
         "screening_id": screening_id,
         "student_name": f"{student.get('first_name', '')} {student.get('last_name', '')}",
         "teacher_name": f"{teacher.get('first_name', '')} {teacher.get('last_name', '')}",
+        "school_id": school_id,  # Use the resolved school_id
         "school_name": school.get('name', ''),
         "grade_level": student.get('grade_level', ''),
         "status": "pending",

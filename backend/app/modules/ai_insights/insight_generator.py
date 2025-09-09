@@ -26,7 +26,8 @@ class InsightGenerator:
         screening_data: Dict[str, Any],
         patient_info: Optional[Dict[str, Any]] = None,
         role: str = "doctor",
-        insight_type: str = "screening_analysis"
+        insight_type: str = "screening_analysis",
+        language: str = "en"
     ) -> Dict[str, Any]:
         """
         Generate insight for a screening result
@@ -36,6 +37,7 @@ class InsightGenerator:
             patient_info: Patient information
             role: User role (doctor, teacher, parent, executive)
             insight_type: Type of insight to generate
+            language: Language for the insight (en, th)
             
         Returns:
             Generated insight with metadata
@@ -47,9 +49,9 @@ class InsightGenerator:
             )
             
             # Get appropriate prompt template
-            template = self._get_best_template(role, insight_type)
+            template = self._get_best_template(role, insight_type, language)
             if not template:
-                raise ValueError(f"No template found for role {role} and type {insight_type}")
+                raise ValueError(f"No template found for role {role}, type {insight_type}, and language {language}")
             
             # Prepare variables for prompt
             variables = self._prepare_variables(screening_data, patient_info, similar_cases)
@@ -90,6 +92,7 @@ class InsightGenerator:
                 "insight_id": insight_id,
                 "role": role,
                 "insight_type": insight_type,
+                "language": language,
                 "content": insight_result.get("content", ""),
                 "similar_cases": similar_cases,
                 "template_used": template.template_id,
@@ -109,23 +112,28 @@ class InsightGenerator:
                 "timestamp": datetime.utcnow().isoformat()
             }
     
-    def _get_best_template(self, role: str, insight_type: str) -> Optional[Any]:
-        """Get the best template for the given role and insight type"""
-        # First try to find exact match
+    def _get_best_template(self, role: str, insight_type: str, language: str = "en") -> Optional[Any]:
+        """Get the best template for the given role, insight type, and language"""
+        # First try to find exact match with language
+        template = self.prompt_manager.get_template_by_role_type_language(role, insight_type, language)
+        if template:
+            return template
+        
+        # If no exact match, try to find a general template for the role and language
         templates = self.prompt_manager.get_templates_by_role(role)
         for template in templates:
-            if template.insight_type == insight_type:
+            if template.insight_type == "general" and template.language == language:
                 return template
         
-        # If no exact match, try to find a general template for the role
-        for template in templates:
-            if template.insight_type == "general":
-                return template
-        
-        # If still no match, try to find any template for the insight type
+        # If still no match, try to find any template for the insight type and language
         templates = self.prompt_manager.get_templates_by_insight_type(insight_type)
-        if templates:
-            return templates[0]
+        for template in templates:
+            if template.language == language:
+                return template
+        
+        # If no language-specific template found, fallback to English
+        if language != "en":
+            return self._get_best_template(role, insight_type, "en")
         
         return None
     

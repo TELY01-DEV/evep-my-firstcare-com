@@ -55,7 +55,8 @@ const AdminDashboard: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8014/api/v1/admin/stats', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/admin/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

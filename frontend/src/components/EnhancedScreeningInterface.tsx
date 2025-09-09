@@ -176,7 +176,8 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
       setLoadingPatients(true);
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8014/api/v1/evep/students', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/evep/students`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -731,7 +732,8 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
         status: 'completed'
       };
 
-              const response = await fetch('http://localhost:8014/api/v1/screenings/sessions/', {
+              const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+              const response = await fetch(`${baseUrl}/api/v1/screenings/sessions/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

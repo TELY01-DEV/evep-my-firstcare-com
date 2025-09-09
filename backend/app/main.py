@@ -48,6 +48,8 @@ from app.api.admin_rbac import router as admin_rbac_router
 from app.api.cdn import router as cdn_router
 from app.api.chat_bot import router as chat_bot_router
 from app.api.csv_export import router as csv_export_router
+from app.api.telegram_webhook import router as telegram_webhook_router
+from app.api.aoc_data import router as aoc_data_router
 from app.api.specialized_screenings import router as specialized_screenings_router
 
 # Import medical security API
@@ -282,6 +284,14 @@ async def startup_event():
     # Include CSV export API router
     app.include_router(csv_export_router, prefix="/api/v1", tags=["csv-export"])
     logger.info("CSV Export API router included successfully!")
+    
+    # Include Telegram webhook API router
+    app.include_router(telegram_webhook_router, prefix="/api/v1", tags=["telegram"])
+    logger.info("Telegram Webhook API router included successfully!")
+    
+    # Include Master Geographic Data, Hospital Data API router
+    app.include_router(aoc_data_router, prefix="/api/v1/master-data", tags=["master-data"])
+    logger.info("Master Geographic Data, Hospital Data API router included successfully!")
     
     # Include specialized screenings API router
     app.include_router(specialized_screenings_router, prefix="/api/v1", tags=["specialized_screenings"])

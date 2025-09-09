@@ -122,7 +122,8 @@ const EvepTeachers: React.FC = () => {
   const fetchTeachers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('https://stardust.evep.my-firstcare.com/api/v1/evep/teachers', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/evep/teachers`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -211,7 +212,8 @@ const EvepTeachers: React.FC = () => {
   const handleSubmit = async () => {
     try {
       if (editingTeacher) {
-        const response = await fetch(`https://stardust.evep.my-firstcare.com/api/v1/evep/teachers/${editingTeacher.id}`, {
+        const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+        const response = await fetch(`${baseUrl}/api/v1/evep/teachers/${editingTeacher.id}`, {
           method: 'PUT',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -225,7 +227,8 @@ const EvepTeachers: React.FC = () => {
           throw new Error('Failed to update teacher');
         }
       } else {
-        const response = await fetch('https://stardust.evep.my-firstcare.com/api/v1/evep/teachers', {
+        const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+        const response = await fetch(`${baseUrl}/api/v1/evep/teachers`, {
           method: 'POST',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -250,7 +253,8 @@ const EvepTeachers: React.FC = () => {
   const handleDelete = async (teacherId: string) => {
     if (window.confirm('Are you sure you want to delete this teacher?')) {
       try {
-        const response = await fetch(`https://stardust.evep.my-firstcare.com/api/v1/evep/teachers/${teacherId}`, {
+        const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+        const response = await fetch(`${baseUrl}/api/v1/evep/teachers/${teacherId}`, {
           method: 'DELETE',
           headers: { 
             'Authorization': `Bearer ${token}`,

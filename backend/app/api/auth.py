@@ -131,7 +131,8 @@ async def register_user(user_data: UserRegister):
         "role": user_data.role,
         "organization": user_data.organization,
         "phone": user_data.phone,
-        "is_active": True,
+        "is_active": False,  # Set to False until admin approval
+        "status": "pending",  # Set status to pending for admin approval
         "created_at": settings.get_current_timestamp(),
         "last_login": None,
         "audit_hash": audit_hash,
@@ -143,13 +144,6 @@ async def register_user(user_data: UserRegister):
     result = await users_collection.insert_one(user_doc)
     user_doc["_id"] = result.inserted_id
     
-    # Create access token using centralized JWT service
-    access_token = create_jwt_token({
-        "id": str(result.inserted_id),
-        "email": user_data.email,
-        "role": user_data.role
-    })
-    
     # Log successful registration
     await audit_logs_collection.insert_one({
         "action": "user_registration",
@@ -160,22 +154,34 @@ async def register_user(user_data: UserRegister):
         "audit_hash": audit_hash,
         "details": {
             "role": user_data.role,
-            "organization": user_data.organization
+            "organization": user_data.organization,
+            "status": "pending"
         }
     })
     
-    return TokenResponse(
-        access_token=access_token,
-        expires_in=int(os.getenv("JWT_EXPIRATION_HOURS", "24")) * 3600,
-        user={
+    # Send Telegram notification for new registration
+    try:
+        from app.services.telegram_service import telegram_service
+        await telegram_service.send_user_registration_notification({
             "user_id": str(result.inserted_id),
             "email": user_data.email,
             "first_name": user_data.first_name,
             "last_name": user_data.last_name,
             "role": user_data.role,
-            "organization": user_data.organization
-        }
-    )
+            "organization": user_data.organization,
+            "phone": user_data.phone
+        })
+    except Exception as e:
+        print(f"Error sending Telegram notification: {e}")
+        # Don't fail registration if Telegram notification fails
+    
+    # Return success response without token since user needs admin approval
+    return {
+        "message": "Registration successful. Your account is pending admin approval.",
+        "user_id": str(result.inserted_id),
+        "email": user_data.email,
+        "status": "pending"
+    }
 
 @router.post("/login", response_model=TokenResponse)
 async def login_user(login_data: UserLogin):
@@ -234,6 +240,14 @@ async def login_user(login_data: UserLogin):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
+    
+    # Check if user account is approved (only for regular users, not admin users)
+    if user_collection == "users":
+        if not user.get("is_active", False) or user.get("status") == "pending":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your account is pending admin approval. Please wait for approval before logging in."
+            )
     
     # Reset login attempts on successful login
     collection = users_collection if user_collection == "users" else admin_users_collection

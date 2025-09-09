@@ -92,7 +92,8 @@ const SystemLoadingIndicator: React.FC<SystemLoadingIndicatorProps> = ({
       setActiveStep(0);
       setProgress(20);
 
-      const healthResponse = await fetch('https://stardust.evep.my-firstcare.com/health', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const healthResponse = await fetch(`${baseUrl}/health`, {
         headers
       });
 
@@ -109,7 +110,7 @@ const SystemLoadingIndicator: React.FC<SystemLoadingIndicatorProps> = ({
       setProgress(40);
 
       if (token) {
-        const authResponse = await fetch('https://stardust.evep.my-firstcare.com/api/v1/auth/me', {
+        const authResponse = await fetch(`${baseUrl}/api/v1/auth/me`, {
           headers
         });
         
@@ -130,7 +131,7 @@ const SystemLoadingIndicator: React.FC<SystemLoadingIndicatorProps> = ({
       setProgress(60);
 
       if (token) {
-        const apiResponse = await fetch('https://stardust.evep.my-firstcare.com/api/v1/rbac/roles/', {
+        const apiResponse = await fetch(`${baseUrl}/api/v1/rbac/roles/`, {
           headers
         });
 
@@ -152,7 +153,7 @@ const SystemLoadingIndicator: React.FC<SystemLoadingIndicatorProps> = ({
       setProgress(80);
 
       if (token) {
-        const rbacResponse = await fetch('https://stardust.evep.my-firstcare.com/api/v1/rbac/permissions/', {
+        const rbacResponse = await fetch(`${baseUrl}/api/v1/rbac/permissions/`, {
           headers
         });
 

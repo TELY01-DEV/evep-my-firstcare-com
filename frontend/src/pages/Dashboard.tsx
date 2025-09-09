@@ -146,6 +146,7 @@ const Dashboard: React.FC = () => {
       console.log('📊 Dashboard - Processed stats:', processedStats);
       console.log('📊 Dashboard - Setting stats state...');
       setStats(processedStats);
+      setLoading(false);
       console.log('✅ Dashboard - Stats set successfully');
       return;
       
@@ -355,7 +356,7 @@ const Dashboard: React.FC = () => {
     const baseActions = [
       { label: 'New Patient', icon: <Add />, path: '/dashboard/patients/new' },
       { label: 'New Screening', icon: <Assessment />, path: '/dashboard/screenings/new' },
-      { label: 'View Reports', icon: <TrendingUp />, path: '/dashboard/reports' },
+      { label: 'Scheduled Appointments', icon: <CalendarToday />, path: '/dashboard/evep/appointments' },
     ];
 
     switch (user?.role) {
@@ -489,7 +490,6 @@ const Dashboard: React.FC = () => {
       {/* Statistics Cards */}
       {stats && (
         <>
-          {console.log('🎨 Dashboard - Rendering stats:', stats)}
           <Grid container spacing={3} mb={4}>
           <Grid item xs={12} sm={6} md={3}>
             <Card sx={{ borderRadius: 3, boxShadow: 2 }}>

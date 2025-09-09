@@ -1,14 +1,14 @@
 // API Configuration for different environments
 const API_CONFIG = {
   development: {
-    baseUrl: process.env.REACT_APP_API_BASE_URL || 'http://localhost:8014',
+    baseUrl: process.env.REACT_APP_API_URL || 'http://localhost:8014',
     frontendUrl: process.env.REACT_APP_FRONTEND_URL || 'http://localhost:3000',
     cdnUrl: process.env.REACT_APP_CDN_URL || 'http://localhost:3014',
     adminPanelUrl: process.env.REACT_APP_ADMIN_PANEL_URL || 'http://localhost:3015',
     socketUrl: process.env.REACT_APP_SOCKET_URL || 'http://localhost:9014'
   },
   production: {
-    baseUrl: process.env.REACT_APP_API_BASE_URL || 'https://stardust.evep.my-firstcare.com',
+    baseUrl: process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com',
     frontendUrl: process.env.REACT_APP_FRONTEND_URL || 'https://portal.evep.my-firstcare.com',
     cdnUrl: process.env.REACT_APP_CDN_URL || 'https://cdn.evep.my-firstcare.com',
     adminPanelUrl: process.env.REACT_APP_ADMIN_PANEL_URL || 'https://admin.evep.my-firstcare.com',

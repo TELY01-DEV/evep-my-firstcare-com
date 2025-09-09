@@ -94,7 +94,8 @@ const AdminUsers: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8014/api/v1/admin/users', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/admin/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -149,9 +150,10 @@ const AdminUsers: React.FC = () => {
   const handleSubmit = async () => {
     try {
       const token = localStorage.getItem('evep_token');
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
       const url = editingUser 
-        ? `http://localhost:8014/api/v1/admin/users/${editingUser.user_id}`
-        : 'http://localhost:8014/api/v1/admin/users';
+        ? `${baseUrl}/api/v1/admin/users/${editingUser.user_id}`
+        : `${baseUrl}/api/v1/admin/users`;
       
       const method = editingUser ? 'PUT' : 'POST';
 
@@ -184,7 +186,8 @@ const AdminUsers: React.FC = () => {
     try {
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch(`http://localhost:8014/api/v1/admin/users/${userId}`, {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -206,7 +209,8 @@ const AdminUsers: React.FC = () => {
     try {
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch(`http://localhost:8014/api/v1/admin/users/${userId}/status`, {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/admin/users/${userId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

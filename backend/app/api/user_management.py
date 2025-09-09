@@ -190,7 +190,7 @@ async def get_users(
                 qualifications=user.get("qualifications", []),
                 avatar=user.get("avatar"),
                 is_active=user.get("is_active", True),
-                last_login=user.get("last_login").isoformat() if user.get("last_login") else None,
+                last_login=user.get("last_login").isoformat() if user.get("last_login") and isinstance(user.get("last_login"), datetime) else (str(user.get("last_login")) if user.get("last_login") else None),
                 created_at=user["created_at"].isoformat() if isinstance(user["created_at"], datetime) else str(user["created_at"]),
                 updated_at=(user.get("updated_at", user["created_at"]).isoformat() if isinstance(user.get("updated_at", user["created_at"]), datetime) else str(user.get("updated_at", user["created_at"])))
             ))
@@ -239,7 +239,7 @@ async def get_user(
             qualifications=user.get("qualifications", []),
             avatar=user.get("avatar"),
             is_active=user.get("is_active", True),
-            last_login=user.get("last_login").isoformat() if user.get("last_login") else None,
+            last_login=user.get("last_login").isoformat() if user.get("last_login") and isinstance(user.get("last_login"), datetime) else (str(user.get("last_login")) if user.get("last_login") else None),
             created_at=user["created_at"].isoformat() if isinstance(user["created_at"], datetime) else str(user["created_at"]),
             updated_at=(user.get("updated_at", user["created_at"]).isoformat() if isinstance(user.get("updated_at", user["created_at"]), datetime) else str(user.get("updated_at", user["created_at"])))
         )

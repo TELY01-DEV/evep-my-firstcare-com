@@ -114,7 +114,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
     setSuccess(null);
     
     try {
-      const response = await fetch('http://localhost:8014/api/v1/auth/register', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -136,7 +137,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
         throw new Error(data.detail || 'Registration failed');
       }
 
-      setSuccess('Registration successful! Please log in with your new account.');
+      setSuccess('Registration successful! Your account has been submitted for admin approval. You will receive an email notification once your account is approved and ready to use.');
       
       // Clear form
       setFormData({
@@ -150,14 +151,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
         phone: '',
       });
       
-      // Redirect to login after 2 seconds
-      setTimeout(() => {
-        if (onSwitchToLogin) {
-          onSwitchToLogin();
-        } else {
-          navigate('/login');
-        }
-      }, 2000);
+      // Don't redirect automatically - let user stay on registration page to see the approval message
 
     } catch (err: any) {
       console.error('Registration error:', err);
@@ -227,6 +221,20 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
           >
             Create Your Account
           </Typography>
+          <Alert 
+            severity="info" 
+            sx={{ 
+              mt: 2, 
+              textAlign: 'left',
+              '& .MuiAlert-message': {
+                fontSize: '0.875rem'
+              }
+            }}
+          >
+            <Typography variant="body2">
+              <strong>Admin Approval Required:</strong> Your account will need to be approved by an administrator before you can log in. You will receive an email notification once your account is approved.
+            </Typography>
+          </Alert>
         </Box>
         
         {/* Error/Success Alert */}

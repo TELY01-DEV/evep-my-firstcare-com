@@ -103,14 +103,15 @@ const AdminPanelUserManagement: React.FC = () => {
       const token = localStorage.getItem('evep_token');
       
       // Fetch admin users
-      const usersResponse = await fetch('http://localhost:8014/api/v1/admin/panel-users', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const usersResponse = await fetch(`${baseUrl}/api/v1/admin/panel-users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
       // Fetch admin user stats
-      const statsResponse = await fetch('http://localhost:8014/api/v1/admin/panel-users/stats', {
+      const statsResponse = await fetch(`${baseUrl}/api/v1/admin/panel-users/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -262,7 +263,8 @@ const AdminPanelUserManagement: React.FC = () => {
   const handleToggleUserStatus = async (userId: string, isActive: boolean) => {
     try {
       const token = localStorage.getItem('evep_token');
-      const response = await fetch(`http://localhost:8014/api/v1/admin/panel-users/${userId}/status`, {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/admin/panel-users/${userId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

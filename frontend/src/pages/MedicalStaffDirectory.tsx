@@ -52,7 +52,7 @@ interface MedicalStaff {
 
 const MedicalStaffDirectory: React.FC = () => {
   const { token } = useAuth();
-  const API_BASE = 'https://stardust.evep.my-firstcare.com/api/v1/medical-staff-management';
+  const API_BASE = `${process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com'}/api/v1/medical-staff-management`;
 
   // State management
   const [staff, setStaff] = useState<MedicalStaff[]>([]);

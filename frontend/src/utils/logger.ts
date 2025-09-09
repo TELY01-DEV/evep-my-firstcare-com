@@ -95,7 +95,8 @@ class EVEPLogger {
 
   private async sendToRemoteLogging(logEntry: LogEntry): Promise<void> {
     try {
-      await fetch('http://localhost:8014/api/v1/logs', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      await fetch(`${baseUrl}/api/v1/logs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

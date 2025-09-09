@@ -115,7 +115,8 @@ export default function AdminSettings() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8014/api/v1/admin/settings', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/admin/settings`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -141,7 +142,8 @@ export default function AdminSettings() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('http://localhost:8014/api/v1/admin/settings/categories', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/admin/settings/categories`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -163,7 +165,8 @@ export default function AdminSettings() {
 
   const handleAddSetting = async () => {
     try {
-      const response = await fetch('http://localhost:8014/api/v1/admin/settings', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/admin/settings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -189,7 +192,8 @@ export default function AdminSettings() {
     if (!selectedSetting) return;
 
     try {
-      const response = await fetch(`http://localhost:8014/api/v1/admin/settings/${selectedSetting.key}`, {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/admin/settings/${selectedSetting.key}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -219,7 +223,8 @@ export default function AdminSettings() {
     if (!selectedSetting) return;
 
     try {
-      const response = await fetch(`http://localhost:8014/api/v1/admin/settings/${selectedSetting.key}`, {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/admin/settings/${selectedSetting.key}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -241,7 +246,8 @@ export default function AdminSettings() {
 
   const handleInitializeSettings = async () => {
     try {
-      const response = await fetch('http://localhost:8014/api/v1/admin/settings/initialize', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/admin/settings/initialize`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

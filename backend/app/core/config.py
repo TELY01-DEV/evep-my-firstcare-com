@@ -223,6 +223,10 @@ class Settings(BaseSettings):
     # Environment
     NODE_ENV: str = Field(default="development", env="NODE_ENV")
     
+    # Telegram Configuration
+    TELEGRAM_BOT_TOKEN: str = Field(default="", env="TELEGRAM_BOT_TOKEN")
+    TELEGRAM_CHAT_ID: str = Field(default="", env="TELEGRAM_CHAT_ID")
+    
     # AI Service Configuration
     ai_service_enabled: bool = Field(default=False, env="AI_SERVICE_ENABLED")
     ai_service_url: str = Field(default="http://ai-service:8001", env="AI_SERVICE_URL")

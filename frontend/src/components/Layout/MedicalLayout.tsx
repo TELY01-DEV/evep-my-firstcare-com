@@ -46,6 +46,8 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   ChevronRight as ChevronRightIcon,
+  LocationOn as LocationIcon,
+  LocalHospital as HospitalIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
@@ -314,6 +316,30 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
           path: '/dashboard/glasses-management/delivery',
           badge: null,
           description: 'Track deliveries',
+        },
+      ],
+    },
+    {
+      text: 'Master Data',
+      icon: <SettingsIcon />,
+      path: '/dashboard/master-data',
+      badge: 'Admin',
+      description: 'System master data management',
+      priority: 'medium',
+      children: [
+        {
+          text: 'Geolocations',
+          icon: <LocationIcon />,
+          path: '/dashboard/master-data/geolocations',
+          badge: null,
+          description: 'Manage provinces, districts, subdistricts',
+        },
+        {
+          text: 'Hospitals',
+          icon: <HospitalIcon />,
+          path: '/dashboard/master-data/hospitals',
+          badge: null,
+          description: 'Manage hospital types and hospitals',
         },
       ],
     },
@@ -750,7 +776,7 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
           </ListItem>
           <ListItem disablePadding>
             <ListItemButton
-              onClick={() => navigate('/dashboard/reports')}
+              onClick={() => navigate('/dashboard/evep/appointments')}
               sx={{ 
                 borderRadius: 2,
                 backgroundColor: theme.palette.warning.light,
@@ -761,10 +787,10 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
               }}
             >
               <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}>
-                <AssessmentIcon />
+                <ScheduleIcon />
               </ListItemIcon>
               <ListItemText 
-                primary="View Reports" 
+                primary="Scheduled Appointments" 
                 primaryTypographyProps={{
                   fontWeight: 600,
                   fontSize: '0.9rem',

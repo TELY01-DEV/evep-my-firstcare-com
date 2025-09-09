@@ -44,11 +44,16 @@ import EvepTeachers from './pages/EvepTeachers';
 import EvepSchools from './pages/EvepSchools';
 import EvepSchoolScreenings from './pages/EvepSchoolScreenings';
 import StudentToPatientRegistration from './components/StudentToPatientRegistration';
+
+// Master Data Pages
+import MasterDataManagement from './pages/MasterDataManagement';
+import GeolocationsManagement from './pages/GeolocationsManagement';
+import HospitalsManagement from './pages/HospitalsManagement';
 import VAScreeningInterface from './components/VAScreeningInterface';
 import AppointmentScheduler from './components/AppointmentScheduler';
 import LineNotificationManager from './components/LineNotificationManager';
 // import MedicalStaff from './pages/MedicalStaff';
-import GlassesInventoryManager from './components/GlassesInventoryManager';
+import GlassesInventoryManagerEnhanced from './components/GlassesInventoryManagerEnhanced';
 
 // Components
 import MedicalLayout from './components/Layout/MedicalLayout';
@@ -208,12 +213,12 @@ function App() {
                       {/* Glasses Management Routes - RBAC Protected */}
                       <Route path="glasses-management/inventory" element={
                         <RBACRoute requiredPath="/dashboard/glasses-management/inventory">
-                          <GlassesInventoryManager mode="inventory" />
+                          <GlassesInventoryManagerEnhanced mode="inventory" />
                         </RBACRoute>
                       } />
                       <Route path="glasses-management/delivery" element={
                         <RBACRoute requiredPath="/dashboard/glasses-management/delivery">
-                          <GlassesInventoryManager mode="delivery" />
+                          <GlassesInventoryManagerEnhanced mode="delivery" />
                         </RBACRoute>
                       } />
 
@@ -233,6 +238,23 @@ function App() {
                       <Route path="line-notifications" element={
                         <RBACRoute requiredPath="/dashboard/line-notifications">
                           <LineNotificationManager />
+                        </RBACRoute>
+                      } />
+                      
+                      {/* Master Data Routes - RBAC Protected */}
+                      <Route path="master-data" element={
+                        <RBACRoute requiredPath="/dashboard/master-data">
+                          <MasterDataManagement />
+                        </RBACRoute>
+                      } />
+                      <Route path="master-data/geolocations" element={
+                        <RBACRoute requiredPath="/dashboard/master-data/geolocations">
+                          <GeolocationsManagement />
+                        </RBACRoute>
+                      } />
+                      <Route path="master-data/hospitals" element={
+                        <RBACRoute requiredPath="/dashboard/master-data/hospitals">
+                          <HospitalsManagement />
                         </RBACRoute>
                       } />
                       

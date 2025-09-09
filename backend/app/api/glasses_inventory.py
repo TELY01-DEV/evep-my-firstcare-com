@@ -394,11 +394,20 @@ async def update_glasses_item(
         )
     
     # Log audit
-    await log_security_event(
-        user_id=current_user["user_id"],
-        action="update_glasses_item",
-        details=f"Updated glasses item: {item_id}",
-        ip_address="system"
+    from fastapi import Request
+    
+    # Create a mock request object for logging
+    class MockRequest:
+        def __init__(self):
+            self.client = type('obj', (object,), {'host': 'system'})()
+            self.headers = {}
+    
+    mock_request = MockRequest()
+    log_security_event(
+        request=mock_request,
+        event_type="update_glasses_item",
+        description=f"Updated glasses item: {item_id}",
+        portal="inventory"
     )
     
     # Return updated item
@@ -477,11 +486,20 @@ async def adjust_stock(
     adjustment_result = await db.evep.stock_adjustments.insert_one(adjustment_doc)
     
     # Log audit
-    await log_security_event(
-        user_id=current_user["user_id"],
-        action="adjust_stock",
-        details=f"Adjusted stock for item {item_id}: {adjustment_data.quantity} {adjustment_data.adjustment_type}",
-        ip_address="system"
+    from fastapi import Request
+    
+    # Create a mock request object for logging
+    class MockRequest:
+        def __init__(self):
+            self.client = type('obj', (object,), {'host': 'system'})()
+            self.headers = {}
+    
+    mock_request = MockRequest()
+    log_security_event(
+        request=mock_request,
+        event_type="adjust_stock",
+        description=f"Adjusted stock for item {item_id}: {adjustment_data.quantity} {adjustment_data.adjustment_type}",
+        portal="inventory"
     )
     
     # Get adjuster name

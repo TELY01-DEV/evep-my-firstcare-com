@@ -138,6 +138,22 @@ export const RBAC_MENU_CONFIG: RBACMenuConfig = {
     description: 'Glasses delivery tracking'
   },
 
+  // Master Data Management - Medical staff and above
+  '/dashboard/master-data': {
+    roles: ['super_admin', 'admin', 'system_admin', 'medical_admin', 'doctor', 'nurse', 'medical_staff'],
+    description: 'Master data management overview'
+  },
+
+  '/dashboard/master-data/geolocations': {
+    roles: ['super_admin', 'admin', 'system_admin', 'medical_admin', 'doctor', 'nurse', 'medical_staff'],
+    description: 'Geographic data management'
+  },
+
+  '/dashboard/master-data/hospitals': {
+    roles: ['super_admin', 'admin', 'system_admin', 'medical_admin', 'doctor', 'nurse', 'medical_staff'],
+    description: 'Hospital data management'
+  },
+
   // Panel Settings - Admin roles only
   '/dashboard/panel-settings': {
     roles: ['super_admin', 'admin', 'system_admin'],

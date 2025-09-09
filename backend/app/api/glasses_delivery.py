@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends, Query, status
+from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import status as http_status
 from typing import List, Optional
 from bson import ObjectId
 from datetime import datetime
@@ -16,15 +17,12 @@ class GlassesDeliveryItem(BaseModel):
     item_id: str
     item_name: str
     quantity: int
-    unit_price: float
+    prescription: str
 
 class PrescriptionDetails(BaseModel):
-    sphere_right: float
-    sphere_left: float
-    cylinder_right: float
-    cylinder_left: float
-    axis_right: int
-    axis_left: int
+    right_eye: str
+    left_eye: str
+    pupillary_distance: str
 
 class GlassesDeliveryResponse(BaseModel):
     delivery_id: str
@@ -53,9 +51,9 @@ async def get_glasses_deliveries(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "medical_staff", "doctor", "medical_admin", "nurse", "super_admin", "system_admin"]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view delivery records"
         )
     
@@ -80,14 +78,14 @@ async def get_glasses_deliveries(
             patient_cid=delivery["patient_cid"],
             glasses_items=delivery["glasses_items"],
             prescription_details=delivery["prescription_details"],
-            delivery_date=delivery["delivery_date"].isoformat(),
+            delivery_date=delivery["delivery_date"].isoformat() if delivery.get("delivery_date") and isinstance(delivery.get("delivery_date"), datetime) else (str(delivery.get("delivery_date")) if delivery.get("delivery_date") else ""),
             delivery_status=delivery["delivery_status"],
             delivery_method=delivery["delivery_method"],
             delivered_by=delivery["delivered_by"],
             school_name=delivery["school_name"],
             notes=delivery["notes"],
-            created_at=delivery["created_at"].isoformat(),
-            updated_at=delivery["updated_at"].isoformat()
+            created_at=delivery["created_at"].isoformat() if delivery.get("created_at") and isinstance(delivery.get("created_at"), datetime) else (str(delivery.get("created_at")) if delivery.get("created_at") else ""),
+            updated_at=delivery["updated_at"].isoformat() if delivery.get("updated_at") and isinstance(delivery.get("updated_at"), datetime) else (str(delivery.get("updated_at")) if delivery.get("updated_at") else "")
         ))
     
     return result
@@ -101,9 +99,9 @@ async def get_glasses_delivery(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "medical_staff", "doctor", "medical_admin", "nurse", "super_admin", "system_admin"]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view delivery records"
         )
     
@@ -111,7 +109,7 @@ async def get_glasses_delivery(
     delivery = await db.evep.glasses_delivery.find_one({"delivery_id": delivery_id})
     if not delivery:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Delivery record not found"
         )
     
@@ -122,14 +120,14 @@ async def get_glasses_delivery(
         patient_cid=delivery["patient_cid"],
         glasses_items=delivery["glasses_items"],
         prescription_details=delivery["prescription_details"],
-        delivery_date=delivery["delivery_date"].isoformat(),
+        delivery_date=delivery["delivery_date"].isoformat() if delivery.get("delivery_date") and isinstance(delivery.get("delivery_date"), datetime) else (str(delivery.get("delivery_date")) if delivery.get("delivery_date") else ""),
         delivery_status=delivery["delivery_status"],
         delivery_method=delivery["delivery_method"],
         delivered_by=delivery["delivered_by"],
         school_name=delivery["school_name"],
         notes=delivery["notes"],
-        created_at=delivery["created_at"].isoformat(),
-        updated_at=delivery["updated_at"].isoformat()
+        created_at=delivery["created_at"].isoformat() if delivery.get("created_at") and isinstance(delivery.get("created_at"), datetime) else (str(delivery.get("created_at")) if delivery.get("created_at") else ""),
+        updated_at=delivery["updated_at"].isoformat() if delivery.get("updated_at") and isinstance(delivery.get("updated_at"), datetime) else (str(delivery.get("updated_at")) if delivery.get("updated_at") else "")
     )
 
 @router.put("/glasses-delivery/{delivery_id}/status")
@@ -143,9 +141,9 @@ async def update_delivery_status(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "medical_staff"]:
+    if current_user["role"] not in ["admin", "medical_staff", "doctor", "medical_admin", "nurse", "super_admin", "system_admin"]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to update delivery status"
         )
     
@@ -163,7 +161,7 @@ async def update_delivery_status(
     
     if result.matched_count == 0:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail="Delivery record not found"
         )
     
@@ -185,9 +183,9 @@ async def get_delivery_stats(
     db = get_database()
     
     # Check permissions
-    if current_user["role"] not in ["admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["admin", "medical_staff", "doctor", "medical_admin", "nurse", "super_admin", "system_admin"]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=http_status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to view delivery statistics"
         )
     

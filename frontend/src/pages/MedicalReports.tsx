@@ -166,7 +166,8 @@ const MedicalReports: React.FC = () => {
       const token = localStorage.getItem('evep_token');
       
       // Fetch students data
-      const studentsResponse = await fetch('https://stardust.evep.my-firstcare.com/api/v1/evep/students', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const studentsResponse = await fetch(`${baseUrl}/api/v1/evep/students`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -174,7 +175,7 @@ const MedicalReports: React.FC = () => {
       });
       
       // Fetch schools data
-      const schoolsResponse = await fetch('https://stardust.evep.my-firstcare.com/api/v1/evep/schools', {
+      const schoolsResponse = await fetch(`${baseUrl}/api/v1/evep/schools`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -182,7 +183,7 @@ const MedicalReports: React.FC = () => {
       });
       
       // Fetch screening sessions data
-      const screeningsResponse = await fetch('https://stardust.evep.my-firstcare.com/api/v1/screenings/sessions', {
+      const screeningsResponse = await fetch(`${baseUrl}/api/v1/screenings/sessions`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

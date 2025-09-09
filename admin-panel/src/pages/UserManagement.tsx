@@ -45,7 +45,9 @@ import {
   School as TeacherIcon,
   FamilyRestroom as ParentIcon,
   Business as HospitalIcon,
-  People as PeopleIcon
+  People as PeopleIcon,
+  Check as CheckIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -99,6 +101,7 @@ function TabPanel(props: TabPanelProps) {
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -169,8 +172,49 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const fetchPendingUsers = async () => {
+    try {
+      const response = await axios.get('/api/v1/admin/users/pending');
+      setPendingUsers(response.data.pending_users || []);
+    } catch (error: any) {
+      console.error('Error fetching pending users:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to fetch pending users',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleApproveUser = async (userId: string, action: 'approve' | 'reject', reason?: string) => {
+    try {
+      await axios.post(`/api/v1/admin/users/${userId}/approve`, {
+        action,
+        reason
+      });
+      
+      setSnackbar({
+        open: true,
+        message: `User ${action}d successfully`,
+        severity: 'success'
+      });
+      
+      // Refresh both pending users and regular users
+      fetchPendingUsers();
+      fetchUsers();
+    } catch (error: any) {
+      console.error(`Error ${action}ing user:`, error);
+      setSnackbar({
+        open: true,
+        message: `Failed to ${action} user`,
+        severity: 'error'
+      });
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchPendingUsers();
   }, []);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -465,6 +509,15 @@ const UserManagement: React.FC = () => {
                 </Box>
               } 
             />
+            <Tab 
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <PeopleIcon color="warning" />
+                  Pending Approvals
+                  <Chip label={pendingUsers.length} size="small" color="warning" />
+                </Box>
+              } 
+            />
           </Tabs>
 
           <TabPanel value={tabValue} index={0}>
@@ -659,6 +712,91 @@ const UserManagement: React.FC = () => {
                                 color="error"
                               >
                                 <DeleteIcon />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={2}>
+            <TableContainer component={Paper} elevation={0}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>User</TableCell>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Role</TableCell>
+                    <TableCell>Organization</TableCell>
+                    <TableCell>Phone</TableCell>
+                    <TableCell>Created</TableCell>
+                    <TableCell align="center">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        Loading pending users...
+                      </TableCell>
+                    </TableRow>
+                  ) : pendingUsers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        No pending users found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    pendingUsers.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Avatar sx={{ bgcolor: `${getRoleColor(user.role)}.main` }}>
+                              {getInitials(user.first_name || '', user.last_name || '')}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="subtitle2" fontWeight="medium">
+                                {user.first_name} {user.last_name}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <Chip
+                            icon={getRoleIcon(user.role)}
+                            label={user.role.replace('_', ' ').toUpperCase()}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                          />
+                        </TableCell>
+                        <TableCell>{user.organization || '-'}</TableCell>
+                        <TableCell>{user.phone || '-'}</TableCell>
+                        <TableCell>{formatDate(user.created_at)}</TableCell>
+                        <TableCell align="center">
+                          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                            <Tooltip title="Approve User">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleApproveUser(user.id, 'approve')}
+                                color="success"
+                              >
+                                <CheckIcon />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Reject User">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleApproveUser(user.id, 'reject')}
+                                color="error"
+                              >
+                                <CloseIcon />
                               </IconButton>
                             </Tooltip>
                           </Box>

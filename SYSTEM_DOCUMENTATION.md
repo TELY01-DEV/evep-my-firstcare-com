@@ -385,7 +385,7 @@ CHROMA_ANONYMIZED_TELEMETRY=false
 
 2. **Configure Environment**
    ```bash
-   cp .env.example .env
+   # Copy your .env file to the server
    # Edit .env with your configuration
    ```
 

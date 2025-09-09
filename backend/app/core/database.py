@@ -113,3 +113,28 @@ def get_conversation_history_collection():
 def get_files_collection():
     """Get the files collection"""
     return get_database().evep.files
+
+# AOC Master Data Collections
+def get_allhospitals_collection():
+    """Get the allhospitals collection"""
+    return get_database().evep.allhospitals
+
+def get_hospitaltypes_collection():
+    """Get the hospitaltypes collection"""
+    return get_database().evep.hospitaltypes
+
+def get_provinces_collection():
+    """Get the provinces collection"""
+    return get_database().evep.provinces
+
+def get_districts_collection():
+    """Get the districts collection"""
+    return get_database().evep.districts
+
+def get_subdistricts_collection():
+    """Get the subdistricts collection"""
+    return get_database().evep.subdistricts
+
+def get_migration_summaries_collection():
+    """Get the migration summaries collection"""
+    return get_database().evep.migration_summaries

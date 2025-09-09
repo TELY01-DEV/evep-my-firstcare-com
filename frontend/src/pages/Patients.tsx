@@ -182,7 +182,8 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-              const response = await fetch('https://stardust.evep.my-firstcare.com/api/v1/patients/', {
+              const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+              const response = await fetch(`${baseUrl}/api/v1/patients/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -293,9 +294,10 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
       setSuccess(null);
       
       const token = localStorage.getItem('evep_token');
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
       const url = editingPatient 
-        ? `https://stardust.evep.my-firstcare.com/api/v1/patients/${editingPatient._id}`
-        : 'https://stardust.evep.my-firstcare.com/api/v1/patients';
+        ? `${baseUrl}/api/v1/patients/${editingPatient._id}`
+        : `${baseUrl}/api/v1/patients`;
       
       const response = await fetch(url, {
         method: editingPatient ? 'PUT' : 'POST',
@@ -329,7 +331,8 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
     try {
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch(`https://stardust.evep.my-firstcare.com/api/v1/patients/${patientId}`, {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/patients/${patientId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

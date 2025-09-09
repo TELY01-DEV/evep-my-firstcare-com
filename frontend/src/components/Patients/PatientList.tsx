@@ -99,7 +99,8 @@ const PatientList: React.FC<PatientListProps> = ({
         throw new Error('Authentication required');
       }
 
-      const response = await fetch('http://localhost:8014/api/v1/patients/search', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/patients/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -219,7 +220,8 @@ const PatientList: React.FC<PatientListProps> = ({
         throw new Error('Authentication required');
       }
 
-      const response = await fetch(`http://localhost:8014/api/v1/patients/${patientToDelete}`, {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/patients/${patientToDelete}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import unifiedApi from '../services/unifiedApi';
+import GeographicSelector from '../components/GeographicSelector';
 import {
   Box,
   Typography,
@@ -100,6 +101,10 @@ const EvepSchools: React.FC = () => {
       province: '',
       postal_code: ''
     },
+    // Geographic IDs for cascading dropdowns
+    provinceId: '',
+    districtId: '',
+    subdistrictId: '',
     phone: '',
     email: ''
   });
@@ -139,6 +144,9 @@ const EvepSchools: React.FC = () => {
           province: school.address.province || '',
           postal_code: school.address.postal_code || ''
         },
+        provinceId: '',
+        districtId: '',
+        subdistrictId: '',
         phone: school.phone || '',
         email: school.email || ''
       });
@@ -158,6 +166,9 @@ const EvepSchools: React.FC = () => {
           province: '',
           postal_code: ''
         },
+        provinceId: '',
+        districtId: '',
+        subdistrictId: '',
         phone: '',
         email: ''
       });
@@ -575,39 +586,21 @@ const EvepSchools: React.FC = () => {
                   })}
                 />
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Subdistrict"
-                  value={formData.address.subdistrict}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    address: { ...formData.address, subdistrict: e.target.value }
-                  })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="District"
-                  value={formData.address.district}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    address: { ...formData.address, district: e.target.value }
-                  })}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Province"
-                  value={formData.address.province}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    address: { ...formData.address, province: e.target.value }
-                  })}
-                />
-              </Grid>
+              {/* Geographic Selector */}
+              <GeographicSelector
+                provinceId={formData.provinceId}
+                districtId={formData.districtId}
+                subdistrictId={formData.subdistrictId}
+                onProvinceChange={(provinceId) => setFormData({ ...formData, provinceId })}
+                onDistrictChange={(districtId) => setFormData({ ...formData, districtId })}
+                onSubdistrictChange={(subdistrictId) => setFormData({ ...formData, subdistrictId })}
+                onZipcodeChange={(zipcode) => setFormData({ 
+                  ...formData, 
+                  address: { ...formData.address, postal_code: zipcode }
+                })}
+                required
+                gridSize={{ province: 4, district: 4, subdistrict: 4 }}
+              />
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth

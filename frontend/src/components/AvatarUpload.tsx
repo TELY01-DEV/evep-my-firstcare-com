@@ -116,7 +116,8 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
 
     setUploading(true);
     try {
-      const response = await fetch('http://localhost:8014/api/v1/auth/profile/avatar', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/auth/profile/avatar`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

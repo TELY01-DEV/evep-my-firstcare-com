@@ -180,9 +180,10 @@ const PatientForm: React.FC<PatientFormProps> = ({
         throw new Error('Authentication required');
       }
 
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
       const url = mode === 'add' 
-        ? 'http://localhost:8014/api/v1/patients/'
-        : `http://localhost:8014/api/v1/patients/${patient?.patient_id}`;
+        ? `${baseUrl}/api/v1/patients/`
+        : `${baseUrl}/api/v1/patients/${patient?.patient_id}`;
 
       const method = mode === 'add' ? 'POST' : 'PUT';
 

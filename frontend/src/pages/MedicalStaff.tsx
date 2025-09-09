@@ -66,6 +66,8 @@ interface MedicalStaff {
   license_number?: string;
   qualifications?: string[];
   avatar?: string;
+  hospital_id?: string;
+  hospital_name?: string;
   is_active: boolean;
   last_login?: string;
   created_at: string;
@@ -83,7 +85,7 @@ interface StaffStatistics {
 const MedicalStaff: React.FC = () => {
   const { token } = useAuth();
   const theme = useTheme();
-  const API_BASE = 'https://stardust.evep.my-firstcare.com/api/v1/medical-staff-management';
+  const API_BASE = `${process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com'}/api/v1/medical-staff-management`;
 
   // State management
   const [staff, setStaff] = useState<MedicalStaff[]>([]);
@@ -122,6 +124,7 @@ const MedicalStaff: React.FC = () => {
     license_number: '',
     qualifications: [] as string[],
     avatar: '',
+    hospital_id: '',
     is_active: true
   });
   
@@ -131,6 +134,9 @@ const MedicalStaff: React.FC = () => {
     message: '',
     severity: 'success' as 'success' | 'error' | 'warning' | 'info'
   });
+
+  // Hospital data
+  const [hospitals, setHospitals] = useState<Array<{id: string, name: string}>>([]);
 
   // Medical and school staff roles
   const MEDICAL_SCHOOL_ROLES = [
@@ -203,6 +209,27 @@ const MedicalStaff: React.FC = () => {
       setStaff([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch hospitals data
+  const fetchHospitals = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com'}/api/v1/master-data/hospitals?limit=1000`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setHospitals(data.hospitals || []);
+      } else {
+        console.error('Failed to fetch hospitals');
+      }
+    } catch (error) {
+      console.error('Error fetching hospitals:', error);
     }
   };
 
@@ -280,6 +307,7 @@ const MedicalStaff: React.FC = () => {
         license_number: formData.license_number,
         qualifications: formData.qualifications,
         avatar: formData.avatar,
+        hospital_id: formData.hospital_id,
         is_active: formData.is_active
       };
 
@@ -380,6 +408,7 @@ const MedicalStaff: React.FC = () => {
       license_number: '',
       qualifications: [],
       avatar: '',
+      hospital_id: '',
       is_active: true
     });
   };
@@ -416,6 +445,7 @@ const MedicalStaff: React.FC = () => {
   useEffect(() => {
     console.log('MedicalStaff component mounted, token:', token ? 'present' : 'missing');
     fetchStaff();
+    fetchHospitals();
   }, [token, page, searchTerm, roleFilter, departmentFilter, statusFilter]);
 
   // Handle search
@@ -671,6 +701,7 @@ const MedicalStaff: React.FC = () => {
                   <TableCell>Role</TableCell>
                   <TableCell>Department</TableCell>
                   <TableCell>Specialization</TableCell>
+                  <TableCell>Hospital</TableCell>
                   <TableCell>Phone</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Last Login</TableCell>
@@ -718,6 +749,12 @@ const MedicalStaff: React.FC = () => {
                     <TableCell>
                       <Typography variant="body2">
                         {member.specialization || '-'}
+                      </Typography>
+                    </TableCell>
+                    
+                    <TableCell>
+                      <Typography variant="body2">
+                        {member.hospital_name || '-'}
                       </Typography>
                     </TableCell>
                     
@@ -783,6 +820,7 @@ const MedicalStaff: React.FC = () => {
                                 license_number: member.license_number || '',
                                 qualifications: member.qualifications || [],
                                 avatar: member.avatar || '',
+                                hospital_id: member.hospital_id || '',
                                 is_active: member.is_active
                               });
                               setEditDialogOpen(true);
@@ -926,6 +964,25 @@ const MedicalStaff: React.FC = () => {
               />
             </Grid>
             <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Hospital</InputLabel>
+                <Select
+                  value={formData.hospital_id}
+                  label="Hospital"
+                  onChange={(e) => setFormData({ ...formData, hospital_id: e.target.value })}
+                >
+                  <MenuItem value="">
+                    <em>Select Hospital</em>
+                  </MenuItem>
+                  {hospitals.map((hospital) => (
+                    <MenuItem key={hospital.id} value={hospital.id}>
+                      {hospital.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 label="Phone"
@@ -1032,6 +1089,25 @@ const MedicalStaff: React.FC = () => {
               />
             </Grid>
             <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Hospital</InputLabel>
+                <Select
+                  value={formData.hospital_id}
+                  label="Hospital"
+                  onChange={(e) => setFormData({ ...formData, hospital_id: e.target.value })}
+                >
+                  <MenuItem value="">
+                    <em>Select Hospital</em>
+                  </MenuItem>
+                  {hospitals.map((hospital) => (
+                    <MenuItem key={hospital.id} value={hospital.id}>
+                      {hospital.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 label="Phone"
@@ -1107,6 +1183,10 @@ const MedicalStaff: React.FC = () => {
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="text.secondary">Specialization</Typography>
                 <Typography variant="body1">{selectedStaff.specialization || '-'}</Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" color="text.secondary">Hospital</Typography>
+                <Typography variant="body1">{selectedStaff.hospital_name || '-'}</Typography>
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle2" color="text.secondary">Phone</Typography>

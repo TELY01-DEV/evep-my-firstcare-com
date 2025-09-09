@@ -84,7 +84,8 @@ const AdminSecurity: React.FC = () => {
       const token = localStorage.getItem('evep_token');
       
       // Fetch security settings
-      const settingsResponse = await fetch('http://localhost:8014/api/v1/admin/security/settings', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const settingsResponse = await fetch(`${baseUrl}/api/v1/admin/security/settings`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -97,7 +98,7 @@ const AdminSecurity: React.FC = () => {
       }
 
       // Fetch security events
-      const eventsResponse = await fetch('http://localhost:8014/api/v1/admin/security/events', {
+      const eventsResponse = await fetch(`${baseUrl}/api/v1/admin/security/events`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -127,7 +128,8 @@ const AdminSecurity: React.FC = () => {
       
       const token = localStorage.getItem('evep_token');
       
-      const response = await fetch('http://localhost:8014/api/v1/admin/security/settings', {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await fetch(`${baseUrl}/api/v1/admin/security/settings`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -554,7 +554,7 @@ const EvepSchoolScreenings: React.FC = () => {
           return;
         }
 
-        // Get student info to find school_id
+        // Get student info to find school_name
         const selectedStudent = students.find(s => s.id === formData.patient_id);
         if (!selectedStudent) {
           setSnackbar({
@@ -565,8 +565,7 @@ const EvepSchoolScreenings: React.FC = () => {
           return;
         }
 
-        // For now, we'll need to get the school_id from the student or teacher
-        // This might need to be adjusted based on your data structure
+        // Get teacher info
         const selectedTeacher = teachers.find(t => t.id === formData.examiner_id);
         if (!selectedTeacher) {
           setSnackbar({
@@ -577,11 +576,11 @@ const EvepSchoolScreenings: React.FC = () => {
           return;
         }
 
-        // Create the basic screening first
+        // Create the basic screening first - use school_name from student or teacher
         const createData = {
           student_id: formData.patient_id,
           teacher_id: formData.examiner_id,
-          school_id: selectedTeacher.school || selectedStudent.school_name, // Adjust based on your data structure
+          school_name: selectedStudent.school_name || selectedTeacher.school, // Use school_name instead of school_id
           screening_type: formData.screening_type,
           screening_date: new Date().toISOString(),
           notes: formData.notes || ''

@@ -226,7 +226,7 @@ async def admin_get_users(
                 is_active=user.get("is_active", True),
                 is_verified=user.get("is_verified", False),
                 permissions=user.get("permissions", []),
-                last_login=user.get("last_login"),
+                last_login=user.get("last_login").isoformat() if user.get("last_login") and isinstance(user.get("last_login"), datetime) else (str(user.get("last_login")) if user.get("last_login") else None),
                 created_at=user["created_at"],
                 updated_at=user.get("updated_at", user["created_at"])
             ))
@@ -279,7 +279,7 @@ async def admin_get_user(
             is_active=user.get("is_active", True),
             is_verified=user.get("is_verified", False),
             permissions=user.get("permissions", []),
-            last_login=user.get("last_login"),
+            last_login=user.get("last_login").isoformat() if user.get("last_login") and isinstance(user.get("last_login"), datetime) else (str(user.get("last_login")) if user.get("last_login") else None),
             created_at=user["created_at"],
             updated_at=user.get("updated_at", user["created_at"])
         )
@@ -381,7 +381,7 @@ async def admin_create_user(
             is_active=user_doc["is_active"],
             is_verified=user_doc["is_verified"],
             permissions=user_doc["permissions"],
-            last_login=user_doc["last_login"],
+            last_login=user_doc["last_login"].isoformat() if user_doc.get("last_login") and isinstance(user_doc.get("last_login"), datetime) else (str(user_doc.get("last_login")) if user_doc.get("last_login") else None),
             created_at=user_doc["created_at"],
             updated_at=user_doc["updated_at"]
         )
@@ -497,7 +497,7 @@ async def admin_update_user(
             is_active=updated_user.get("is_active", True),
             is_verified=updated_user.get("is_verified", False),
             permissions=updated_user.get("permissions", []),
-            last_login=updated_user.get("last_login"),
+            last_login=updated_user.get("last_login").isoformat() if updated_user.get("last_login") and isinstance(updated_user.get("last_login"), datetime) else (str(updated_user.get("last_login")) if updated_user.get("last_login") else None),
             created_at=updated_user["created_at"],
             updated_at=updated_user["updated_at"]
         )

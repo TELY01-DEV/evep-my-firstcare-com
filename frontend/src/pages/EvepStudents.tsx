@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import GeographicSelector from '../components/GeographicSelector';
 import {
   Box,
   Typography,
@@ -162,6 +163,10 @@ const EvepStudents: React.FC = () => {
       province: '',
       postal_code: ''
     },
+    // Geographic IDs for cascading dropdowns
+    provinceId: '',
+    districtId: '',
+    subdistrictId: '',
     disease: '',
     parent_id: '',
     teacher_id: '',
@@ -172,7 +177,8 @@ const EvepStudents: React.FC = () => {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const response = await authenticatedFetch('https://stardust.evep.my-firstcare.com/api/v1/evep/students');
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await authenticatedFetch(`${baseUrl}/api/v1/evep/students`);
       if (response.ok) {
         const data = await response.json();
         setStudents(data.students || []);
@@ -190,7 +196,8 @@ const EvepStudents: React.FC = () => {
 
   const fetchParents = async () => {
     try {
-      const response = await authenticatedFetch('https://stardust.evep.my-firstcare.com/api/v1/evep/parents');
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await authenticatedFetch(`${baseUrl}/api/v1/evep/parents`);
       if (response.ok) {
         const data = await response.json();
         setParents(data.parents || []);
@@ -205,7 +212,8 @@ const EvepStudents: React.FC = () => {
 
   const fetchTeachers = async () => {
     try {
-      const response = await authenticatedFetch('https://stardust.evep.my-firstcare.com/api/v1/evep/teachers');
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await authenticatedFetch(`${baseUrl}/api/v1/evep/teachers`);
       if (response.ok) {
         const data = await response.json();
         setTeachers(data.teachers || []);
@@ -220,7 +228,8 @@ const EvepStudents: React.FC = () => {
 
   const fetchSchools = async () => {
     try {
-      const response = await authenticatedFetch('https://stardust.evep.my-firstcare.com/api/v1/evep/schools');
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await authenticatedFetch(`${baseUrl}/api/v1/evep/schools`);
       if (response.ok) {
         const data = await response.json();
         setSchools(data.schools || []);
@@ -264,6 +273,9 @@ const EvepStudents: React.FC = () => {
           province: student.address?.province || '',
           postal_code: student.address?.postal_code || ''
         },
+        provinceId: '',
+        districtId: '',
+        subdistrictId: '',
         disease: student.disease || '',
         parent_id: student.parent_id,
         teacher_id: student.teacher_id || '',
@@ -293,6 +305,9 @@ const EvepStudents: React.FC = () => {
           province: '',
           postal_code: ''
         },
+        provinceId: '',
+        districtId: '',
+        subdistrictId: '',
         disease: '',
         parent_id: '',
         teacher_id: '',
@@ -387,7 +402,8 @@ const EvepStudents: React.FC = () => {
     
     try {
       if (editingStudent) {
-        const response = await fetch(`https://stardust.evep.my-firstcare.com/api/v1/evep/students/${editingStudent.id}`, {
+        const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+        const response = await fetch(`${baseUrl}/api/v1/evep/students/${editingStudent.id}`, {
           method: 'PUT',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -404,7 +420,8 @@ const EvepStudents: React.FC = () => {
           throw new Error(errorMessage);
         }
       } else {
-        const response = await fetch('https://stardust.evep.my-firstcare.com/api/v1/evep/students', {
+        const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+        const response = await fetch(`${baseUrl}/api/v1/evep/students`, {
           method: 'POST',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -433,7 +450,8 @@ const EvepStudents: React.FC = () => {
   const handleDelete = async (studentId: string) => {
     if (window.confirm('Are you sure you want to delete this student?')) {
       try {
-        const response = await fetch(`https://stardust.evep.my-firstcare.com/api/v1/evep/students/${studentId}`, {
+        const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+        const response = await fetch(`${baseUrl}/api/v1/evep/students/${studentId}`, {
           method: 'DELETE',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -1246,42 +1264,21 @@ const EvepStudents: React.FC = () => {
                   margin="normal"
                 />
               </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="Subdistrict"
-                  value={formData.address.subdistrict}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    address: { ...formData.address, subdistrict: e.target.value }
-                  })}
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="District"
-                  value={formData.address.district}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    address: { ...formData.address, district: e.target.value }
-                  })}
-                  margin="normal"
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="Province"
-                  value={formData.address.province}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    address: { ...formData.address, province: e.target.value }
-                  })}
-                  margin="normal"
-                />
-              </Grid>
+              {/* Geographic Selector */}
+              <GeographicSelector
+                provinceId={formData.provinceId}
+                districtId={formData.districtId}
+                subdistrictId={formData.subdistrictId}
+                onProvinceChange={(provinceId) => setFormData({ ...formData, provinceId })}
+                onDistrictChange={(districtId) => setFormData({ ...formData, districtId })}
+                onSubdistrictChange={(subdistrictId) => setFormData({ ...formData, subdistrictId })}
+                onZipcodeChange={(zipcode) => setFormData({ 
+                  ...formData, 
+                  address: { ...formData.address, postal_code: zipcode }
+                })}
+                required
+                gridSize={{ province: 4, district: 4, subdistrict: 4 }}
+              />
               <Grid item xs={6}>
                 <TextField
                   fullWidth
