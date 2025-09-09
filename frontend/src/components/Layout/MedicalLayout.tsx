@@ -483,7 +483,17 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                     },
                   },
                   '&:hover': {
-                    backgroundColor: theme.palette.action.hover,
+                    backgroundColor: 'rgba(160, 112, 208, 0.15)', // 15% opacity
+                    '& .MuiListItemText-primary': {
+                      color: theme.palette.primary.dark,
+                    },
+                    '& .MuiListItemText-secondary': {
+                      color: theme.palette.primary.dark,
+                      opacity: 0.9,
+                    },
+                    '& .MuiListItemIcon-root': {
+                      color: theme.palette.primary.dark,
+                    },
                   },
                 }}
               >
@@ -523,8 +533,13 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                   secondaryTypographyProps={{
                     fontSize: '0.75rem',
                     lineHeight: 1.2,
-                    color: theme.palette.text.secondary,
+                    color: theme.palette.text.primary,
                     fontWeight: 500,
+                  }}
+                  sx={{
+                    '& .MuiListItemText-secondary': {
+                      opacity: 0.8,
+                    },
                   }}
                 />
                 {item.badge && (
@@ -594,13 +609,14 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
               <Box sx={{ 
                 pl: 2, 
                 pr: 2, 
-                backgroundColor: 'rgba(226, 232, 240, 0.8)', 
-                borderRadius: 1,
+                backgroundColor: 'rgba(160, 112, 208, 0.2)', // 20% opacity of primary light
+                borderRadius: 2,
                 mx: 1,
                 mb: 1,
-                pt: 0.5,
-                pb: 0.5,
-                border: '1px solid rgba(203, 213, 225, 0.6)'
+                pt: 1,
+                pb: 1,
+                border: '2px solid rgba(160, 112, 208, 0.4)', // 40% opacity border
+                boxShadow: '0 2px 8px rgba(155, 125, 207, 0.15)', // Subtle shadow
               }}>
                 {item.children.map((child) => (
                   <ListItem key={child.text} disablePadding>
@@ -613,28 +629,30 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                         minHeight: 48,
                         pl: 3,
                         '&.Mui-selected': {
-                          backgroundColor: '#3b82f6',
-                          color: '#ffffff',
+                          backgroundColor: theme.palette.primary.main,
+                          color: theme.palette.primary.contrastText,
                           '&:hover': {
-                            backgroundColor: '#2563eb',
-                            color: '#ffffff',
+                            backgroundColor: theme.palette.primary.dark,
+                            color: theme.palette.primary.contrastText,
                           },
                           '& .MuiListItemIcon-root': {
-                            color: '#ffffff',
+                            color: theme.palette.primary.contrastText,
                           },
                           '& .MuiListItemText-secondary': {
-                            color: '#ffffff',
+                            color: theme.palette.primary.contrastText,
                             opacity: 0.9,
                             fontWeight: 500,
                           },
                         },
                         '&:hover': {
-                          backgroundColor: theme.palette.action.hover,
+                          backgroundColor: 'rgba(155, 125, 207, 0.2)', // 20% opacity
                           '& .MuiListItemText-primary': {
                             color: theme.palette.primary.dark,
+                            fontWeight: 700,
                           },
                           '& .MuiListItemText-secondary': {
                             color: theme.palette.primary.dark,
+                            opacity: 1,
                           },
                           '& .MuiListItemIcon-root': {
                             color: theme.palette.primary.dark,
@@ -646,8 +664,8 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                         sx={{
                           minWidth: 32,
                           color: location.pathname === child.path 
-                            ? '#ffffff' 
-                            : '#1a202c',
+                            ? theme.palette.primary.contrastText 
+                            : theme.palette.text.primary,
                         }}
                       >
                         {child.icon}
@@ -659,15 +677,15 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
                           fontWeight: location.pathname === child.path ? 700 : 600,
                           fontSize: '0.85rem',
                           color: location.pathname === child.path 
-                            ? '#ffffff' 
-                            : '#1a202c',
+                            ? theme.palette.primary.contrastText 
+                            : theme.palette.text.primary,
                         }}
                         secondaryTypographyProps={{
                           fontSize: '0.7rem',
                           lineHeight: 1.2,
                           color: location.pathname === child.path 
-                            ? '#ffffff' 
-                            : '#2d3748',
+                            ? theme.palette.primary.contrastText 
+                            : theme.palette.text.primary,
                           fontWeight: location.pathname === child.path ? 600 : 500,
                         }}
                         sx={{

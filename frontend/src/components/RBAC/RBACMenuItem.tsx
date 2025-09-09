@@ -114,23 +114,54 @@ const RBACMenuItem: React.FC<RBACMenuItemProps> = ({
             onClick={handleClick}
             selected={isActive}
             sx={{
-              minHeight: 48,
-              borderRadius: 1,
-              mx: 1,
-              mb: 0.5,
+              minHeight: level === 0 ? 48 : 40,
+              borderRadius: level === 0 ? 2 : 1.5,
+              mx: level === 0 ? 1 : 0,
+              mb: level === 0 ? 0.5 : 0.25,
+              pl: level > 0 ? 3 : 2,
               '&.Mui-selected': {
                 backgroundColor: 'primary.main',
-                color: 'white',
+                color: 'primary.contrastText',
                 '&:hover': {
                   backgroundColor: 'primary.dark',
+                  color: 'primary.contrastText',
+                },
+                '& .MuiListItemIcon-root': {
+                  color: 'primary.contrastText',
+                },
+                '& .MuiListItemText-secondary': {
+                  color: 'primary.contrastText',
+                  opacity: 0.9,
+                  fontWeight: 500,
+                },
+              },
+              '&:hover': {
+                backgroundColor: level === 0 
+                  ? 'rgba(160, 112, 208, 0.15)' // 15% opacity purple for main items
+                  : 'rgba(155, 125, 207, 0.2)', // 20% opacity purple for child items
+                '& .MuiListItemText-primary': {
+                  color: 'primary.dark',
+                  fontWeight: level > 0 ? 700 : 500,
+                },
+                '& .MuiListItemText-secondary': {
+                  color: 'primary.dark',
+                  opacity: level > 0 ? 1 : 0.9,
+                },
+                '& .MuiListItemIcon-root': {
+                  color: level === 0 ? 'primary.dark' : 'primary.main', // Lighter color for child items
                 },
               },
             }}
           >
             <ListItemIcon
               sx={{
-                minWidth: 40,
-                color: isActive ? 'inherit' : 'action.active',
+                minWidth: level === 0 ? 40 : 32,
+                color: isActive 
+                  ? 'primary.contrastText' 
+                  : level === 0 
+                    ? 'text.secondary' 
+                    : 'text.primary',
+                transition: 'color 0.2s ease-in-out',
               }}
             >
               {item.icon}
@@ -139,7 +170,12 @@ const RBACMenuItem: React.FC<RBACMenuItemProps> = ({
             <ListItemText
               primary={
                 <Box display="flex" alignItems="center" gap={1}>
-                  <Typography variant="body2" fontWeight={isActive ? 'bold' : 'normal'}>
+                  <Typography 
+                    variant="body2" 
+                    fontWeight={isActive ? (level === 0 ? 600 : 700) : (level === 0 ? 500 : 600)}
+                    fontSize={level === 0 ? "0.95rem" : "0.85rem"}
+                    color={isActive ? 'primary.contrastText' : 'text.primary'}
+                  >
                     {item.text}
                   </Typography>
                   {item.badge && (
@@ -148,14 +184,24 @@ const RBACMenuItem: React.FC<RBACMenuItemProps> = ({
                       size="small"
                       color={getBadgeColor(item.badge) as any}
                       variant={hasElevatedAccess ? 'filled' : 'outlined'}
-                      sx={{ height: 20, fontSize: '0.7rem' }}
+                      sx={{ height: level === 0 ? 20 : 16, fontSize: level === 0 ? '0.7rem' : '0.6rem' }}
                     />
                   )}
                 </Box>
               }
               secondary={
-                level === 0 && item.description && (
-                  <Typography variant="caption" color="text.secondary">
+                item.description && (
+                  <Typography 
+                    variant="caption" 
+                    color={isActive ? 'primary.contrastText' : 'text.primary'}
+                    fontSize="0.7rem"
+                    lineHeight={1.2}
+                    fontWeight={isActive ? 600 : 500}
+                    sx={{
+                      opacity: isActive ? 1 : 0.9,
+                      textShadow: isActive ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none',
+                    }}
+                  >
                     {item.description}
                   </Typography>
                 )
@@ -174,19 +220,32 @@ const RBACMenuItem: React.FC<RBACMenuItemProps> = ({
       {/* Render accessible children */}
       {item.children && accessibleChildren.length > 0 && (
         <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-          <List component="div" disablePadding>
-            {accessibleChildren.map((child) => (
-              <RBACMenuItem
-                key={child.text}
-                item={child}
-                isExpanded={false} // Children don't expand
-                onToggleExpand={onToggleExpand}
-                onNavigate={onNavigate}
-                currentPath={currentPath}
-                level={level + 1}
-              />
-            ))}
-          </List>
+          <Box sx={{ 
+            pl: 2, 
+            pr: 2, 
+            backgroundColor: 'rgba(160, 112, 208, 0.2)', // 20% opacity of primary light
+            borderRadius: 2,
+            mx: 1,
+            mb: 1,
+            pt: 1,
+            pb: 1,
+            border: '2px solid rgba(160, 112, 208, 0.4)', // 40% opacity border
+            boxShadow: '0 2px 8px rgba(155, 125, 207, 0.15)', // Subtle shadow
+          }}>
+            <List component="div" disablePadding>
+              {accessibleChildren.map((child) => (
+                <RBACMenuItem
+                  key={child.text}
+                  item={child}
+                  isExpanded={false} // Children don't expand
+                  onToggleExpand={onToggleExpand}
+                  onNavigate={onNavigate}
+                  currentPath={currentPath}
+                  level={level + 1}
+                />
+              ))}
+            </List>
+          </Box>
         </Collapse>
       )}
     </>
