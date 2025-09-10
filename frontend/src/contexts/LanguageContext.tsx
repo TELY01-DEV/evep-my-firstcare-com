@@ -267,6 +267,10 @@ const translations = {
     'validation.invalid_date': 'Please enter a valid date',
     'validation.min_length': 'Minimum length is {{min}} characters',
     'validation.max_length': 'Maximum length is {{max}} characters',
+    'validation.email_required': 'Email is required',
+    'validation.email_invalid': 'Please enter a valid email address',
+    'validation.password_required': 'Password is required',
+    'validation.password_min_length': 'Password must be at least 6 characters',
     
     // Time and Date
     'time.today': 'Today',
@@ -639,6 +643,13 @@ const translations = {
     'auth.password_too_short': 'Password must be at least 8 characters',
     'auth.password_mismatch': 'Passwords do not match',
     'auth.email_invalid': 'Please enter a valid email address',
+    'auth.sign_in': 'Sign In',
+    'auth.access_dashboard': 'Access your medical professional dashboard',
+    'auth.demo_access': 'Demo Access',
+    'auth.demo_description': 'Try the platform with demo credentials',
+    'auth.welcome_message': 'Welcome to EVEP Medical Professional Panel',
+    'auth.demo_welcome': 'Welcome, {role}!',
+    'auth.login_failed': 'Login failed',
     
     // Master Data Management
     'master_data.title': 'Master Data',
@@ -930,6 +941,10 @@ const translations = {
     'validation.invalid_date': 'กรุณากรอกวันที่ที่ถูกต้อง',
     'validation.min_length': 'ความยาวขั้นต่ำ {{min}} ตัวอักษร',
     'validation.max_length': 'ความยาวสูงสุด {{max}} ตัวอักษร',
+    'validation.email_required': 'ต้องกรอกอีเมล',
+    'validation.email_invalid': 'กรุณากรอกอีเมลที่ถูกต้อง',
+    'validation.password_required': 'ต้องกรอกรหัสผ่าน',
+    'validation.password_min_length': 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร',
     
     // Time and Date
     'time.today': 'วันนี้',
@@ -1302,6 +1317,13 @@ const translations = {
     'auth.password_too_short': 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร',
     'auth.password_mismatch': 'รหัสผ่านไม่ตรงกัน',
     'auth.email_invalid': 'กรุณากรอกอีเมลที่ถูกต้อง',
+    'auth.sign_in': 'เข้าสู่ระบบ',
+    'auth.access_dashboard': 'เข้าถึงแดชบอร์ดผู้เชี่ยวชาญทางการแพทย์',
+    'auth.demo_access': 'การเข้าถึงแบบทดลอง',
+    'auth.demo_description': 'ลองใช้แพลตฟอร์มด้วยข้อมูลทดลอง',
+    'auth.welcome_message': 'ยินดีต้อนรับสู่แผงควบคุมผู้เชี่ยวชาญทางการแพทย์ EVEP',
+    'auth.demo_welcome': 'ยินดีต้อนรับ, {role}!',
+    'auth.login_failed': 'เข้าสู่ระบบล้มเหลว',
     
     // Master Data Management
     'master_data.title': 'ข้อมูลหลัก',

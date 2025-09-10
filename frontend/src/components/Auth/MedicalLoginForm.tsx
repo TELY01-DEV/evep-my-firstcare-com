@@ -27,6 +27,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
+import { useLanguage } from '../../contexts/LanguageContext';
 import toast from 'react-hot-toast';
 
 interface MedicalLoginFormProps {
@@ -36,6 +37,7 @@ interface MedicalLoginFormProps {
 const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) => {
   const navigate = useNavigate();
   const theme = useTheme();
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -48,15 +50,15 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
     const newErrors: { [key: string]: string } = {};
 
     if (!formData.email) {
-      newErrors.email = 'Email is required';
+      newErrors.email = t('validation.email_required');
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+      newErrors.email = t('validation.email_invalid');
     }
 
     if (!formData.password) {
-      newErrors.password = 'Password is required';
+      newErrors.password = t('validation.password_required');
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = t('validation.password_min_length');
     }
 
     setErrors(newErrors);
@@ -98,7 +100,7 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
       localStorage.setItem('evep_token', data.access_token);
       localStorage.setItem('evep_user', JSON.stringify(data.user));
 
-      toast.success('Welcome to EVEP Medical Professional Panel');
+      toast.success(t('auth.welcome_message'));
       
       if (onLoginSuccess) {
         onLoginSuccess(data.access_token, data.user);
@@ -106,7 +108,7 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
 
       navigate('/dashboard');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Login failed');
+      toast.error(error instanceof Error ? error.message : t('auth.login_failed'));
     } finally {
       setLoading(false);
     }
@@ -142,7 +144,7 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
       localStorage.setItem('evep_token', data.access_token);
       localStorage.setItem('evep_user', JSON.stringify(data.user));
 
-      toast.success(`Welcome, ${role.charAt(0).toUpperCase() + role.slice(1)}!`);
+      toast.success(t('auth.demo_welcome', { role: role.charAt(0).toUpperCase() + role.slice(1) }));
       
       if (onLoginSuccess) {
         onLoginSuccess(data.access_token, data.user);
@@ -223,16 +225,16 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
 
         <CardContent sx={{ padding: theme.spacing(4) }}>
           <Typography variant="h5" fontWeight={600} gutterBottom textAlign="center" sx={{ color: theme.palette.primary.main }}>
-            Sign In
+            {t('auth.sign_in')}
           </Typography>
           <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 3 }}>
-            Access your medical professional dashboard
+            {t('auth.access_dashboard')}
           </Typography>
 
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
-              label="Email Address"
+              label={t('auth.email')}
               type="email"
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
@@ -251,7 +253,7 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
 
             <TextField
               fullWidth
-              label="Password"
+              label={t('auth.password')}
               type={showPassword ? 'text' : 'password'}
               value={formData.password}
               onChange={(e) => handleInputChange('password', e.target.value)}
@@ -301,7 +303,7 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
               {loading ? (
                 <CircularProgress size={24} color="inherit" />
               ) : (
-                'Sign In'
+                {t('auth.sign_in')}
               )}
             </Button>
           </form>
@@ -314,10 +316,10 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
 
           {/* Demo Login Buttons */}
           <Typography variant="h6" fontWeight={600} gutterBottom textAlign="center" sx={{ color: theme.palette.primary.main }}>
-            Demo Access
+            {t('auth.demo_access')}
           </Typography>
           <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 3 }}>
-            Try the platform with demo credentials
+            {t('auth.demo_description')}
           </Typography>
 
           <Grid container spacing={2}>
