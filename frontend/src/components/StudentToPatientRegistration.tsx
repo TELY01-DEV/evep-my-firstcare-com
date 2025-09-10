@@ -26,6 +26,15 @@ import {
   Avatar,
   InputAdornment,
   Pagination,
+  Breadcrumbs,
+  Link,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Stepper,
+  Step,
+  StepLabel,
 } from '@mui/material';
 import {
   Person,
@@ -38,6 +47,8 @@ import {
   FilterList,
   Add,
   CreditCard,
+  Home,
+  Dashboard,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
@@ -49,13 +60,15 @@ interface StudentToPatientRegistrationProps {
 }
 
 interface Student {
-  _id: string;
+  id: string;
   first_name: string;
   last_name: string;
   student_code: string;
   grade_level: string;
   school_name: string;
   parent_id: string;
+  screening_completed_at?: string;
+  screening_results?: any;
 }
 
 interface Teacher {
@@ -127,34 +140,58 @@ const StudentToPatientRegistration: React.FC<StudentToPatientRegistrationProps> 
 
   const loadStudents = async () => {
     try {
-      const response = await axios.get('/api/v1/evep/students', {
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await axios.get(`${baseUrl}/api/v1/evep/students/ready-for-patient-registration`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStudents(response.data.students || []);
     } catch (err: any) {
-      setError('Failed to load students');
+      console.error('Error loading students ready for patient registration:', err);
+      if (err.response?.status === 401) {
+        setError('Authentication failed. Please log in again.');
+        // Redirect to login
+        window.location.href = '/login';
+      } else {
+        setError('Failed to load students ready for patient registration');
+      }
     }
   };
 
   const loadTeachers = async () => {
     try {
-      const response = await axios.get('/api/v1/evep/teachers', {
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await axios.get(`${baseUrl}/api/v1/evep/teachers`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTeachers(response.data.teachers || []);
     } catch (err: any) {
-      setError('Failed to load teachers');
+      console.error('Error loading teachers:', err);
+      if (err.response?.status === 401) {
+        setError('Authentication failed. Please log in again.');
+        // Redirect to login
+        window.location.href = '/login';
+      } else {
+        setError('Failed to load teachers');
+      }
     }
   };
 
   const loadRegistrations = async () => {
     try {
-      const response = await axios.get('/api/v1/patients/registrations', {
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'https://stardust.evep.my-firstcare.com';
+      const response = await axios.get(`${baseUrl}/api/v1/patients/registrations`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setRegistrations(response.data || []);
     } catch (err: any) {
-      setError('Failed to load registrations');
+      console.error('Error loading registrations:', err);
+      if (err.response?.status === 401) {
+        setError('Authentication failed. Please log in again.');
+        // Redirect to login
+        window.location.href = '/login';
+      } else {
+        setError('Failed to load registrations');
+      }
     }
   };
 
@@ -169,7 +206,7 @@ const StudentToPatientRegistration: React.FC<StudentToPatientRegistrationProps> 
     const matchesFilter = filterType === 'all' || 
       (filterType === 'school' && student.school_name) ||
       (filterType === 'grade' && student.grade_level) ||
-      (filterType === 'recent' && student._id); // For recent students
+      (filterType === 'recent' && student.id); // For recent students
     
     return matchesSearch && matchesFilter;
   });
@@ -181,7 +218,7 @@ const StudentToPatientRegistration: React.FC<StudentToPatientRegistrationProps> 
   const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
 
   const handleStudentSelect = (student: Student) => {
-    setSelectedStudent(student._id);
+    setSelectedStudent(student.id);
   };
 
   const handleManualStudentAdd = () => {
@@ -216,8 +253,9 @@ const StudentToPatientRegistration: React.FC<StudentToPatientRegistrationProps> 
         school_screening_outcome: schoolScreeningOutcome || undefined
       };
 
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'https://stardust.evep.my-firstcare.com';
       const response = await axios.post(
-        '/api/v1/patients/register-from-student',
+        `${baseUrl}/api/v1/patients/register-from-student`,
         registrationData,
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -264,11 +302,42 @@ const StudentToPatientRegistration: React.FC<StudentToPatientRegistrationProps> 
 
   return (
     <Box>
+      {/* Breadcrumb Navigation */}
+      <Box sx={{ mb: 3 }}>
+        <Breadcrumbs aria-label="breadcrumb" sx={{ fontSize: '0.875rem' }}>
+          <Link
+            underline="hover"
+            color="inherit"
+            href="/dashboard"
+            sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+          >
+            <Home fontSize="small" />
+            Dashboard
+          </Link>
+          <Link
+            underline="hover"
+            color="inherit"
+            href="/dashboard/medical-screening"
+            sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+          >
+            <Dashboard fontSize="small" />
+            Medical Screening
+          </Link>
+          <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Person fontSize="small" />
+            Patient Registration
+          </Typography>
+        </Breadcrumbs>
+      </Box>
+
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             <Person sx={{ mr: 1, verticalAlign: 'middle' }} />
             Register Student as Patient
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Select a student who has completed school screening to register them as a patient for medical services.
           </Typography>
 
           {error && (
@@ -335,12 +404,12 @@ const StudentToPatientRegistration: React.FC<StudentToPatientRegistrationProps> 
                 <List>
                   {currentStudents.map((student) => (
                     <ListItem
-                      key={student._id}
+                      key={student.id}
                       button
                       onClick={() => handleStudentSelect(student)}
                       sx={{
                         border: '1px solid',
-                        borderColor: selectedStudent === student._id ? 'primary.main' : 'divider',
+                        borderColor: selectedStudent === student.id ? 'primary.main' : 'divider',
                         borderRadius: 1,
                         mb: 1,
                         '&:hover': {
@@ -363,23 +432,39 @@ const StudentToPatientRegistration: React.FC<StudentToPatientRegistrationProps> 
                               {student.school_name && ` • School: ${student.school_name}`}
                               {student.grade_level && ` • Grade: ${student.grade_level}`}
                             </Typography>
-                            <Box sx={{ mt: 1 }}>
+                            <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                               <Chip
                                 icon={<School />}
                                 label="School Student"
                                 size="small"
                                 color="primary"
-                                sx={{ mr: 1 }}
+                              />
+                              <Chip
+                                icon={<CheckCircle />}
+                                label="Screening Completed"
+                                size="small"
+                                color="success"
+                              />
+                              <Chip
+                                icon={<MedicalServices />}
+                                label="Ready for Registration"
+                                size="small"
+                                color="secondary"
                               />
                             </Box>
+                            {student.screening_completed_at && (
+                              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                                Screening completed: {new Date(student.screening_completed_at).toLocaleDateString()}
+                              </Typography>
+                            )}
                           </Box>
                         }
                       />
                       <Box>
                         <Chip
-                          label={selectedStudent === student._id ? 'Selected' : 'Select'}
-                          color={selectedStudent === student._id ? 'primary' : 'default'}
-                          variant={selectedStudent === student._id ? 'filled' : 'outlined'}
+                          label={selectedStudent === student.id ? 'Selected' : 'Select'}
+                          color={selectedStudent === student.id ? 'primary' : 'default'}
+                          variant={selectedStudent === student.id ? 'filled' : 'outlined'}
                         />
                       </Box>
                     </ListItem>
@@ -388,13 +473,31 @@ const StudentToPatientRegistration: React.FC<StudentToPatientRegistrationProps> 
                 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                    <Pagination
-                      count={totalPages}
-                      page={currentPage}
-                      onChange={handlePageChange}
-                      color="primary"
-                    />
+                  <Box sx={{ mt: 3 }}>
+                    {/* Pagination Info */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Showing {indexOfFirstStudent + 1} to {Math.min(indexOfLastStudent, filteredStudents.length)} of {filteredStudents.length} students
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Page {currentPage} of {totalPages}
+                      </Typography>
+                    </Box>
+                    
+                    {/* Pagination Controls */}
+                    <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                      <Pagination
+                        count={totalPages}
+                        page={currentPage}
+                        onChange={handlePageChange}
+                        color="primary"
+                        size="large"
+                        showFirstButton
+                        showLastButton
+                        siblingCount={1}
+                        boundaryCount={1}
+                      />
+                    </Box>
                   </Box>
                 )}
                 
@@ -549,7 +652,7 @@ const StudentToPatientRegistration: React.FC<StudentToPatientRegistrationProps> 
                     primary={
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Typography variant="subtitle1">
-                          {students.find(s => s._id === registration.student_id)?.first_name} {students.find(s => s._id === registration.student_id)?.last_name}
+                          {students.find(s => s.id === registration.student_id)?.first_name} {students.find(s => s.id === registration.student_id)?.last_name}
                         </Typography>
                         <Chip
                           label={registration.urgency_level.toUpperCase()}
@@ -588,6 +691,171 @@ const StudentToPatientRegistration: React.FC<StudentToPatientRegistrationProps> 
           </List>
         </CardContent>
       </Card>
+
+      {/* Manual Student Registration Dialog */}
+      <Dialog 
+        open={manualStudentDialogOpen} 
+        onClose={() => setManualStudentDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Manual Student Registration</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Register a new student manually and then register them as a patient.
+          </Typography>
+          
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="First Name"
+                required
+                placeholder="Enter first name"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Last Name"
+                required
+                placeholder="Enter last name"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Date of Birth"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                required
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth required>
+                <InputLabel>Gender</InputLabel>
+                <Select label="Gender">
+                  <MenuItem value="male">Male</MenuItem>
+                  <MenuItem value="female">Female</MenuItem>
+                  <MenuItem value="other">Other</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Phone Number"
+                placeholder="Enter phone number"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Email"
+                type="email"
+                placeholder="Enter email address"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Address"
+                multiline
+                rows={2}
+                placeholder="Enter full address"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth required>
+                <InputLabel>School</InputLabel>
+                <Select label="School">
+                  <MenuItem value="school1">School 1</MenuItem>
+                  <MenuItem value="school2">School 2</MenuItem>
+                  <MenuItem value="school3">School 3</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Student ID"
+                placeholder="Enter student ID"
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setManualStudentDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="contained" startIcon={<Person />}>
+            Register Student
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Citizen Card Reader Dialog */}
+      <Dialog 
+        open={citizenCardDialogOpen} 
+        onClose={() => setCitizenCardDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Citizen Card Reader</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Connect and read information from a citizen card to automatically register a student.
+          </Typography>
+          
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Avatar sx={{ width: 64, height: 64, mx: 'auto', mb: 2, bgcolor: 'primary.main' }}>
+              <CreditCard />
+            </Avatar>
+            <Typography variant="h6" gutterBottom>
+              Card Reader Status
+            </Typography>
+            <Chip 
+              label="Not Connected" 
+              color="error" 
+              variant="outlined"
+              sx={{ mb: 2 }}
+            />
+            <Typography variant="body2" color="text.secondary">
+              Please connect a citizen card reader device to continue.
+            </Typography>
+          </Box>
+
+          <Alert severity="info" sx={{ mt: 2 }}>
+            <Typography variant="body2">
+              <strong>Supported Card Types:</strong>
+            </Typography>
+            <Typography variant="body2" component="div">
+              • Thai National ID Card<br/>
+              • Student ID Card<br/>
+              • Other compatible citizen cards
+            </Typography>
+          </Alert>
+
+          <Box sx={{ mt: 3 }}>
+            <Button 
+              variant="outlined" 
+              fullWidth 
+              startIcon={<CreditCard />}
+              disabled
+            >
+              Connect Card Reader
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCitizenCardDialogOpen(false)}>
+            Close
+          </Button>
+          <Button variant="contained" disabled>
+            Read Card
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

@@ -733,7 +733,7 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
       };
 
               const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
-              const response = await fetch(`${baseUrl}/api/v1/screenings/sessions/`, {
+              const response = await fetch(`${baseUrl}/api/v1/screenings/sessions`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -98,6 +98,11 @@ interface Student {
   school_name: string;
   grade_level: string;
   teacher_id?: string;
+  photo_url?: string;
+  date_of_birth?: string;
+  gender?: string;
+  parent_name?: string;
+  parent_phone?: string;
 }
 
 interface Teacher {
@@ -370,12 +375,22 @@ const EvepSchoolScreenings: React.FC = () => {
     if (activeStep === 0 && !formData.patient_id) {
       setSnackbar({
         open: true,
-        message: 'Please select a student',
+        message: 'Please select a student or use "Start Screening Without Student" option',
         severity: 'warning'
       });
       return;
     }
     if (activeStep === 1) {
+      // Validate teacher/examiner for new screenings
+      if (!editingScreening && !formData.examiner_id) {
+        setSnackbar({
+          open: true,
+          message: 'Please select a Teacher/Examiner',
+          severity: 'warning'
+        });
+        return;
+      }
+      
       // Validate screening_type for both new and editing modes
       if (!formData.screening_type) {
         setSnackbar({
@@ -902,8 +917,11 @@ const EvepSchoolScreenings: React.FC = () => {
                       }}
                     >
                       <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: 'primary.main' }}>
-                          <PersonIcon />
+                        <Avatar 
+                          src={student.photo_url}
+                          sx={{ bgcolor: 'primary.main' }}
+                        >
+                          {student.photo_url ? null : <PersonIcon />}
                         </Avatar>
                       </ListItemAvatar>
                       <ListItemText
@@ -972,21 +990,74 @@ const EvepSchoolScreenings: React.FC = () => {
               Screening Setup
             </Typography>
             
-            {/* Show student info prominently when editing */}
-            {editingScreening && formData.patient_id && getSelectedStudent() && (
-              <Box sx={{ mb: 3, p: 3, bgcolor: '#f3f4f6', border: '2px solid #3b82f6', borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom sx={{ color: '#1e40af', fontWeight: 'bold' }}>
-                  📋 Screening for Student
-                </Typography>
-                <Typography variant="body1" sx={{ color: '#1f2937', fontWeight: '600', mb: 1 }}>
-                  <strong style={{ color: '#1e40af' }}>Name:</strong> {getSelectedStudent()?.first_name} {getSelectedStudent()?.last_name}
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#374151' }}>
-                  <strong style={{ color: '#1e40af' }}>Student Code:</strong> {getSelectedStudent()?.student_code} | 
-                  <strong style={{ color: '#1e40af' }}> School:</strong> {getSelectedStudent()?.school_name} | 
-                  <strong style={{ color: '#1e40af' }}> Grade:</strong> {getSelectedStudent()?.grade_level}
-                </Typography>
-              </Box>
+            {/* Student Profile Section - Always at the top */}
+            {formData.patient_id && getSelectedStudent() && (
+              <Card sx={{ mb: 3, border: '2px solid #3b82f6', borderRadius: 2 }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom sx={{ color: '#1e40af', fontWeight: 'bold', mb: 2 }}>
+                    👤 Student Profile
+                  </Typography>
+                  <Grid container spacing={3} alignItems="center">
+                    <Grid item xs={12} sm={3} md={2}>
+                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                        <Avatar
+                          src={getSelectedStudent()?.photo_url}
+                          sx={{ 
+                            width: 80, 
+                            height: 80, 
+                            bgcolor: 'primary.main',
+                            fontSize: '2rem'
+                          }}
+                        >
+                          {getSelectedStudent()?.photo_url ? null : (
+                            <PersonIcon sx={{ fontSize: '2rem' }} />
+                          )}
+                        </Avatar>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} sm={9} md={10}>
+                      <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                          <Typography variant="h6" sx={{ color: '#1f2937', fontWeight: '600', mb: 1 }}>
+                            {getSelectedStudent()?.first_name} {getSelectedStudent()?.last_name}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
+                            <strong>Student Code:</strong> {getSelectedStudent()?.student_code}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
+                            <strong>School:</strong> {getSelectedStudent()?.school_name}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                            <strong>Grade:</strong> {getSelectedStudent()?.grade_level}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                          {getSelectedStudent()?.date_of_birth && (
+                            <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
+                              <strong>Date of Birth:</strong> {new Date(getSelectedStudent()?.date_of_birth || '').toLocaleDateString()}
+                            </Typography>
+                          )}
+                          {getSelectedStudent()?.gender && (
+                            <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
+                              <strong>Gender:</strong> {getSelectedStudent()?.gender}
+                            </Typography>
+                          )}
+                          {getSelectedStudent()?.parent_name && (
+                            <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
+                              <strong>Parent:</strong> {getSelectedStudent()?.parent_name}
+                            </Typography>
+                          )}
+                          {getSelectedStudent()?.parent_phone && (
+                            <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                              <strong>Parent Phone:</strong> {getSelectedStudent()?.parent_phone}
+                            </Typography>
+                          )}
+                        </Grid>
+                      </Grid>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
             )}
             
             <Grid container spacing={3}>

@@ -91,7 +91,20 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
                 headers={"WWW-Authenticate": "Bearer"},
             )
     
-    return payload
+    # Ensure payload doesn't contain any ObjectIds (handle nested structures)
+    def convert_objectids_to_strings(obj):
+        """Recursively convert all ObjectId instances to strings"""
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        elif isinstance(obj, dict):
+            return {key: convert_objectids_to_strings(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_objectids_to_strings(item) for item in obj]
+        else:
+            return obj
+    
+    clean_payload = convert_objectids_to_strings(payload)
+    return clean_payload
 
 @router.post("/register", response_model=TokenResponse)
 async def register_user(user_data: UserRegister):
@@ -265,8 +278,22 @@ async def login_user(login_data: UserLogin):
     # Get client IP address (TODO: implement proper IP extraction)
     client_ip = "127.0.0.1"  # Placeholder for now
     
+    # Convert ObjectIds to strings before creating JWT tokens (handle nested structures)
+    def convert_objectids_to_strings(obj):
+        """Recursively convert all ObjectId instances to strings"""
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        elif isinstance(obj, dict):
+            return {key: convert_objectids_to_strings(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_objectids_to_strings(item) for item in obj]
+        else:
+            return obj
+    
+    user_for_jwt = convert_objectids_to_strings(user)
+    
     # Create access and refresh tokens using enhanced JWT service with blockchain
-    token_data = create_jwt_token_pair(user, client_ip)
+    token_data = create_jwt_token_pair(user_for_jwt, client_ip)
     
     # Generate comprehensive audit hash
     audit_hash = generate_blockchain_hash(f"user_login:{user['email']}:{client_ip}:{token_data['session_hash']}")
@@ -377,8 +404,22 @@ async def refresh_token(current_user: dict = Depends(get_current_user)):
             detail="User not found or inactive"
         )
     
+    # Convert ObjectIds to strings before creating JWT token (handle nested structures)
+    def convert_objectids_to_strings(obj):
+        """Recursively convert all ObjectId instances to strings"""
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        elif isinstance(obj, dict):
+            return {key: convert_objectids_to_strings(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [convert_objectids_to_strings(item) for item in obj]
+        else:
+            return obj
+    
+    user_for_jwt = convert_objectids_to_strings(user)
+    
     # Create new access token using centralized JWT service
-    access_token = create_jwt_token(user)
+    access_token = create_jwt_token(user_for_jwt)
     
     return TokenResponse(
         access_token=access_token,

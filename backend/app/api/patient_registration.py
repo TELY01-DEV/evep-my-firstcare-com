@@ -63,20 +63,22 @@ async def register_student_as_patient(
         )
     
     # Validate student exists
-    student = await db.evep.students.find_one({"_id": ObjectId(registration_data.student_id)})
+    student = await db.evep["evep.students"].find_one({"_id": ObjectId(registration_data.student_id)})
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Student not found"
         )
     
-    # Validate appointment exists
-    appointment = await db.evep.appointments.find_one({"_id": ObjectId(registration_data.appointment_id)})
-    if not appointment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Appointment not found"
-        )
+    # Validate appointment exists (only if appointment_id is provided and not empty)
+    appointment = None
+    if registration_data.appointment_id and registration_data.appointment_id.strip():
+        appointment = await db.evep.appointments.find_one({"_id": ObjectId(registration_data.appointment_id)})
+        if not appointment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Appointment not found"
+            )
     
     # Check if student is already registered as a patient
     existing_mapping = await db.evep.student_patient_mapping.find_one({
@@ -140,7 +142,7 @@ async def register_student_as_patient(
     registration_doc = {
         "student_id": ObjectId(registration_data.student_id),
         "patient_id": ObjectId(patient_id),
-        "appointment_id": ObjectId(registration_data.appointment_id),
+        "appointment_id": ObjectId(registration_data.appointment_id) if registration_data.appointment_id and registration_data.appointment_id.strip() else None,
         "registration_reason": registration_data.registration_reason,
         "medical_notes": registration_data.medical_notes,
         "urgency_level": registration_data.urgency_level,

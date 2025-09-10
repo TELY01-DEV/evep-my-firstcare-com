@@ -239,22 +239,22 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
       const token = localStorage.getItem('evep_token');
       const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
       const url = editingItem 
-        ? `${baseUrl}/api/v1/inventory/glasses/${editingItem._id}`
+        ? `${baseUrl}/api/v1/inventory/glasses/${editingItem.item_id}`
         : `${baseUrl}/api/v1/inventory/glasses`;
       
       // Transform formData to match backend API requirements
       const apiData = {
         item_code: formData.item_code,
-        item_name: formData.name,
+        item_name: formData.item_name,
         category: formData.category,
         brand: formData.brand,
         model: formData.model,
         specifications: {
-          frame_color: formData.frame_color,
-          lens_type: formData.lens_type,
-          prescription_range: formData.prescription_range,
-          size: formData.size,
-          material: formData.material
+          frame_color: formData.specifications.frame_color,
+          lens_type: formData.specifications.lens_type,
+          prescription_range: formData.specifications.prescription_range,
+          size: formData.specifications.size,
+          material: formData.specifications.material
         },
         unit_price: formData.unit_price,
         cost_price: formData.unit_price * 0.7, // Estimate cost price as 70% of unit price

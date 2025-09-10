@@ -242,7 +242,47 @@ class UnifiedAuthService {
   isAuthenticated(): boolean {
     const token = this.getToken();
     const user = this.getUser();
-    return !!(token && user);
+    
+    if (!token || !user) {
+      return false;
+    }
+    
+    // Validate token format and expiration
+    if (!this.isTokenValid(token)) {
+      console.warn('🔐 Invalid token detected, clearing authentication');
+      this.logout();
+      return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Check if token is valid (format and expiration)
+   */
+  private isTokenValid(token: string): boolean {
+    try {
+      // Check if token has 3 parts (header.payload.signature)
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        console.warn('Invalid token format: not enough segments');
+        return false;
+      }
+      
+      // Decode payload to check expiration
+      const payload = JSON.parse(atob(parts[1]));
+      const now = Math.floor(Date.now() / 1000);
+      
+      if (payload.exp && payload.exp < now) {
+        console.warn('Token has expired');
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.warn('Error validating token:', error);
+      return false;
+    }
   }
 
   /**

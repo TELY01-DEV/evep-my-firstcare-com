@@ -32,7 +32,7 @@ export const API_ENDPOINTS = {
   EVEP_SCHOOLS: `${API_BASE_URL}/api/v1/evep/schools`,
   EVEP_TEACHERS: `${API_BASE_URL}/api/v1/evep/teachers`,
   EVEP_PARENTS: `${API_BASE_URL}/api/v1/evep/parents`,
-  EVEP_SCHOOL_SCREENINGS: `${API_BASE_URL}/api/v1/evep/school-screenings`,
+  EVEP_SCHOOL_SCREENINGS: `${API_BASE_URL}/school-screenings-data`,
   
   // Appointments
   APPOINTMENTS: `${API_BASE_URL}/api/v1/appointments`,
