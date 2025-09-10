@@ -20,6 +20,7 @@ import {
   Chip,
 } from '@mui/material';
 import ChatBotButton from '../ChatBot/ChatBotButton';
+import LanguageToggle from '../LanguageToggle';
 import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
@@ -949,6 +950,9 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
               <NotificationsIcon />
             </Badge>
           </IconButton>
+
+          {/* Language Toggle */}
+          <LanguageToggle />
 
           {/* User Profile */}
           <IconButton

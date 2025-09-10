@@ -69,6 +69,7 @@ import {
 } from '@mui/icons-material';
 
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { API_ENDPOINTS } from '../config/api';
 
 interface SchoolScreening {
@@ -118,6 +119,7 @@ interface Teacher {
 
 const EvepSchoolScreenings: React.FC = () => {
   const { token, user } = useAuth();
+  const { t } = useLanguage();
   const [screenings, setScreenings] = useState<SchoolScreening[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -1796,10 +1798,10 @@ const EvepSchoolScreenings: React.FC = () => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
-            School Screenings
+            {t('school_screenings.title')}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Manage school-based vision screening sessions
+            {t('school_screenings.subtitle')}
           </Typography>
         </Box>
         <Button
@@ -1807,7 +1809,7 @@ const EvepSchoolScreenings: React.FC = () => {
           startIcon={<AddIcon />}
           onClick={handleCreateScreening}
         >
-          Create New School Screening
+          {t('school_screenings.create_new')}
         </Button>
       </Box>
 
@@ -1820,7 +1822,7 @@ const EvepSchoolScreenings: React.FC = () => {
                 {screenings.length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Total Screenings
+                {t('school_screenings.total_screenings')}
               </Typography>
             </CardContent>
           </Card>
@@ -1832,7 +1834,7 @@ const EvepSchoolScreenings: React.FC = () => {
                 {screenings.filter(s => s.status === 'completed').length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Completed
+                {t('school_screenings.completed')}
               </Typography>
             </CardContent>
           </Card>
@@ -1844,7 +1846,7 @@ const EvepSchoolScreenings: React.FC = () => {
                 {screenings.filter(s => s.status === 'in_progress').length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                In Progress
+                {t('school_screenings.in_progress')}
               </Typography>
             </CardContent>
           </Card>
@@ -1856,7 +1858,7 @@ const EvepSchoolScreenings: React.FC = () => {
                 {screenings.filter(s => s.status === 'pending').length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Pending
+                {t('school_screenings.pending')}
               </Typography>
             </CardContent>
           </Card>
@@ -1868,7 +1870,7 @@ const EvepSchoolScreenings: React.FC = () => {
                 {students.length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Available Students
+                {t('school_screenings.available_students')}
               </Typography>
             </CardContent>
           </Card>
@@ -1880,7 +1882,7 @@ const EvepSchoolScreenings: React.FC = () => {
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6">
-              Recent School Screenings
+              {t('school_screenings.recent_screenings')}
             </Typography>
             <Button
               variant="outlined"
@@ -1888,7 +1890,7 @@ const EvepSchoolScreenings: React.FC = () => {
               onClick={() => setShowFilters(!showFilters)}
               size="small"
             >
-              {showFilters ? 'Hide Filters' : 'Show Filters'}
+              {showFilters ? t('common.hide_filters') : t('school_screenings.show_filters')}
             </Button>
           </Box>
 
@@ -1996,12 +1998,12 @@ const EvepSchoolScreenings: React.FC = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Student</TableCell>
-                  <TableCell>Examiner</TableCell>
-                  <TableCell>Type</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Actions</TableCell>
+                  <TableCell>{t('school_screenings.student')}</TableCell>
+                  <TableCell>{t('school_screenings.examiner')}</TableCell>
+                  <TableCell>{t('school_screenings.type')}</TableCell>
+                  <TableCell>{t('school_screenings.status')}</TableCell>
+                  <TableCell>{t('school_screenings.date')}</TableCell>
+                  <TableCell>{t('school_screenings.actions')}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

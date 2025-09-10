@@ -11,6 +11,7 @@ import { Toaster } from 'react-hot-toast';
 
 // Context
 import { AuthProvider } from './contexts/AuthContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 import SystemLoadingIndicator from './components/SystemStartup/SystemLoadingIndicator';
 import ReactErrorBoundary from './components/ErrorBoundary/ReactErrorBoundary';
 
@@ -93,10 +94,11 @@ function App() {
 
   return (
     <ReactErrorBoundary>
-      <AuthProvider>
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider theme={evepTheme}>
-            <CssBaseline />
+      <LanguageProvider>
+        <AuthProvider>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider theme={evepTheme}>
+              <CssBaseline />
             
             {/* System Loading Indicator */}
             {showSystemLoader && (
@@ -332,6 +334,7 @@ function App() {
           </ThemeProvider>
         </QueryClientProvider>
       </AuthProvider>
+      </LanguageProvider>
     </ReactErrorBoundary>
   );
 }
