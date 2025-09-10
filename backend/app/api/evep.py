@@ -1699,8 +1699,16 @@ async def delete_school_screening(
     """Delete a school screening"""
     db = get_database()
     
+    # Get user_id for permission checks
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User ID not found"
+        )
+    
     # Check permissions
-    if current_user["role"] not in ["teacher", "school_staff", "admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+    if current_user["role"] not in ["teacher", "school_staff", "admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to delete school screenings")
     
     # Verify screening exists
