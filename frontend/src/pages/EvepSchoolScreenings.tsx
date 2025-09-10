@@ -1809,7 +1809,7 @@ const EvepSchoolScreenings: React.FC = () => {
           <Card>
             <CardContent>
               <Typography variant="h4" color="warning.main">
-                {screenings.filter(s => s.status === 'in_progress').length}
+                {screenings.filter(s => s.status === 'in_progress' || s.status === 'pending').length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 In Progress
