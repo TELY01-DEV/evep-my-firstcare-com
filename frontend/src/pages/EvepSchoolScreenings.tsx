@@ -1781,7 +1781,7 @@ const EvepSchoolScreenings: React.FC = () => {
 
       {/* Statistics Cards */}
       <Grid container spacing={3} mb={4}>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card>
             <CardContent>
               <Typography variant="h4" color="primary">
@@ -1793,7 +1793,7 @@ const EvepSchoolScreenings: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card>
             <CardContent>
               <Typography variant="h4" color="success.main">
@@ -1805,11 +1805,11 @@ const EvepSchoolScreenings: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card>
             <CardContent>
               <Typography variant="h4" color="warning.main">
-                {screenings.filter(s => s.status === 'in_progress' || s.status === 'pending').length}
+                {screenings.filter(s => s.status === 'in_progress').length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 In Progress
@@ -1817,7 +1817,19 @@ const EvepSchoolScreenings: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
+          <Card>
+            <CardContent>
+              <Typography variant="h4" color="secondary.main">
+                {screenings.filter(s => s.status === 'pending').length}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Pending
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card>
             <CardContent>
               <Typography variant="h4" color="info.main">
