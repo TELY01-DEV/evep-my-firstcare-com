@@ -1,3 +1,7 @@
+// CRITICAL: Object Renderer Interceptor - Must be imported FIRST to prevent React error #31
+import './utils/objectRendererInterceptor';
+import './utils/runtimeObjectInspector';
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
@@ -8,6 +12,10 @@ import { Toaster } from 'react-hot-toast';
 // Context
 import { AuthProvider } from './contexts/AuthContext';
 import SystemLoadingIndicator from './components/SystemStartup/SystemLoadingIndicator';
+import ReactErrorBoundary from './components/ErrorBoundary/ReactErrorBoundary';
+
+// Global Object Renderer - Must be imported early to intercept React.createElement
+import './utils/globalObjectRenderer';
 
 // Pages
 import Dashboard from './pages/Dashboard';
@@ -84,26 +92,27 @@ function App() {
   const [showSystemLoader, setShowSystemLoader] = React.useState(true);
 
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider theme={evepTheme}>
-          <CssBaseline />
-          
-          {/* System Loading Indicator */}
-          {showSystemLoader && (
-            <SystemLoadingIndicator
-              onComplete={() => {
-                setSystemReady(true);
-                setShowSystemLoader(false);
-              }}
-              onError={(error) => {
-                setSystemError(error);
-                setShowSystemLoader(false);
-              }}
-            />
-          )}
-          
-          <Router>
+    <ReactErrorBoundary>
+      <AuthProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider theme={evepTheme}>
+            <CssBaseline />
+            
+            {/* System Loading Indicator */}
+            {showSystemLoader && (
+              <SystemLoadingIndicator
+                onComplete={() => {
+                  setSystemReady(true);
+                  setShowSystemLoader(false);
+                }}
+                onError={(error) => {
+                  setSystemError(error);
+                  setShowSystemLoader(false);
+                }}
+              />
+            )}
+            
+            <Router>
             <div className="App">
               <Routes>
                 {/* Public routes */}
@@ -320,9 +329,10 @@ function App() {
               />
             </div>
           </Router>
-        </ThemeProvider>
-      </QueryClientProvider>
-    </AuthProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </AuthProvider>
+    </ReactErrorBoundary>
   );
 }
 

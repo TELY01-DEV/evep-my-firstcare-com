@@ -75,6 +75,8 @@ import {
   CreditCard,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { useSafeRender } from '../hooks/useSafeRender';
+import SafeAddressRenderer from './SafeAddressRenderer';
 import RBACScreeningDropdown from './RBAC/RBACScreeningDropdown';
 import api from '../services/api';
 
@@ -158,6 +160,7 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
   onCancel
 }) => {
   const { user } = useAuth();
+  const { safeRender, safeRenderAddress, safeRenderFormValue } = useSafeRender();
   const [activeStep, setActiveStep] = useState(0);
   const [patientTab, setPatientTab] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -811,9 +814,12 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
                   <Divider sx={{ my: 1 }} />
                   <Box>
                     <Typography variant="subtitle2" color="text.secondary">Address</Typography>
-                    <Typography variant="body1" fontWeight="medium">
-                      {selectedPatient.address}
-                    </Typography>
+                    <SafeAddressRenderer 
+                      address={selectedPatient.address}
+                      variant="body1"
+                      showIcon={true}
+                      multiline={true}
+                    />
                   </Box>
                 </>
               )}
@@ -1854,7 +1860,7 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
               Select Patient for Standard Vision Screening
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Choose a patient to conduct standard vision screening or start without a patient.
+              Choose a patient to conduct standard vision screening in hospital/clinic settings or start without a patient.
             </Typography>
 
             <Card sx={{ mb: 3, border: '2px dashed', borderColor: 'primary.main' }}>
@@ -1884,105 +1890,20 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
             </Card>
 
             <Tabs value={patientTab} onChange={(e, newValue) => setPatientTab(newValue)} sx={{ mb: 3 }}>
-              <Tab label="School Screening Students" icon={<School />} />
               <Tab label="Manual Registration" icon={<Person />} />
               <Tab label="Citizen Card Reader" icon={<CreditCard />} />
             </Tabs>
 
 
 
+
             {patientTab === 0 && (
-              <Box>
-                <Typography variant="h6" gutterBottom>
-                  School Screening Students
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Students who have completed school screenings and are ready for standard vision assessment
-                </Typography>
-                <Grid container spacing={2} sx={{ mb: 3 }}>
-                  <Grid item xs={12} md={8}>
-                    <TextField
-                      fullWidth
-                      placeholder="Search school screening students by name, ID, or school..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      InputProps={{
-                        startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <FormControl fullWidth>
-                      <InputLabel>Filter by School</InputLabel>
-                      <Select
-                        value={filterStatus}
-                        label="Filter by School"
-                        onChange={(e) => setFilterStatus(e.target.value)}
-                      >
-                        <MenuItem value="all">All Schools</MenuItem>
-                        <MenuItem value="active">Active Students</MenuItem>
-                        <MenuItem value="completed">Completed Screenings</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                </Grid>
-
-                <List>
-                  {patients
-                    .filter(patient => 
-                      patient.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      patient.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                      patient.school?.toLowerCase().includes(searchTerm.toLowerCase())
-                    )
-                    .map((patient) => (
-                      <ListItem
-                        key={patient._id}
-                        sx={{
-                          border: selectedPatient?._id === patient._id ? '2px solid' : '1px solid',
-                          borderColor: selectedPatient?._id === patient._id ? 'primary.main' : 'divider',
-                          borderRadius: 1,
-                          mb: 1,
-                          cursor: 'pointer',
-                          '&:hover': { bgcolor: 'action.hover' }
-                        }}
-                        onClick={() => setSelectedPatient(patient)}
-                      >
-                        <ListItemAvatar>
-                          <Avatar>
-                            <Person />
-                          </Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={`${patient.first_name} ${patient.last_name}`}
-                          secondary={
-                            <Box>
-                              <Typography variant="body2">
-                                Age: {new Date().getFullYear() - new Date(patient.date_of_birth).getFullYear()} years
-                              </Typography>
-                              <Typography variant="body2">
-                                School: {patient.school || 'N/A'} • Grade: {patient.grade || 'N/A'}
-                              </Typography>
-                            </Box>
-                          }
-                        />
-                        <Chip
-                          label={selectedPatient?._id === patient._id ? 'Selected' : 'Select'}
-                          color={selectedPatient?._id === patient._id ? 'primary' : 'default'}
-                          variant={selectedPatient?._id === patient._id ? 'filled' : 'outlined'}
-                        />
-                      </ListItem>
-                    ))}
-                </List>
-              </Box>
-            )}
-
-            {patientTab === 1 && (
               <Box>
                 <Typography variant="h6" gutterBottom>
                   Manual Registration
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Manually register new patients for standard vision screening
+                  Manually register new patients for standard vision screening in hospital/clinic settings
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid item xs={12} md={6}>
@@ -2058,7 +1979,7 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
                       label="Address"
                       multiline
                       rows={2}
-                      value={newPatientData.address}
+                      value={typeof newPatientData.address === "object" ? JSON.stringify(newPatientData.address) : newPatientData.address || ""}
                       onChange={(e) => setNewPatientData({...newPatientData, address: e.target.value})}
                     />
                   </Grid>
@@ -2077,13 +1998,13 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
               </Box>
             )}
 
-            {patientTab === 2 && (
+            {patientTab === 1 && (
               <Box>
                 <Typography variant="h6" gutterBottom>
                   Citizen Card Reader
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  Patients registered via citizen card reader for standard vision screening
+                  Patients registered via citizen card reader for standard vision screening in hospital/clinic settings
                 </Typography>
                 <Grid container spacing={2} sx={{ mb: 3 }}>
                   <Grid item xs={12} md={8}>

@@ -246,24 +246,48 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
     fetchAppointments();
   }, []);
 
+  // Refetch patients when tab changes
+  useEffect(() => {
+    fetchPatients();
+  }, [selectedTab]);
+
   const fetchPatients = async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-              const response = await fetch(API_ENDPOINTS.EVEP_STUDENTS, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      // For School Screening Students tab, fetch students who completed school screening and need medical screening
+      if (selectedTab === 0) {
+        const response = await fetch(API_ENDPOINTS.EVEP_STUDENTS_READY_FOR_PATIENT_REGISTRATION, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        setPatients(data.patients || []);
+        if (response.ok) {
+          const data = await response.json();
+          setPatients(data.students || []);
+        } else {
+          console.error('Failed to fetch students ready for medical screening from API');
+          setPatients([]);
+        }
       } else {
-        console.error('Failed to fetch patients from API');
-        setPatients([]);
+        // For other tabs, fetch regular students
+        const response = await fetch(API_ENDPOINTS.EVEP_STUDENTS, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setPatients(data.patients || []);
+        } else {
+          console.error('Failed to fetch patients from API');
+          setPatients([]);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch patients:', err);
@@ -389,7 +413,10 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
         Select Patient for Mobile Vision Screening
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Choose a patient to conduct mobile vision screening with glasses prescription and fitting, or start the workflow without a patient.
+        {selectedTab === 0 
+          ? "Choose a student who completed school screening and needs medical team screening & diagnosis with glasses prescription and fitting, or start the workflow without a patient."
+          : "Choose a patient to conduct mobile vision screening with glasses prescription and fitting, or start the workflow without a patient."
+        }
       </Typography>
 
       {/* Quick Start Option */}
@@ -501,6 +528,15 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
                             label="School Student"
                             size="small"
                             color="primary"
+                            sx={{ mr: 1 }}
+                          />
+                        )}
+                        {selectedTab === 0 && (
+                          <Chip
+                            icon={<Assessment />}
+                            label="Needs Medical Screening"
+                            size="small"
+                            color="warning"
                             sx={{ mr: 1 }}
                           />
                         )}

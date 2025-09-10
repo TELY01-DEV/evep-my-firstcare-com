@@ -715,6 +715,56 @@ const EvepSchoolScreenings: React.FC = () => {
     return students.find(student => student.id === formData.patient_id);
   };
 
+  // Helper function to calculate age from date of birth
+  const calculateAge = (dateOfBirth: string): number => {
+    if (!dateOfBirth) return 0;
+    try {
+      const birthDate = new Date(dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age;
+    } catch (error) {
+      console.error('Error calculating age:', error);
+      return 0;
+    }
+  };
+
+  // Helper function to format date
+  const formatDate = (dateString: string): string => {
+    if (!dateString) return 'Not specified';
+    try {
+      return new Date(dateString).toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid date';
+    }
+  };
+
+  // Helper function to format gender
+  const formatGender = (gender: string): string => {
+    if (!gender) return 'Not specified';
+    switch (gender.toLowerCase()) {
+      case 'male':
+      case 'm':
+      case '1':
+        return 'ชาย';
+      case 'female':
+      case 'f':
+      case '2':
+        return 'หญิง';
+      default:
+        return gender;
+    }
+  };
+
   const getSelectedTeacher = () => {
     return teachers.find(teacher => teacher.id === formData.examiner_id);
   };
@@ -793,29 +843,43 @@ const EvepSchoolScreenings: React.FC = () => {
                     📋 Current Screening Student
                   </Typography>
                   <Typography variant="h6" sx={{ mb: 2, color: '#1f2937', fontWeight: '600' }}>
-                    {getSelectedStudent()?.first_name} {getSelectedStudent()?.last_name}
+                    {getSelectedStudent()?.first_name || 'ไม่ระบุ'} {getSelectedStudent()?.last_name || 'ไม่ระบุ'}
                   </Typography>
                   <Grid container spacing={2}>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="body1" sx={{ color: '#374151' }}>
-                        <strong style={{ color: '#1e40af' }}>Student Code:</strong> {getSelectedStudent()?.student_code}
+                        <strong style={{ color: '#1e40af' }}>รหัสนักเรียน:</strong> {getSelectedStudent()?.student_code || 'ไม่ระบุ'}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="body1" sx={{ color: '#374151' }}>
-                        <strong style={{ color: '#1e40af' }}>School:</strong> {getSelectedStudent()?.school_name}
+                        <strong style={{ color: '#1e40af' }}>โรงเรียน:</strong> {getSelectedStudent()?.school_name || 'ไม่ระบุ'}
                       </Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="body1" sx={{ color: '#374151' }}>
-                        <strong style={{ color: '#1e40af' }}>Grade Level:</strong> {getSelectedStudent()?.grade_level}
+                        <strong style={{ color: '#1e40af' }}>ระดับชั้น:</strong> {getSelectedStudent()?.grade_level || 'ไม่ระบุ'}
                       </Typography>
                     </Grid>
-
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body1" sx={{ color: '#374151' }}>
+                        <strong style={{ color: '#1e40af' }}>อายุ:</strong> {getSelectedStudent()?.date_of_birth ? `${calculateAge(getSelectedStudent()?.date_of_birth || '')} ปี` : 'ไม่ระบุ'}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body1" sx={{ color: '#374151' }}>
+                        <strong style={{ color: '#1e40af' }}>เพศ:</strong> {formatGender(getSelectedStudent()?.gender || '')}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body1" sx={{ color: '#374151' }}>
+                        <strong style={{ color: '#1e40af' }}>ผู้ปกครอง:</strong> {getSelectedStudent()?.parent_name || 'ไม่ระบุ'}
+                      </Typography>
+                    </Grid>
                   </Grid>
                   <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #d1d5db' }}>
                     <Typography variant="body2" sx={{ color: '#6b7280', fontStyle: 'italic' }}>
-                      This screening is for the student above. You can proceed to the next step to update the screening details.
+                      การตรวจคัดกรองนี้สำหรับนักเรียนข้างต้น คุณสามารถดำเนินการขั้นตอนต่อไปเพื่ออัปเดตรายละเอียดการตรวจคัดกรอง
                     </Typography>
                   </Box>
                 </Box>
@@ -994,9 +1058,18 @@ const EvepSchoolScreenings: React.FC = () => {
             {formData.patient_id && getSelectedStudent() && (
               <Card sx={{ mb: 3, border: '2px solid #3b82f6', borderRadius: 2 }}>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom sx={{ color: '#1e40af', fontWeight: 'bold', mb: 2 }}>
-                    👤 Student Profile
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Typography variant="h6" sx={{ color: '#1e40af', fontWeight: 'bold' }}>
+                      👤 Student Profile
+                    </Typography>
+                    <Chip 
+                      label="Active Student" 
+                      color="primary" 
+                      size="small" 
+                      variant="filled"
+                    />
+                  </Box>
+                  
                   <Grid container spacing={3} alignItems="center">
                     <Grid item xs={12} sm={3} md={2}>
                       <Box sx={{ display: 'flex', justifyContent: 'center' }}>
@@ -1019,39 +1092,34 @@ const EvepSchoolScreenings: React.FC = () => {
                       <Grid container spacing={2}>
                         <Grid item xs={12} sm={6}>
                           <Typography variant="h6" sx={{ color: '#1f2937', fontWeight: '600', mb: 1 }}>
-                            {getSelectedStudent()?.first_name} {getSelectedStudent()?.last_name}
+                            {getSelectedStudent()?.first_name || 'ไม่ระบุ'} {getSelectedStudent()?.last_name || 'ไม่ระบุ'}
                           </Typography>
                           <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
-                            <strong>Student Code:</strong> {getSelectedStudent()?.student_code}
+                            <strong>รหัสนักเรียน:</strong> {getSelectedStudent()?.student_code || 'ไม่ระบุ'}
                           </Typography>
                           <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
-                            <strong>School:</strong> {getSelectedStudent()?.school_name}
+                            <strong>โรงเรียน:</strong> {getSelectedStudent()?.school_name || 'ไม่ระบุ'}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
+                            <strong>ระดับชั้น:</strong> {getSelectedStudent()?.grade_level || 'ไม่ระบุ'}
                           </Typography>
                           <Typography variant="body2" sx={{ color: '#6b7280' }}>
-                            <strong>Grade:</strong> {getSelectedStudent()?.grade_level}
+                            <strong>อายุ:</strong> {getSelectedStudent()?.date_of_birth ? `${calculateAge(getSelectedStudent()?.date_of_birth || '')} ปี` : 'ไม่ระบุ'}
                           </Typography>
                         </Grid>
                         <Grid item xs={12} sm={6}>
-                          {getSelectedStudent()?.date_of_birth && (
-                            <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
-                              <strong>Date of Birth:</strong> {new Date(getSelectedStudent()?.date_of_birth || '').toLocaleDateString()}
-                            </Typography>
-                          )}
-                          {getSelectedStudent()?.gender && (
-                            <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
-                              <strong>Gender:</strong> {getSelectedStudent()?.gender}
-                            </Typography>
-                          )}
-                          {getSelectedStudent()?.parent_name && (
-                            <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
-                              <strong>Parent:</strong> {getSelectedStudent()?.parent_name}
-                            </Typography>
-                          )}
-                          {getSelectedStudent()?.parent_phone && (
-                            <Typography variant="body2" sx={{ color: '#6b7280' }}>
-                              <strong>Parent Phone:</strong> {getSelectedStudent()?.parent_phone}
-                            </Typography>
-                          )}
+                          <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
+                            <strong>วันเกิด:</strong> {formatDate(getSelectedStudent()?.date_of_birth || '')}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
+                            <strong>เพศ:</strong> {formatGender(getSelectedStudent()?.gender || '')}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#6b7280', mb: 1 }}>
+                            <strong>ผู้ปกครอง:</strong> {getSelectedStudent()?.parent_name || 'ไม่ระบุ'}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#6b7280' }}>
+                            <strong>เบอร์โทรผู้ปกครอง:</strong> {getSelectedStudent()?.parent_phone || 'ไม่ระบุ'}
+                          </Typography>
                         </Grid>
                       </Grid>
                     </Grid>
@@ -1569,30 +1637,249 @@ const EvepSchoolScreenings: React.FC = () => {
           {editingScreening ? 'Edit School Screening' : 'Create New School Screening'} - {steps[activeStep]}
         </DialogTitle>
         <DialogContent>
-          {/* Stepper */}
+          {/* Enhanced Stepper with Arrows */}
           <Box sx={{ mb: 3, mt: 2 }}>
-            <Stepper activeStep={editingScreening ? activeStep - 1 : activeStep} alternativeLabel>
+            <Stepper 
+              activeStep={editingScreening ? activeStep - 1 : activeStep} 
+              alternativeLabel
+              sx={{
+                '& .MuiStepLabel-root': {
+                  '& .MuiStepLabel-label': {
+                    fontSize: '0.9rem',
+                    fontWeight: 500,
+                    color: 'text.secondary',
+                    '&.Mui-active': {
+                      color: 'primary.main',
+                      fontWeight: 600,
+                    },
+                    '&.Mui-completed': {
+                      color: 'success.main',
+                      fontWeight: 600,
+                    }
+                  },
+                  '& .MuiStepLabel-iconContainer': {
+                    '& .MuiStepIcon-root': {
+                      fontSize: '1.5rem',
+                      '&.Mui-active': {
+                        color: 'primary.main',
+                      },
+                      '&.Mui-completed': {
+                        color: 'success.main',
+                      }
+                    }
+                  }
+                },
+                '& .MuiStepConnector-root': {
+                  '& .MuiStepConnector-line': {
+                    borderColor: 'primary.light',
+                    borderWidth: 2,
+                    borderRadius: 1,
+                  },
+                  '&.Mui-active .MuiStepConnector-line': {
+                    borderColor: 'primary.main',
+                  },
+                  '&.Mui-completed .MuiStepConnector-line': {
+                    borderColor: 'success.main',
+                  }
+                }
+              }}
+            >
               {editingScreening ? (
-                // Custom steps for editing mode
+                // Custom steps for editing mode with arrows
                 [
                   <Step key="student-info">
-                    <StepLabel>Student Info</StepLabel>
+                    <StepLabel 
+                      StepIconComponent={({ active, completed }) => (
+                        <Box sx={{ position: 'relative' }}>
+                          <Box
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: '50%',
+                              backgroundColor: completed ? 'success.main' : active ? 'primary.main' : 'grey.300',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontWeight: 'bold',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            {completed ? '✓' : '1'}
+                          </Box>
+                          {active && (
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                top: '50%',
+                                right: -20,
+                                transform: 'translateY(-50%)',
+                                color: 'primary.main',
+                                fontSize: '1.2rem',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              →
+                            </Box>
+                          )}
+                        </Box>
+                      )}
+                    >
+                      Student Info
+                    </StepLabel>
                   </Step>,
                   <Step key="screening-setup">
-                    <StepLabel>Screening Setup</StepLabel>
+                    <StepLabel 
+                      StepIconComponent={({ active, completed }) => (
+                        <Box sx={{ position: 'relative' }}>
+                          <Box
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: '50%',
+                              backgroundColor: completed ? 'success.main' : active ? 'primary.main' : 'grey.300',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontWeight: 'bold',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            {completed ? '✓' : '2'}
+                          </Box>
+                          {active && (
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                top: '50%',
+                                right: -20,
+                                transform: 'translateY(-50%)',
+                                color: 'primary.main',
+                                fontSize: '1.2rem',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              →
+                            </Box>
+                          )}
+                        </Box>
+                      )}
+                    >
+                      Screening Setup
+                    </StepLabel>
                   </Step>,
                   <Step key="vision-assessment">
-                    <StepLabel>Vision Assessment</StepLabel>
+                    <StepLabel 
+                      StepIconComponent={({ active, completed }) => (
+                        <Box sx={{ position: 'relative' }}>
+                          <Box
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: '50%',
+                              backgroundColor: completed ? 'success.main' : active ? 'primary.main' : 'grey.300',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontWeight: 'bold',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            {completed ? '✓' : '3'}
+                          </Box>
+                          {active && (
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                top: '50%',
+                                right: -20,
+                                transform: 'translateY(-50%)',
+                                color: 'primary.main',
+                                fontSize: '1.2rem',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              →
+                            </Box>
+                          )}
+                        </Box>
+                      )}
+                    >
+                      Vision Assessment
+                    </StepLabel>
                   </Step>,
                   <Step key="results">
-                    <StepLabel>Results & Recommendations</StepLabel>
+                    <StepLabel 
+                      StepIconComponent={({ active, completed }) => (
+                        <Box sx={{ position: 'relative' }}>
+                          <Box
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: '50%',
+                              backgroundColor: completed ? 'success.main' : active ? 'primary.main' : 'grey.300',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontWeight: 'bold',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            {completed ? '✓' : '4'}
+                          </Box>
+                        </Box>
+                      )}
+                    >
+                      Results & Recommendations
+                    </StepLabel>
                   </Step>
                 ]
               ) : (
-                // Original steps for create mode
-                steps.map((label) => (
+                // Original steps for create mode with arrows
+                steps.map((label, index) => (
                   <Step key={label}>
-                    <StepLabel>{label}</StepLabel>
+                    <StepLabel 
+                      StepIconComponent={({ active, completed }) => (
+                        <Box sx={{ position: 'relative' }}>
+                          <Box
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: '50%',
+                              backgroundColor: completed ? 'success.main' : active ? 'primary.main' : 'grey.300',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontWeight: 'bold',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            {completed ? '✓' : index + 1}
+                          </Box>
+                          {active && index < steps.length - 1 && (
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                top: '50%',
+                                right: -20,
+                                transform: 'translateY(-50%)',
+                                color: 'primary.main',
+                                fontSize: '1.2rem',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              →
+                            </Box>
+                          )}
+                        </Box>
+                      )}
+                    >
+                      {label}
+                    </StepLabel>
                   </Step>
                 ))
               )}
