@@ -1083,7 +1083,7 @@ const EvepSchoolScreenings: React.FC = () => {
       });
 
       // Refresh the screenings list
-      fetchScreenings();
+      fetchSchoolScreenings();
 
     } catch (error) {
       console.error('Error creating re-screen:', error);
