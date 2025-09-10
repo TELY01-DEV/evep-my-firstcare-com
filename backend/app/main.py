@@ -341,7 +341,9 @@ async def startup_event():
                     "referral_notes": screening.get("referral_notes", ""),
                     "notes": screening.get("notes", ""),
                     "created_at": screening.get("created_at", ""),
-                    "updated_at": screening.get("updated_at", "")
+                    "updated_at": screening.get("updated_at", ""),
+                    "is_rescreen": screening.get("is_rescreen", False),
+                    "original_screening_id": screening.get("original_screening_id", "")
                 })
             
             return result
