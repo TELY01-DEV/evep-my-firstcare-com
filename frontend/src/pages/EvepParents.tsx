@@ -50,6 +50,7 @@ import {
   Clear as ClearIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useAuthenticatedFetch } from '../utils/api';
 import { API_ENDPOINTS } from '../config/api';
 
@@ -91,6 +92,7 @@ interface Parent {
 
 const EvepParents: React.FC = () => {
   const { token } = useAuth();
+  const { t } = useLanguage();
   const authenticatedFetch = useAuthenticatedFetch();
   const [parents, setParents] = useState<Parent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -384,7 +386,7 @@ const EvepParents: React.FC = () => {
             color="text.secondary"
           >
             <GroupIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-            Parents
+            {t('evep_parents.title')}
           </Typography>
         </Breadcrumbs>
       </Box>
@@ -393,10 +395,10 @@ const EvepParents: React.FC = () => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
-            Parents Management
+            {t('evep_parents.title')}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Manage student parents and guardians
+            {t('evep_parents.subtitle')}
           </Typography>
         </Box>
         <Button
@@ -417,7 +419,7 @@ const EvepParents: React.FC = () => {
                 {parents.length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Total Parents
+                {t('evep_parents.total_parents')}
               </Typography>
             </CardContent>
           </Card>
@@ -465,7 +467,7 @@ const EvepParents: React.FC = () => {
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6">
-              Parents List
+              {t('evep_parents.parents_list')}
             </Typography>
             <Button
               variant="outlined"

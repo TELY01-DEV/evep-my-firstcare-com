@@ -48,6 +48,7 @@ import {
   Clear as ClearIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useAuthenticatedFetch } from '../utils/api';
 
 interface Address {
@@ -122,6 +123,7 @@ interface Student {
 
 const EvepStudents: React.FC = () => {
   const { token } = useAuth();
+  const { t } = useLanguage();
   const authenticatedFetch = useAuthenticatedFetch();
   const [students, setStudents] = useState<Student[]>([]);
   const [parents, setParents] = useState<Parent[]>([]);
@@ -541,7 +543,7 @@ const EvepStudents: React.FC = () => {
             color="text.secondary"
           >
             <ChildIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-            Students
+            {t('evep_students.title')}
           </Typography>
         </Breadcrumbs>
       </Box>
@@ -550,10 +552,10 @@ const EvepStudents: React.FC = () => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
-            Students Management
+            {t('evep_students.title')}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Manage student information and records
+            {t('evep_students.subtitle')}
           </Typography>
         </Box>
         <Button
@@ -574,7 +576,7 @@ const EvepStudents: React.FC = () => {
                 {students.length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Total Students
+                {t('evep_students.total_students')}
               </Typography>
             </CardContent>
           </Card>
@@ -586,7 +588,7 @@ const EvepStudents: React.FC = () => {
                 {students.filter(s => s.gender === 'M' || s.gender === 'ชาย').length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Male Students
+                {t('evep_students.male_students')}
               </Typography>
             </CardContent>
           </Card>
@@ -598,7 +600,7 @@ const EvepStudents: React.FC = () => {
                 {students.filter(s => s.gender === 'F' || s.gender === 'หญิง').length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Female Students
+                {t('evep_students.female_students')}
               </Typography>
             </CardContent>
           </Card>
@@ -622,7 +624,7 @@ const EvepStudents: React.FC = () => {
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6">
-              Students List
+              {t('evep_students.students_list')}
             </Typography>
             <Button
               variant="outlined"

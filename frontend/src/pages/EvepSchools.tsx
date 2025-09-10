@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLanguage } from '../contexts/LanguageContext';
 import unifiedApi from '../services/unifiedApi';
 import GeographicSelector from '../components/GeographicSelector';
 import {
@@ -73,6 +74,7 @@ interface School {
 }
 
 const EvepSchools: React.FC = () => {
+  const { t } = useLanguage();
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -276,14 +278,14 @@ const EvepSchools: React.FC = () => {
             color="text.primary"
           >
             <SchoolIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-            School Management
+            {t('evep_schools.subtitle')}
           </Typography>
           <Typography
             sx={{ display: 'flex', alignItems: 'center' }}
             color="text.secondary"
           >
             <SchoolIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-            Schools
+            {t('evep_schools.title')}
           </Typography>
         </Breadcrumbs>
       </Box>
@@ -292,7 +294,7 @@ const EvepSchools: React.FC = () => {
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h4" component="h1" sx={{ display: 'flex', alignItems: 'center' }}>
           <SchoolIcon sx={{ mr: 1 }} />
-          School Management
+          {t('evep_schools.title')}
         </Typography>
         <Button
           variant="contained"

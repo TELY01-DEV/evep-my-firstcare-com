@@ -48,6 +48,7 @@ import {
   Clear as ClearIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import axios from 'axios';
 
 interface Address {
@@ -81,6 +82,7 @@ interface Teacher {
 
 const EvepTeachers: React.FC = () => {
   const { token } = useAuth();
+  const { t } = useLanguage();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -349,7 +351,7 @@ const EvepTeachers: React.FC = () => {
             color="text.secondary"
           >
             <PersonIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-            Teachers
+            {t('evep_teachers.title')}
           </Typography>
         </Breadcrumbs>
       </Box>
@@ -358,10 +360,10 @@ const EvepTeachers: React.FC = () => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
-            Teachers Management
+            {t('evep_teachers.title')}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Manage teacher information and records
+            {t('evep_teachers.subtitle')}
           </Typography>
         </Box>
         <Button
@@ -382,7 +384,7 @@ const EvepTeachers: React.FC = () => {
                 {teachers.length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Total Teachers
+                {t('evep_teachers.total_teachers')}
               </Typography>
             </CardContent>
           </Card>
@@ -394,7 +396,7 @@ const EvepTeachers: React.FC = () => {
                 {teachers.filter(t => t.gender === 'M').length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Male Teachers
+                {t('evep_teachers.male_teachers')}
               </Typography>
             </CardContent>
           </Card>
@@ -406,7 +408,7 @@ const EvepTeachers: React.FC = () => {
                 {teachers.filter(t => t.gender === 'F').length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Female Teachers
+                {t('evep_teachers.female_teachers')}
               </Typography>
             </CardContent>
           </Card>
@@ -430,7 +432,7 @@ const EvepTeachers: React.FC = () => {
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h6">
-              Teachers List
+              {t('evep_teachers.teachers_list')}
             </Typography>
             <Button
               variant="outlined"

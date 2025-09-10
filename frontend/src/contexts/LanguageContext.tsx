@@ -398,6 +398,10 @@ const translations = {
     'evep_students.all_schools': 'All Schools',
     'evep_students.all_grades': 'All Grades',
     'evep_students.all_consent': 'All Consent Status',
+    'evep_students.total_students': 'Total Students',
+    'evep_students.male_students': 'Male Students',
+    'evep_students.female_students': 'Female Students',
+    'evep_students.students_list': 'Students List',
     
     // EVEP Parents
     'evep_parents.title': 'EVEP Parents',
@@ -412,6 +416,8 @@ const translations = {
     'evep_parents.workplace': 'Workplace',
     'evep_parents.children': 'Children',
     'evep_parents.emergency_contact': 'Emergency Contact',
+    'evep_parents.total_parents': 'Total Parents',
+    'evep_parents.parents_list': 'Parents List',
     
     // EVEP Teachers
     'evep_teachers.title': 'EVEP Teachers',
@@ -424,6 +430,10 @@ const translations = {
     'evep_teachers.qualification': 'Qualification',
     'evep_teachers.classes': 'Classes',
     'evep_teachers.students_count': 'Students Count',
+    'evep_teachers.total_teachers': 'Total Teachers',
+    'evep_teachers.male_teachers': 'Male Teachers',
+    'evep_teachers.female_teachers': 'Female Teachers',
+    'evep_teachers.teachers_list': 'Teachers List',
     
     // EVEP Schools
     'evep_schools.title': 'EVEP Schools',
@@ -1038,6 +1048,10 @@ const translations = {
     'evep_students.all_schools': 'โรงเรียนทั้งหมด',
     'evep_students.all_grades': 'ชั้นทั้งหมด',
     'evep_students.all_consent': 'สถานะการยินยอมทั้งหมด',
+    'evep_students.total_students': 'นักเรียนทั้งหมด',
+    'evep_students.male_students': 'นักเรียนชาย',
+    'evep_students.female_students': 'นักเรียนหญิง',
+    'evep_students.students_list': 'รายชื่อนักเรียน',
     
     // EVEP Parents
     'evep_parents.title': 'ผู้ปกครอง EVEP',
@@ -1052,6 +1066,8 @@ const translations = {
     'evep_parents.workplace': 'สถานที่ทำงาน',
     'evep_parents.children': 'บุตร',
     'evep_parents.emergency_contact': 'ผู้ติดต่อฉุกเฉิน',
+    'evep_parents.total_parents': 'ผู้ปกครองทั้งหมด',
+    'evep_parents.parents_list': 'รายชื่อผู้ปกครอง',
     
     // EVEP Teachers
     'evep_teachers.title': 'ครู EVEP',
@@ -1064,6 +1080,10 @@ const translations = {
     'evep_teachers.qualification': 'คุณวุฒิ',
     'evep_teachers.classes': 'ชั้นเรียน',
     'evep_teachers.students_count': 'จำนวนนักเรียน',
+    'evep_teachers.total_teachers': 'ครูทั้งหมด',
+    'evep_teachers.male_teachers': 'ครูชาย',
+    'evep_teachers.female_teachers': 'ครูหญิง',
+    'evep_teachers.teachers_list': 'รายชื่อครู',
     
     // EVEP Schools
     'evep_schools.title': 'โรงเรียน EVEP',
