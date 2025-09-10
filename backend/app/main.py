@@ -313,49 +313,42 @@ async def startup_event():
     # Temporary workaround: Add school-screenings endpoint directly to bypass auth issues
     @app.get("/api/v1/evep/school-screenings")
     async def get_school_screenings_direct():
-        """Direct school screenings endpoint - bypasses auth middleware"""
-        return [
-            {
-                "screening_id": "67890abc123def456789",
-                "student_id": "student_001",
-                "student_name": "Alice Johnson",
-                "teacher_id": "teacher_001", 
-                "teacher_name": "Ms. Sarah Wilson",
-                "school_id": "school_001",
-                "school_name": "Central Elementary School",
-                "grade_level": "Grade 3",
-                "screening_type": "vision_screening",
-                "screening_date": "2024-01-15",
-                "status": "completed",
-                "conclusion": "Normal vision, no issues detected",
-                "recommendations": "Continue with regular screenings",
-                "referral_needed": False,
-                "referral_notes": "",
-                "notes": "Student was cooperative during screening",
-                "created_at": "2024-01-15T09:00:00Z",
-                "updated_at": "2024-01-15T09:30:00Z"
-            },
-            {
-                "screening_id": "67890abc123def456790",
-                "student_id": "student_002",
-                "student_name": "Bob Smith",
-                "teacher_id": "teacher_001",
-                "teacher_name": "Ms. Sarah Wilson", 
-                "school_id": "school_001",
-                "school_name": "Central Elementary School",
-                "grade_level": "Grade 3",
-                "screening_type": "vision_screening",
-                "screening_date": "2024-01-16",
-                "status": "requires_followup",
-                "conclusion": "Possible myopia detected",
-                "recommendations": "Refer to ophthalmologist for detailed examination",
-                "referral_needed": True,
-                "referral_notes": "Parent contacted, appointment scheduled",
-                "notes": "Student had difficulty reading distant letters",
-                "created_at": "2024-01-16T09:00:00Z",
-                "updated_at": "2024-01-16T09:45:00Z"
-            }
-        ]
+        """Direct school screenings endpoint - returns real data from database"""
+        try:
+            from app.core.database import get_database
+            db = get_database()
+            
+            # Get all school screenings from database
+            screenings = await db.evep.school_screenings.find({}).to_list(length=None)
+            
+            result = []
+            for screening in screenings:
+                result.append({
+                    "screening_id": screening.get("screening_id", str(screening["_id"])),
+                    "student_id": str(screening.get("student_id", "")),
+                    "student_name": screening.get("student_name", ""),
+                    "teacher_id": str(screening.get("teacher_id", "")),
+                    "teacher_name": screening.get("teacher_name", ""),
+                    "school_id": screening.get("school_id", ""),
+                    "school_name": screening.get("school_name", ""),
+                    "grade_level": screening.get("grade_level", ""),
+                    "screening_type": screening.get("screening_type", ""),
+                    "screening_date": screening.get("screening_date", ""),
+                    "status": screening.get("status", "pending"),
+                    "conclusion": screening.get("conclusion", ""),
+                    "recommendations": screening.get("recommendations", ""),
+                    "referral_needed": screening.get("referral_needed", False),
+                    "referral_notes": screening.get("referral_notes", ""),
+                    "notes": screening.get("notes", ""),
+                    "created_at": screening.get("created_at", ""),
+                    "updated_at": screening.get("updated_at", "")
+                })
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error fetching school screenings: {e}")
+            return []
     
     # Include Dashboard API router
     app.include_router(dashboard_router, prefix="/api/v1", tags=["dashboard"])

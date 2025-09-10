@@ -1389,7 +1389,7 @@ async def create_school_screening(
         )
     
     # Verify student exists
-    student = await db.evep.students.find_one({"_id": ObjectId(screening_data.student_id)})
+    student = await db.evep["evep.students"].find_one({"_id": ObjectId(screening_data.student_id)})
     if not student:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
     
