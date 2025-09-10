@@ -52,6 +52,7 @@ import {
   Analytics as AnalyticsIcon,
   SystemUpdate as SystemUpdateIcon
 } from '@mui/icons-material';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Setting {
   key: string;
@@ -88,8 +89,6 @@ const categoryColors: { [key: string]: string } = {
   storage: '#00796b',
   analytics: '#303f9f'
 };
-
-import { useLanguage } from '../contexts/LanguageContext';
 
 export default function AdminSettings() {
   const { t } = useLanguage();

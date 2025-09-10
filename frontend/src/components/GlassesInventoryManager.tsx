@@ -133,6 +133,17 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
       location: '',
     },
     notes: '',
+    // Additional form fields
+    quantity: 0,
+    min_quantity: 5,
+    supplier: '',
+    location: '',
+    frame_color: '',
+    lens_type: '',
+    prescription_range: '',
+    size: '',
+    material: '',
+    name: '',
   });
 
   useEffect(() => {
@@ -201,6 +212,17 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
         location: '',
       },
       notes: '',
+      // Additional form fields
+      quantity: 0,
+      min_quantity: 5,
+      supplier: '',
+      location: '',
+      frame_color: '',
+      lens_type: '',
+      prescription_range: '',
+      size: '',
+      material: '',
+      name: '',
     });
     setOpenDialog(true);
   };
@@ -230,6 +252,17 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
         location: item.supplier_info?.location || '',
       },
       notes: item.notes || '',
+      // Additional form fields
+      quantity: item.current_stock,
+      min_quantity: item.reorder_level,
+      supplier: item.supplier_info?.name || '',
+      location: item.supplier_info?.location || '',
+      frame_color: item.specifications?.frame_color || '',
+      lens_type: item.specifications?.lens_type || '',
+      prescription_range: item.specifications?.prescription_range || '',
+      size: item.specifications?.size || '',
+      material: item.specifications?.material || '',
+      name: item.item_name,
     });
     setOpenDialog(true);
   };
@@ -611,7 +644,7 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
                       </TableCell>
                       <TableCell>฿{item.unit_price.toLocaleString()}</TableCell>
                       <TableCell>{item.supplier_info?.location}</TableCell>
-                    <TableCell>
+                      <TableCell>
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <Tooltip title="View Details">
                           <IconButton size="small" color="info">
@@ -639,7 +672,8 @@ const GlassesInventoryManager: React.FC<GlassesInventoryManagerProps> = ({ mode 
                       </Box>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>

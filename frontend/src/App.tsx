@@ -1,6 +1,4 @@
-// CRITICAL: Object Renderer Interceptor - Must be imported FIRST to prevent React error #31
-import './utils/objectRendererInterceptor';
-import './utils/runtimeObjectInspector';
+// React Error #31 prevention utilities removed - using safer rendering approaches
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
@@ -15,8 +13,7 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import SystemLoadingIndicator from './components/SystemStartup/SystemLoadingIndicator';
 import ReactErrorBoundary from './components/ErrorBoundary/ReactErrorBoundary';
 
-// Global Object Renderer - Must be imported early to intercept React.createElement
-import './utils/globalObjectRenderer';
+// Global Object Renderer removed - using safer rendering approaches
 
 // Pages
 import Dashboard from './pages/Dashboard';

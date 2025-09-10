@@ -1,3 +1,5 @@
+import React from 'react';
+
 /**
  * Safe rendering utilities to prevent React error #31
  * Handles objects that cannot be rendered directly in JSX
@@ -98,6 +100,6 @@ export const withSafeRendering = <P extends object>(
       return acc;
     }, {} as any);
     
-    return <Component {...safeProps} />;
+    return React.createElement(Component, safeProps);
   };
 };

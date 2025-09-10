@@ -303,7 +303,7 @@ const MedicalLoginForm: React.FC<MedicalLoginFormProps> = ({ onLoginSuccess }) =
               {loading ? (
                 <CircularProgress size={24} color="inherit" />
               ) : (
-                {t('auth.sign_in')}
+                t('auth.sign_in')
               )}
             </Button>
           </form>

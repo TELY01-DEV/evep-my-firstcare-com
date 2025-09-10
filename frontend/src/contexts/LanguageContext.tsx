@@ -651,7 +651,7 @@ const translations = {
     'auth.demo_access': 'Demo Access',
     'auth.demo_description': 'Try the platform with demo credentials',
     'auth.welcome_message': 'Welcome to EVEP Medical Professional Panel',
-    'auth.demo_welcome': 'Welcome, {role}!',
+    'auth.demo_welcome': 'Welcome, {{role}}!',
     'auth.login_failed': 'Login failed',
     
     // Master Data Management
@@ -1328,7 +1328,7 @@ const translations = {
     'auth.demo_access': 'การเข้าถึงแบบทดลอง',
     'auth.demo_description': 'ลองใช้แพลตฟอร์มด้วยข้อมูลทดลอง',
     'auth.welcome_message': 'ยินดีต้อนรับสู่แผงควบคุมผู้เชี่ยวชาญทางการแพทย์ EVEP',
-    'auth.demo_welcome': 'ยินดีต้อนรับ, {role}!',
+    'auth.demo_welcome': 'ยินดีต้อนรับ, {{role}}!',
     'auth.login_failed': 'เข้าสู่ระบบล้มเหลว',
     
     // Master Data Management
@@ -1383,7 +1383,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   }, [language]);
 
   const t = (key: string, params?: Record<string, string | number>): string => {
-    let translation = translations[language][key] || key;
+    let translation = (translations[language] as any)[key] || key;
     
     if (params) {
       Object.entries(params).forEach(([paramKey, paramValue]) => {
