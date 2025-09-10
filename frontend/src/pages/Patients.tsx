@@ -58,6 +58,7 @@ import {
   Assessment,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface Patient {
   _id: string;
@@ -115,6 +116,7 @@ interface PatientsProps {
 
 const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -419,7 +421,7 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
             color="text.primary"
           >
             <People sx={{ mr: 0.5 }} fontSize="inherit" />
-            Patient Management
+            {t('patients.title')}
           </Typography>
         </Breadcrumbs>
       </Box>
@@ -428,10 +430,10 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
-            Patient Management
+            {t('patients.title')}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Manage patient records and information
+            {t('patients.subtitle')}
           </Typography>
         </Box>
         <Box display="flex" gap={2}>
@@ -530,7 +532,7 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
                 startIcon={<Refresh />}
                 onClick={fetchPatients}
               >
-                Refresh
+                {t('common.refresh')}
               </Button>
             </Grid>
           </Grid>
@@ -567,10 +569,10 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
                 onChange={(e) => setFilterType(e.target.value as any)}
                 startAdornment={<FilterList sx={{ mr: 1, color: 'text.secondary' }} />}
               >
-                <MenuItem value="all">All Patients</MenuItem>
-                <MenuItem value="school">School Screening Students</MenuItem>
-                <MenuItem value="appointment">Appointment Patients</MenuItem>
-                <MenuItem value="manual">Manual Registration</MenuItem>
+                <MenuItem value="all">{t('patients.all_status')}</MenuItem>
+                <MenuItem value="school">{t('school_screenings.title')}</MenuItem>
+                <MenuItem value="appointment">{t('patients.appointment')}</MenuItem>
+                <MenuItem value="manual">{t('patients.manual_registration')}</MenuItem>
               </Select>
             </FormControl>
           </Grid>

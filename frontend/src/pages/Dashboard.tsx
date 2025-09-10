@@ -43,6 +43,7 @@ import {
   AccessTime as AccessTimeIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import api from '../services/api';
 
 interface DashboardStats {
@@ -74,6 +75,7 @@ interface DashboardStats {
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -435,7 +437,7 @@ const Dashboard: React.FC = () => {
             color="text.primary"
           >
             <DashboardIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-            Dashboard
+            {t('dashboard.title')}
           </Typography>
         </Breadcrumbs>
       </Box>
@@ -444,7 +446,7 @@ const Dashboard: React.FC = () => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
-            Welcome back, {user?.first_name || 'Admin'} {user?.last_name || ''}!
+            {t('dashboard.title')} - {user?.first_name || 'Admin'} {user?.last_name || ''}
           </Typography>
           <Box display="flex" alignItems="center" gap={2} mb={1}>
             <Chip
@@ -497,7 +499,7 @@ const Dashboard: React.FC = () => {
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                   <Box>
                     <Typography color="text.secondary" gutterBottom>
-                      Total Patients
+                      {t('dashboard.total_patients')}
                     </Typography>
                     <Typography variant="h4" component="div">
                       {stats.totalPatients}
@@ -517,7 +519,7 @@ const Dashboard: React.FC = () => {
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                   <Box>
                     <Typography color="text.secondary" gutterBottom>
-                      Total Screenings
+                      {t('dashboard.total_screenings')}
                     </Typography>
                     <Typography variant="h4" component="div">
                       {stats.totalScreenings}
@@ -537,7 +539,7 @@ const Dashboard: React.FC = () => {
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                   <Box>
                     <Typography color="text.secondary" gutterBottom>
-                      Pending Screenings
+                      {t('dashboard.pending_screenings')}
                     </Typography>
                     <Typography variant="h4" component="div" color="warning.main">
                       {stats.pendingScreenings}
@@ -557,7 +559,7 @@ const Dashboard: React.FC = () => {
                 <Box display="flex" alignItems="center" justifyContent="space-between">
                   <Box>
                     <Typography color="text.secondary" gutterBottom>
-                      Completed
+                      {t('dashboard.completed_screenings')}
                     </Typography>
                     <Typography variant="h4" component="div" color="success.main">
                       {stats.completedScreenings}
@@ -810,7 +812,7 @@ const Dashboard: React.FC = () => {
           <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Quick Actions
+                {t('dashboard.quick_actions')}
               </Typography>
               <Box display="flex" flexDirection="column" gap={1}>
                 {getQuickActions().map((action, index) => (
@@ -838,7 +840,7 @@ const Dashboard: React.FC = () => {
           <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
             <CardContent>
               <Typography variant="h6" gutterBottom>
-                Recent Activity
+                {t('dashboard.recent_activities')}
               </Typography>
               {stats?.recentActivity && stats.recentActivity.length > 0 ? (
                 <List>

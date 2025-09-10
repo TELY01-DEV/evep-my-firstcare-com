@@ -62,6 +62,7 @@ import {
   Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import MobileVisionScreeningForm from '../components/MobileVisionScreeningForm';
 import StandardVisionScreeningForm from '../components/StandardVisionScreeningForm';
 import EnhancedScreeningInterface from '../components/EnhancedScreeningInterface';
@@ -107,6 +108,7 @@ interface Patient {
 
 const Screenings: React.FC = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [sessions, setSessions] = useState<ScreeningSession[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -566,7 +568,7 @@ const Screenings: React.FC = () => {
             color="text.primary"
           >
             <VisibilityIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-            Vision Screening
+            {t('screenings.title')}
           </Typography>
         </Breadcrumbs>
       </Box>
@@ -575,10 +577,10 @@ const Screenings: React.FC = () => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
-            Vision Screening
+            {t('screenings.title')}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Conduct and manage vision screening sessions
+            {t('screenings.subtitle')}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
@@ -633,9 +635,9 @@ const Screenings: React.FC = () => {
       <Card sx={{ borderRadius: 3, mb: 3 }}>
         <CardContent>
           <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
-            <Tab label="All Screenings" />
-            <Tab label="Mobile Unit Screenings" />
-            <Tab label="Standard Screenings" />
+            <Tab label={t('screenings.all_screenings')} />
+            <Tab label={t('screenings.mobile_screening')} />
+            <Tab label={t('screenings.standard_screening')} />
           </Tabs>
         </CardContent>
       </Card>
