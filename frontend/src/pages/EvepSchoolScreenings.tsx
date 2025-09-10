@@ -1153,8 +1153,40 @@ const EvepSchoolScreenings: React.FC = () => {
     return teachers.find(teacher => teacher.id === formData.examiner_id);
   };
 
-  // Filter function for screenings
-  const filteredScreenings = (Array.isArray(screenings) ? screenings : []).filter(screening => {
+  // Helper function to get total screenings count for a student
+  const getStudentTotalScreenings = (studentId: string) => {
+    const group = groupedScreenings[studentId];
+    return group ? group.totalScreenings : 1;
+  };
+
+  // Group screenings by student and get the most recent screening for each student
+  const groupedScreenings = (Array.isArray(screenings) ? screenings : []).reduce((acc, screening) => {
+    const studentId = screening.student_id;
+    
+    if (!acc[studentId]) {
+      acc[studentId] = {
+        student: screening,
+        totalScreenings: 1,
+        allScreenings: [screening]
+      };
+    } else {
+      acc[studentId].totalScreenings += 1;
+      acc[studentId].allScreenings.push(screening);
+      
+      // Keep the most recent screening as the main record
+      const currentDate = new Date(screening.screening_date);
+      const existingDate = new Date(acc[studentId].student.screening_date);
+      
+      if (currentDate > existingDate) {
+        acc[studentId].student = screening;
+      }
+    }
+    
+    return acc;
+  }, {} as Record<string, { student: SchoolScreening; totalScreenings: number; allScreenings: SchoolScreening[] }>);
+
+  // Convert grouped screenings to array and apply filters
+  const filteredScreenings = Object.values(groupedScreenings).map(group => group.student).filter(screening => {
     // Filter by status
     if (filterStatus !== 'all' && screening.status !== filterStatus) {
       return false;
@@ -1975,7 +2007,18 @@ const EvepSchoolScreenings: React.FC = () => {
               <TableBody>
                 {filteredScreenings.map((screening) => (
                   <TableRow key={screening.screening_id}>
-                    <TableCell>{screening.student_name}</TableCell>
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body2" fontWeight="medium">
+                          {screening.student_name}
+                        </Typography>
+                        {getStudentTotalScreenings(screening.student_id) > 1 && (
+                          <Typography variant="caption" color="text.secondary">
+                            {getStudentTotalScreenings(screening.student_id)} screenings
+                          </Typography>
+                        )}
+                      </Box>
+                    </TableCell>
                     <TableCell>{screening.teacher_name}</TableCell>
                     <TableCell>{screening.screening_type}</TableCell>
                     <TableCell>
