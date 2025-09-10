@@ -382,6 +382,8 @@ const translations = {
     'reports.csv': 'CSV',
     'reports.download_report': 'Download Report',
     'reports.view_report': 'View Report',
+    'reports.medical_reports': 'Medical Reports',
+    'reports.evep_medical_panel': 'EVEP Medical Professional Panel',
     
     // EVEP Students
     'evep_students.title': 'EVEP Students',
@@ -607,6 +609,7 @@ const translations = {
     'ai_insights.insights_generated': 'Insights Generated',
     'ai_insights.confidence_score': 'Confidence Score',
     'ai_insights.recommendation_engine': 'Recommendation Engine',
+    'ai_insights.no_permission': 'You do not have permission to access AI Insights',
     
     // Authentication
     'auth.login': 'Login',
@@ -1056,6 +1059,8 @@ const translations = {
     'reports.csv': 'CSV',
     'reports.download_report': 'ดาวน์โหลดรายงาน',
     'reports.view_report': 'ดูรายงาน',
+    'reports.medical_reports': 'รายงานทางการแพทย์',
+    'reports.evep_medical_panel': 'แผงควบคุมผู้เชี่ยวชาญทางการแพทย์ EVEP',
     
     // EVEP Students
     'evep_students.title': 'นักเรียน EVEP',
@@ -1281,6 +1286,7 @@ const translations = {
     'ai_insights.insights_generated': 'ข้อมูลเชิงลึกที่สร้างขึ้น',
     'ai_insights.confidence_score': 'คะแนนความเชื่อมั่น',
     'ai_insights.recommendation_engine': 'เครื่องมือแนะนำ',
+    'ai_insights.no_permission': 'คุณไม่มีสิทธิ์เข้าถึงข้อมูลเชิงลึก AI',
     
     // Authentication
     'auth.login': 'เข้าสู่ระบบ',

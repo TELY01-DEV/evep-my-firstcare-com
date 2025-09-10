@@ -16,9 +16,11 @@ import {
 } from '@mui/icons-material';
 import AIInsightDashboard from '../components/AIInsights/AIInsightDashboard';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const AIInsights: React.FC = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +28,7 @@ const AIInsights: React.FC = () => {
     // Check if user has permission to access AI insights
     const allowedRoles = ['admin', 'doctor', 'medical_staff', 'teacher', 'super_admin'];
     if (user && !allowedRoles.includes(user.role)) {
-      setError('You do not have permission to access AI Insights');
+      setError(t('ai_insights.no_permission'));
     }
   }, [user]);
 
@@ -69,7 +71,7 @@ const AIInsights: React.FC = () => {
             color="text.primary"
           >
             <Psychology sx={{ mr: 0.5 }} fontSize="inherit" />
-            AI Insights
+            {t('ai_insights.title')}
           </Typography>
         </Breadcrumbs>
       </Box>
@@ -77,10 +79,10 @@ const AIInsights: React.FC = () => {
       {/* Page Header */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="h3" component="h1" gutterBottom>
-          AI Insights
+          {t('ai_insights.title')}
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Intelligent analysis and insights for vision screening data using advanced AI technology
+          {t('ai_insights.subtitle')}
         </Typography>
       </Box>
 

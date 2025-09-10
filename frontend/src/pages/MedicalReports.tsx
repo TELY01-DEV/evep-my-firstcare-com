@@ -64,6 +64,7 @@ import {
   Assessment,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface ScreeningSession {
   id?: string;
@@ -118,6 +119,7 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const MedicalReports: React.FC = () => {
+  const { t } = useLanguage();
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' | 'warning' });
@@ -455,7 +457,7 @@ const MedicalReports: React.FC = () => {
             color="text.primary"
           >
             <Assessment sx={{ mr: 0.5 }} fontSize="inherit" />
-            Medical Reports
+            {t('reports.medical_reports')}
           </Typography>
         </Breadcrumbs>
       </Box>
@@ -463,10 +465,10 @@ const MedicalReports: React.FC = () => {
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', color: '#1976d2' }}>
-          Medical Reports
+          {t('reports.medical_reports')}
         </Typography>
         <Typography variant="h6" color="text.secondary" gutterBottom>
-          EVEP Medical Professional Panel
+          {t('reports.evep_medical_panel')}
         </Typography>
         <Divider sx={{ my: 2 }} />
       </Box>
