@@ -64,7 +64,8 @@ import {
   Home as HomeIcon,
   NavigateNext as NavigateNextIcon,
   Refresh as RefreshIcon,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Print as PrintIcon
 } from '@mui/icons-material';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -751,6 +752,276 @@ const EvepSchoolScreenings: React.FC = () => {
         severity: 'error'
       });
     }
+  };
+
+  const handlePrintScreening = (screening: SchoolScreening | null) => {
+    if (!screening) return;
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      setSnackbar({
+        open: true,
+        message: 'Please allow popups to print the screening record',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    // Format the date
+    const formatDate = (dateString: string) => {
+      return new Date(dateString).toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    };
+
+    // Create print content
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Screening Record - ${screening.student_name}</title>
+        <style>
+          body {
+            font-family: 'Sarabun', Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+            line-height: 1.6;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px solid #1976d2;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .header h1 {
+            color: #1976d2;
+            margin: 0;
+            font-size: 24px;
+          }
+          .header h2 {
+            color: #666;
+            margin: 10px 0 0 0;
+            font-size: 18px;
+            font-weight: normal;
+          }
+          .section {
+            margin-bottom: 25px;
+          }
+          .section h3 {
+            color: #1976d2;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+          }
+          .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+          }
+          .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dotted #ccc;
+          }
+          .info-label {
+            font-weight: bold;
+            color: #555;
+          }
+          .info-value {
+            color: #333;
+          }
+          .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+          }
+          .results-table th,
+          .results-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+          }
+          .results-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            color: #1976d2;
+          }
+          .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+          }
+          .status-completed {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+          }
+          .status-pending {
+            background-color: #fff3e0;
+            color: #f57c00;
+          }
+          .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 20px;
+          }
+          @media print {
+            body { margin: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>รายงานการตรวจสายตา</h1>
+          <h2>Vision Screening Report</h2>
+        </div>
+
+        <div class="section">
+          <h3>ข้อมูลนักเรียน / Student Information</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">ชื่อ-นามสกุล:</span>
+              <span class="info-value">${screening.student_name}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">ระดับชั้น:</span>
+              <span class="info-value">${screening.grade_level}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">โรงเรียน:</span>
+              <span class="info-value">${screening.school_name}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">วันที่ตรวจ:</span>
+              <span class="info-value">${formatDate(screening.screening_date)}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">ประเภทการตรวจ:</span>
+              <span class="info-value">${screening.screening_type}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">สถานะ:</span>
+              <span class="info-value">
+                <span class="status-badge status-${screening.status}">${screening.status}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>ข้อมูลผู้ตรวจ / Examiner Information</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">ผู้ตรวจ:</span>
+              <span class="info-value">${screening.teacher_name}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">วันที่สร้างรายงาน:</span>
+              <span class="info-value">${formatDate(screening.created_at)}</span>
+            </div>
+          </div>
+        </div>
+
+        ${screening.results && screening.results.length > 0 ? `
+        <div class="section">
+          <h3>ผลการตรวจ / Screening Results</h3>
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>ตา / Eye</th>
+                <th>การมองเห็นระยะไกล / Distance Vision</th>
+                <th>การมองเห็นระยะใกล้ / Near Vision</th>
+                <th>การมองเห็นสี / Color Vision</th>
+                <th>การรับรู้ความลึก / Depth Perception</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${screening.results.map((result: any) => `
+                <tr>
+                  <td>${result.eye === 'left' ? 'ซ้าย / Left' : 'ขวา / Right'}</td>
+                  <td>${result.distance_acuity || '-'}</td>
+                  <td>${result.near_acuity || '-'}</td>
+                  <td>${result.color_vision || '-'}</td>
+                  <td>${result.depth_perception || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
+
+        ${screening.conclusion || screening.recommendations || screening.notes ? `
+        <div class="section">
+          <h3>สรุปและข้อแนะนำ / Conclusion & Recommendations</h3>
+          ${screening.conclusion ? `
+            <div class="info-item">
+              <span class="info-label">สรุปผลการตรวจ:</span>
+              <span class="info-value">${screening.conclusion}</span>
+            </div>
+          ` : ''}
+          ${screening.recommendations ? `
+            <div class="info-item">
+              <span class="info-label">ข้อแนะนำ:</span>
+              <span class="info-value">${screening.recommendations}</span>
+            </div>
+          ` : ''}
+          ${screening.notes ? `
+            <div class="info-item">
+              <span class="info-label">หมายเหตุ:</span>
+              <span class="info-value">${screening.notes}</span>
+            </div>
+          ` : ''}
+          ${screening.referral_needed ? `
+            <div class="info-item">
+              <span class="info-label">ต้องส่งต่อ:</span>
+              <span class="info-value">ใช่ / Yes</span>
+            </div>
+          ` : ''}
+          ${screening.referral_notes ? `
+            <div class="info-item">
+              <span class="info-label">หมายเหตุการส่งต่อ:</span>
+              <span class="info-value">${screening.referral_notes}</span>
+            </div>
+          ` : ''}
+        </div>
+        ` : ''}
+
+        <div class="footer">
+          <p>รายงานนี้สร้างโดยระบบ EVEP (Eye Vision Examination Platform)</p>
+          <p>This report was generated by EVEP System</p>
+          <p>พิมพ์เมื่อ: ${formatDate(new Date().toISOString())}</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Write content to print window
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+
+    // Wait for content to load, then print
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    };
+
+    setSnackbar({
+      open: true,
+      message: 'Print dialog opened successfully',
+      severity: 'success'
+    });
   };
 
   const handleRescreenStudent = async (screening: SchoolScreening) => {
@@ -2176,6 +2447,14 @@ const EvepSchoolScreenings: React.FC = () => {
           )}
         </DialogContent>
         <DialogActions>
+          <Button 
+            startIcon={<PrintIcon />} 
+            onClick={() => handlePrintScreening(viewingScreening)}
+            variant="outlined"
+            color="primary"
+          >
+            Print
+          </Button>
           <Button onClick={() => setViewDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
