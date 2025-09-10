@@ -1731,6 +1731,74 @@ async def delete_school_screening(
     
     return {"message": "School screening deleted successfully"}
 
+@router.get("/school-screenings/student/{student_id}/history")
+async def get_student_screening_history(
+    student_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all screening records for a specific student (screening history)"""
+    db = get_database()
+    
+    # Get user_id for permission checks
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User ID not found"
+        )
+    
+    # Check permissions
+    if current_user["role"] not in ["teacher", "school_staff", "admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view student screening history")
+    
+    # Verify student exists
+    student = await db.evep["evep.students"].find_one({"_id": ObjectId(student_id)})
+    if not student:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
+    
+    # Get all screenings for this student, ordered by creation date (newest first)
+    screenings = await db.evep.school_screenings.find(
+        {"student_id": student_id}
+    ).sort("created_at", -1).to_list(length=None)
+    
+    # Format the response
+    history = []
+    for screening in screenings:
+        history.append({
+            "screening_id": screening.get("screening_id", str(screening["_id"])),
+            "student_id": str(screening.get("student_id", "")),
+            "student_name": screening.get("student_name", ""),
+            "teacher_id": str(screening.get("teacher_id", "")),
+            "teacher_name": screening.get("teacher_name", ""),
+            "school_id": screening.get("school_id", ""),
+            "school_name": screening.get("school_name", ""),
+            "grade_level": screening.get("grade_level", ""),
+            "screening_type": screening.get("screening_type", ""),
+            "screening_date": screening.get("screening_date", ""),
+            "status": screening.get("status", "pending"),
+            "results": screening.get("results", []),
+            "conclusion": screening.get("conclusion", ""),
+            "recommendations": screening.get("recommendations", ""),
+            "referral_needed": screening.get("referral_needed", False),
+            "referral_notes": screening.get("referral_notes", ""),
+            "notes": screening.get("notes", ""),
+            "created_at": screening.get("created_at", ""),
+            "updated_at": screening.get("updated_at", ""),
+            "is_rescreen": screening.get("is_rescreen", False),
+            "original_screening_id": screening.get("original_screening_id", "")
+        })
+    
+    return {
+        "student_info": {
+            "student_id": str(student["_id"]),
+            "student_name": f"{student.get('first_name', '')} {student.get('last_name', '')}",
+            "grade_level": student.get('grade_level', ''),
+            "school_name": student.get('school_name', '')
+        },
+        "screening_history": history,
+        "total_screenings": len(history)
+    }
+
 @router.get("/school-screenings/stats/school/{school_id}")
 async def get_school_screening_stats(
     school_id: str,

@@ -63,7 +63,8 @@ import {
   Clear,
   Home as HomeIcon,
   NavigateNext as NavigateNextIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  History as HistoryIcon
 } from '@mui/icons-material';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -122,8 +123,10 @@ const EvepSchoolScreenings: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [viewDialog, setViewDialog] = useState(false);
+  const [historyDialog, setHistoryDialog] = useState(false);
   const [editingScreening, setEditingScreening] = useState<SchoolScreening | null>(null);
   const [viewingScreening, setViewingScreening] = useState<SchoolScreening | null>(null);
+  const [studentHistory, setStudentHistory] = useState<any>(null);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -721,6 +724,33 @@ const EvepSchoolScreenings: React.FC = () => {
   const handleViewScreening = (screening: SchoolScreening) => {
     setViewingScreening(screening);
     setViewDialog(true);
+  };
+
+  const handleViewStudentHistory = async (screening: SchoolScreening) => {
+    try {
+      const response = await fetch(`${API_ENDPOINTS.EVEP_SCHOOL_SCREENINGS}/student/${screening.student_id}/history`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Failed to fetch student history: ${errorData.detail || 'Unknown error'}`);
+      }
+
+      const historyData = await response.json();
+      setStudentHistory(historyData);
+      setHistoryDialog(true);
+
+    } catch (error) {
+      console.error('Error fetching student history:', error);
+      setSnackbar({
+        open: true,
+        message: `Error fetching student history: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        severity: 'error'
+      });
+    }
   };
 
   const handleRescreenStudent = async (screening: SchoolScreening) => {
@@ -1679,6 +1709,11 @@ const EvepSchoolScreenings: React.FC = () => {
                           <ViewIcon />
                         </IconButton>
                       </Tooltip>
+                      <Tooltip title="View Student History">
+                        <IconButton onClick={() => handleViewStudentHistory(screening)}>
+                          <HistoryIcon />
+                        </IconButton>
+                      </Tooltip>
                       <Tooltip title="Edit Screening">
                         <IconButton onClick={() => handleEditScreening(screening)}>
                           <EditIcon />
@@ -2142,6 +2177,116 @@ const EvepSchoolScreenings: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setViewDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Student History Dialog */}
+      <Dialog open={historyDialog} onClose={() => setHistoryDialog(false)} maxWidth="lg" fullWidth>
+        <DialogTitle>
+          Student Screening History
+        </DialogTitle>
+        <DialogContent>
+          {studentHistory && (
+            <Box>
+              {/* Student Info */}
+              <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
+                Student Information
+              </Typography>
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6}>
+                  <Typography><strong>Name:</strong> {studentHistory.student_info.student_name}</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography><strong>Grade:</strong> {studentHistory.student_info.grade_level}</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography><strong>School:</strong> {studentHistory.student_info.school_name}</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography><strong>Total Screenings:</strong> {studentHistory.total_screenings}</Typography>
+                </Grid>
+              </Grid>
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* Screening History */}
+              <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
+                Screening History ({studentHistory.total_screenings} records)
+              </Typography>
+              
+              <TableContainer component={Paper}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Type</TableCell>
+                      <TableCell>Examiner</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Re-screen</TableCell>
+                      <TableCell>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {studentHistory.screening_history.map((screening: any, index: number) => (
+                      <TableRow key={screening.screening_id}>
+                        <TableCell>
+                          {new Date(screening.screening_date).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={screening.screening_type} 
+                            size="small" 
+                            color="primary" 
+                          />
+                        </TableCell>
+                        <TableCell>{screening.teacher_name}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={screening.status}
+                            color={screening.status === 'completed' ? 'success' : 'warning'}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {screening.is_rescreen ? (
+                            <Chip
+                              label="Re-screen"
+                              color="info"
+                              size="small"
+                              icon={<RefreshIcon />}
+                            />
+                          ) : (
+                            <Chip
+                              label="Original"
+                              color="default"
+                              size="small"
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip title="View Details">
+                            <IconButton 
+                              size="small" 
+                              onClick={() => {
+                                setViewingScreening(screening);
+                                setHistoryDialog(false);
+                                setViewDialog(true);
+                              }}
+                            >
+                              <ViewIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setHistoryDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
 
