@@ -52,6 +52,7 @@ import {
   Clear as ClearIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 import unifiedApi from '../services/unifiedApi';
 
 interface TabPanelProps {
@@ -115,6 +116,7 @@ interface Subdistrict {
 
 const GeolocationsManagement: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -564,7 +566,7 @@ const GeolocationsManagement: React.FC = () => {
         </Link>
         <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
           <LocationIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-          Geolocations Management
+          {t('geolocations.title')}
         </Typography>
       </Breadcrumbs>
 
@@ -575,10 +577,10 @@ const GeolocationsManagement: React.FC = () => {
         </IconButton>
         <Box>
           <Typography variant="h4" component="h1">
-            Geolocations Management
+            {t('geolocations.title')}
           </Typography>
           <Typography variant="subtitle1" color="text.secondary">
-            Manage provinces, districts, and subdistricts
+            {t('geolocations.subtitle')}
           </Typography>
         </Box>
       </Box>

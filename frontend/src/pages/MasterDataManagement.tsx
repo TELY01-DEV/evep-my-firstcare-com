@@ -35,6 +35,7 @@ import {
   Dashboard
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface MasterDataSection {
   id: string;
@@ -56,6 +57,7 @@ interface MasterDataItem {
 
 const MasterDataManagement: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
   // Debug logging
@@ -162,17 +164,17 @@ const MasterDataManagement: React.FC = () => {
         </Link>
         <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
           <Dashboard sx={{ mr: 0.5 }} fontSize="inherit" />
-          Master Data
+          {t('master_data.title')}
         </Typography>
       </Breadcrumbs>
 
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Master Data Management
+          {t('master_data.title')}
         </Typography>
         <Typography variant="subtitle1" color="text.secondary">
-          Manage geographic data, hospitals, and other master data for the EVEP platform
+          {t('master_data.subtitle')}
         </Typography>
       </Box>
 

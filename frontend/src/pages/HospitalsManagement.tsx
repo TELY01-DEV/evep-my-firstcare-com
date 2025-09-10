@@ -54,6 +54,7 @@ import {
   Clear
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../contexts/LanguageContext';
 import unifiedApi from '../services/unifiedApi';
 
 interface TabPanelProps {
@@ -129,6 +130,7 @@ interface Subdistrict {
 
 const HospitalsManagement: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -744,17 +746,17 @@ const HospitalsManagement: React.FC = () => {
         </Link>
         <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
           <HospitalIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-          Hospitals Management
+          {t('hospitals.title')}
         </Typography>
       </Breadcrumbs>
 
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Hospitals Management
+          {t('hospitals.title')}
         </Typography>
         <Typography variant="subtitle1" color="text.secondary">
-          Manage hospital types and hospital information
+          {t('hospitals.subtitle')}
         </Typography>
       </Box>
 

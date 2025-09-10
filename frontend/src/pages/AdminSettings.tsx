@@ -89,7 +89,10 @@ const categoryColors: { [key: string]: string } = {
   analytics: '#303f9f'
 };
 
+import { useLanguage } from '../contexts/LanguageContext';
+
 export default function AdminSettings() {
+  const { t } = useLanguage();
   const [settings, setSettings] = useState<{ [key: string]: Setting }>({});
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -313,7 +316,7 @@ export default function AdminSettings() {
         <Box display="flex" alignItems="center" gap={2}>
           <SettingsIcon sx={{ fontSize: 32, color: 'primary.main' }} />
           <Typography variant="h4" component="h1">
-            System Settings
+            {t('settings.title')}
           </Typography>
         </Box>
         <Box display="flex" gap={2}>
