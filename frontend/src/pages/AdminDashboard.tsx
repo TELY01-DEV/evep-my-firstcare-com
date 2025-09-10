@@ -28,6 +28,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface SystemStats {
   totalUsers: number;
@@ -42,6 +43,7 @@ interface SystemStats {
 const AdminDashboard: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -168,10 +170,10 @@ const AdminDashboard: React.FC = () => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
-            Admin Dashboard
+            {t('admin.dashboard_title')}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            System overview and management
+            {t('admin.dashboard_subtitle')}
           </Typography>
         </Box>
         <Button
@@ -197,7 +199,7 @@ const AdminDashboard: React.FC = () => {
                     {stats?.totalUsers || 0}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Total Users
+                    {t('admin.total_users')}
                   </Typography>
                 </Box>
               </Box>
@@ -217,7 +219,7 @@ const AdminDashboard: React.FC = () => {
                     {stats?.totalPatients || 0}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Total Patients
+                    {t('admin.total_patients')}
                   </Typography>
                 </Box>
               </Box>
@@ -237,7 +239,7 @@ const AdminDashboard: React.FC = () => {
                     {stats?.totalScreenings || 0}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Total Screenings
+                    {t('admin.total_screenings')}
                   </Typography>
                 </Box>
               </Box>

@@ -46,6 +46,7 @@ import {
   Group as GroupIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import AvatarUpload from '../components/AvatarUpload';
 import unifiedApi from '../services/unifiedApi';
 
@@ -86,6 +87,7 @@ interface UserListResponse {
 const UserManagement: React.FC = () => {
   const theme = useTheme();
   const { token, refreshToken, isTokenExpired } = useAuth();
+  const { t } = useLanguage();
   
   // State management
   const [users, setUsers] = useState<User[]>([]);
@@ -424,10 +426,10 @@ const UserManagement: React.FC = () => {
       {/* Header */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
-          User Management
+          {t('user_management.title')}
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Manage medical staff, doctors, nurses, and healthcare professionals
+          {t('user_management.subtitle')}
         </Typography>
       </Box>
 
@@ -446,7 +448,7 @@ const UserManagement: React.FC = () => {
                       {statistics.total_users}
                     </Typography>
                     <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                      Total Users
+                      {t('user_management.total_users')}
                     </Typography>
                   </Box>
                   <GroupIcon sx={{ fontSize: 40, opacity: 0.8 }} />
@@ -467,7 +469,7 @@ const UserManagement: React.FC = () => {
                       {statistics.active_users}
                     </Typography>
                     <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                      Active Users
+                      {t('user_management.active_users')}
                     </Typography>
                   </Box>
                   <CheckCircleIcon sx={{ fontSize: 40, opacity: 0.8 }} />
@@ -509,7 +511,7 @@ const UserManagement: React.FC = () => {
                       {statistics.inactive_users}
                     </Typography>
                     <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                      Inactive Users
+                      {t('user_management.inactive_users')}
                     </Typography>
                   </Box>
                   <BlockIcon sx={{ fontSize: 40, opacity: 0.8 }} />
@@ -527,7 +529,7 @@ const UserManagement: React.FC = () => {
             <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
-                placeholder="Search users..."
+                placeholder={t('user_management.search_users')}
                 value={search}
                 onChange={(e) => {
                   try {
@@ -601,7 +603,7 @@ const UserManagement: React.FC = () => {
                   onClick={() => setCreateDialogOpen(true)}
                   sx={{ ml: 'auto' }}
                 >
-                  Add User
+                  {t('user_management.add_user')}
                 </Button>
               </Box>
             </Grid>

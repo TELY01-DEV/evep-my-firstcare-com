@@ -58,6 +58,7 @@ import {
   Settings,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { COMPREHENSIVE_PERMISSIONS, getPermissionsByCategory, getPermissionCategories } from '../utils/comprehensivePermissions';
 import RBACScreeningDemo from '../components/RBAC/RBACScreeningDemo';
 
@@ -123,6 +124,7 @@ function TabPanel(props: TabPanelProps) {
 
 const RBACManagement: React.FC = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const isSuperAdmin = user?.role === 'super_admin';
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -706,7 +708,7 @@ const RBACManagement: React.FC = () => {
             color="text.primary"
           >
             <SecurityIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-            RBAC Management
+            {t('rbac.title')}
           </Typography>
         </Breadcrumbs>
       </Box>
@@ -715,10 +717,10 @@ const RBACManagement: React.FC = () => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
-            RBAC Management
+            {t('rbac.title')}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Manage roles, permissions, and user access control
+            {t('rbac.subtitle')}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
@@ -763,11 +765,11 @@ const RBACManagement: React.FC = () => {
       {/* Tabs */}
       <Paper sx={{ width: '100%' }}>
         <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
-          <Tab label="Roles" />
-          <Tab label="Permissions" />
-          <Tab label="User Roles" />
-          <Tab label="Master Data" />
-          <Tab label="Screening RBAC" />
+          <Tab label={t('rbac.roles')} />
+          <Tab label={t('rbac.permissions')} />
+          <Tab label={t('rbac.user_roles')} />
+          <Tab label={t('rbac.master_data')} />
+          <Tab label={t('rbac.screening_rbac')} />
         </Tabs>
 
         {/* Roles Tab */}
