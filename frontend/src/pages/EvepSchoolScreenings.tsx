@@ -1775,21 +1775,21 @@ const EvepSchoolScreenings: React.FC = () => {
             onClick={() => window.location.href = '/dashboard'}
           >
             <HomeIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-            Dashboard
+            {t('breadcrumb.dashboard')}
           </Typography>
           <Typography
             sx={{ display: 'flex', alignItems: 'center' }}
             color="text.primary"
           >
             <SchoolIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-            School Management
+            {t('breadcrumb.school_management')}
           </Typography>
           <Typography
             sx={{ display: 'flex', alignItems: 'center' }}
             color="text.secondary"
           >
             <AssessmentIcon sx={{ mr: 0.5 }} fontSize="inherit" />
-            School Screenings
+            {t('breadcrumb.school_screenings')}
           </Typography>
         </Breadcrumbs>
       </Box>
@@ -1903,12 +1903,12 @@ const EvepSchoolScreenings: React.FC = () => {
                     <InputLabel>Status</InputLabel>
                     <Select
                       value={filterStatus}
-                      label="Status"
+                      label={t('filter.status')}
                       onChange={(e) => setFilterStatus(e.target.value)}
                     >
-                      <MenuItem value="all">All Status</MenuItem>
-                      <MenuItem value="pending">Pending</MenuItem>
-                      <MenuItem value="completed">Completed</MenuItem>
+                      <MenuItem value="all">{t('filter.all_status')}</MenuItem>
+                      <MenuItem value="pending">{t('school_screenings.pending')}</MenuItem>
+                      <MenuItem value="completed">{t('school_screenings.completed')}</MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
@@ -1918,15 +1918,15 @@ const EvepSchoolScreenings: React.FC = () => {
                     <InputLabel>Screening Type</InputLabel>
                     <Select
                       value={filterScreeningType}
-                      label="Screening Type"
+                      label={t('filter.type')}
                       onChange={(e) => setFilterScreeningType(e.target.value)}
                     >
-                      <MenuItem value="all">All Types</MenuItem>
-                      <MenuItem value="basic_school">Basic School</MenuItem>
-                      <MenuItem value="vision_test">Vision Test</MenuItem>
-                      <MenuItem value="comprehensive_vision">Comprehensive Vision</MenuItem>
-                      <MenuItem value="color_blindness">Color Blindness</MenuItem>
-                      <MenuItem value="depth_perception">Depth Perception</MenuItem>
+                      <MenuItem value="all">{t('filter.all_type')}</MenuItem>
+                      <MenuItem value="basic_school">{t('school_screenings.basic_school')}</MenuItem>
+                      <MenuItem value="vision_test">{t('school_screenings.vision_test')}</MenuItem>
+                      <MenuItem value="comprehensive_vision">{t('school_screenings.comprehensive_vision')}</MenuItem>
+                      <MenuItem value="color_blindness">{t('school_screenings.color_blindness')}</MenuItem>
+                      <MenuItem value="depth_perception">{t('school_screenings.depth_perception')}</MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
@@ -1935,10 +1935,10 @@ const EvepSchoolScreenings: React.FC = () => {
                   <TextField
                     fullWidth
                     size="small"
-                    label="Student Name"
+                    label={t('filter.student')}
                     value={filterStudent}
                     onChange={(e) => setFilterStudent(e.target.value)}
-                    placeholder="Search student..."
+                    placeholder={t('search.placeholder')}
                   />
                 </Grid>
                 
@@ -1946,10 +1946,10 @@ const EvepSchoolScreenings: React.FC = () => {
                   <TextField
                     fullWidth
                     size="small"
-                    label="Examiner Name"
+                    label={t('filter.examiner')}
                     value={filterExaminer}
                     onChange={(e) => setFilterExaminer(e.target.value)}
-                    placeholder="Search examiner..."
+                    placeholder={t('search.placeholder')}
                   />
                 </Grid>
                 

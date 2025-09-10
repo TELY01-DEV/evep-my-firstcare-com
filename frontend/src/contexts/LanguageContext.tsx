@@ -119,6 +119,7 @@ const translations = {
     'school_screenings.view_history': 'View Student History',
     'school_screenings.basic_school': 'Basic School Screening',
     'school_screenings.vision_test': 'Vision Test',
+    'school_screenings.comprehensive_vision': 'Comprehensive Vision Test',
     'school_screenings.color_blindness': 'Color Blindness Test',
     'school_screenings.depth_perception': 'Depth Perception Test',
     
@@ -191,6 +192,105 @@ const translations = {
     'print.eye_right': 'Right',
     'print.referral_yes': 'Yes',
     'print.referral_no': 'No',
+    
+    // Breadcrumbs
+    'breadcrumb.dashboard': 'Dashboard',
+    'breadcrumb.school_management': 'School Management',
+    'breadcrumb.school_screenings': 'School Screenings',
+    
+    // Filter Labels
+    'filter.status': 'Status',
+    'filter.type': 'Type',
+    'filter.student': 'Student',
+    'filter.examiner': 'Examiner',
+    'filter.date_from': 'Date From',
+    'filter.date_to': 'Date To',
+    'filter.all_status': 'All Status',
+    'filter.all_type': 'All Type',
+    
+    // Dialog Titles
+    'dialog.create_screening': 'Create New School Screening',
+    'dialog.edit_screening': 'Edit School Screening',
+    'dialog.view_screening': 'View Screening Details',
+    'dialog.student_history': 'Student Screening History',
+    'dialog.confirm_delete': 'Confirm Delete',
+    'dialog.confirm_rescreen': 'Confirm Re-screen',
+    
+    // Form Steps
+    'step.student_selection': 'Student Selection',
+    'step.screening_setup': 'Screening Setup',
+    'step.screening_results': 'Screening Results',
+    'step.conclusion': 'Conclusion',
+    
+    // Form Labels
+    'form.select_student': 'Select Student',
+    'form.select_examiner': 'Select Examiner',
+    'form.screening_type': 'Screening Type',
+    'form.screening_date': 'Screening Date',
+    'form.notes': 'Notes',
+    'form.left_eye': 'Left Eye',
+    'form.right_eye': 'Right Eye',
+    'form.distance_acuity': 'Distance Acuity',
+    'form.near_acuity': 'Near Acuity',
+    'form.color_vision': 'Color Vision',
+    'form.depth_perception': 'Depth Perception',
+    'form.conclusion': 'Conclusion',
+    'form.recommendations': 'Recommendations',
+    'form.referral_needed': 'Referral Needed',
+    'form.referral_notes': 'Referral Notes',
+    
+    // Action Buttons
+    'action.view': 'View',
+    'action.edit': 'Edit',
+    'action.delete': 'Delete',
+    'action.print': 'Print',
+    'action.rescreen': 'Re-screen',
+    'action.history': 'History',
+    'action.save': 'Save',
+    'action.cancel': 'Cancel',
+    'action.close': 'Close',
+    'action.next': 'Next',
+    'action.previous': 'Previous',
+    'action.finish': 'Finish',
+    
+    // Status Messages
+    'status.loading': 'Loading...',
+    'status.success': 'Success',
+    'status.error': 'Error',
+    'status.warning': 'Warning',
+    'status.info': 'Information',
+    
+    // Validation Messages
+    'validation.required': 'This field is required',
+    'validation.invalid_email': 'Please enter a valid email address',
+    'validation.invalid_phone': 'Please enter a valid phone number',
+    'validation.invalid_date': 'Please enter a valid date',
+    'validation.min_length': 'Minimum length is {{min}} characters',
+    'validation.max_length': 'Maximum length is {{max}} characters',
+    
+    // Time and Date
+    'time.today': 'Today',
+    'time.yesterday': 'Yesterday',
+    'time.tomorrow': 'Tomorrow',
+    'time.now': 'Now',
+    'time.ago': 'ago',
+    'time.in': 'in',
+    
+    // Pagination
+    'pagination.page': 'Page',
+    'pagination.of': 'of',
+    'pagination.rows_per_page': 'Rows per page',
+    'pagination.showing': 'Showing',
+    'pagination.to': 'to',
+    'pagination.of_total': 'of {{total}}',
+    
+    // Search and Sort
+    'search.placeholder': 'Search...',
+    'search.no_results': 'No results found',
+    'search.clear': 'Clear search',
+    'sort.asc': 'Sort ascending',
+    'sort.desc': 'Sort descending',
+    'sort.by': 'Sort by',
   },
   th: {
     // Common
@@ -295,6 +395,7 @@ const translations = {
     'school_screenings.view_history': 'ดูประวัตินักเรียน',
     'school_screenings.basic_school': 'การตรวจพื้นฐานโรงเรียน',
     'school_screenings.vision_test': 'ทดสอบการมองเห็น',
+    'school_screenings.comprehensive_vision': 'ทดสอบการมองเห็นแบบครอบคลุม',
     'school_screenings.color_blindness': 'ทดสอบตาบอดสี',
     'school_screenings.depth_perception': 'ทดสอบการรับรู้ความลึก',
     
@@ -367,6 +468,105 @@ const translations = {
     'print.eye_right': 'ขวา',
     'print.referral_yes': 'ใช่',
     'print.referral_no': 'ไม่',
+    
+    // Breadcrumbs
+    'breadcrumb.dashboard': 'แดชบอร์ด',
+    'breadcrumb.school_management': 'จัดการโรงเรียน',
+    'breadcrumb.school_screenings': 'การตรวจสายตาโรงเรียน',
+    
+    // Filter Labels
+    'filter.status': 'สถานะ',
+    'filter.type': 'ประเภท',
+    'filter.student': 'นักเรียน',
+    'filter.examiner': 'ผู้ตรวจ',
+    'filter.date_from': 'วันที่เริ่มต้น',
+    'filter.date_to': 'วันที่สิ้นสุด',
+    'filter.all_status': 'สถานะทั้งหมด',
+    'filter.all_type': 'ประเภททั้งหมด',
+    
+    // Dialog Titles
+    'dialog.create_screening': 'สร้างการตรวจสายตาโรงเรียนใหม่',
+    'dialog.edit_screening': 'แก้ไขการตรวจสายตาโรงเรียน',
+    'dialog.view_screening': 'ดูรายละเอียดการตรวจ',
+    'dialog.student_history': 'ประวัติการตรวจของนักเรียน',
+    'dialog.confirm_delete': 'ยืนยันการลบ',
+    'dialog.confirm_rescreen': 'ยืนยันการตรวจซ้ำ',
+    
+    // Form Steps
+    'step.student_selection': 'เลือกนักเรียน',
+    'step.screening_setup': 'ตั้งค่าการตรวจ',
+    'step.screening_results': 'ผลการตรวจ',
+    'step.conclusion': 'สรุป',
+    
+    // Form Labels
+    'form.select_student': 'เลือกนักเรียน',
+    'form.select_examiner': 'เลือกผู้ตรวจ',
+    'form.screening_type': 'ประเภทการตรวจ',
+    'form.screening_date': 'วันที่ตรวจ',
+    'form.notes': 'หมายเหตุ',
+    'form.left_eye': 'ตาซ้าย',
+    'form.right_eye': 'ตาขวา',
+    'form.distance_acuity': 'การมองเห็นระยะไกล',
+    'form.near_acuity': 'การมองเห็นระยะใกล้',
+    'form.color_vision': 'การมองเห็นสี',
+    'form.depth_perception': 'การรับรู้ความลึก',
+    'form.conclusion': 'สรุป',
+    'form.recommendations': 'ข้อแนะนำ',
+    'form.referral_needed': 'ต้องส่งต่อ',
+    'form.referral_notes': 'หมายเหตุการส่งต่อ',
+    
+    // Action Buttons
+    'action.view': 'ดู',
+    'action.edit': 'แก้ไข',
+    'action.delete': 'ลบ',
+    'action.print': 'พิมพ์',
+    'action.rescreen': 'ตรวจซ้ำ',
+    'action.history': 'ประวัติ',
+    'action.save': 'บันทึก',
+    'action.cancel': 'ยกเลิก',
+    'action.close': 'ปิด',
+    'action.next': 'ถัดไป',
+    'action.previous': 'ก่อนหน้า',
+    'action.finish': 'เสร็จสิ้น',
+    
+    // Status Messages
+    'status.loading': 'กำลังโหลด...',
+    'status.success': 'สำเร็จ',
+    'status.error': 'ข้อผิดพลาด',
+    'status.warning': 'คำเตือน',
+    'status.info': 'ข้อมูล',
+    
+    // Validation Messages
+    'validation.required': 'ฟิลด์นี้จำเป็นต้องกรอก',
+    'validation.invalid_email': 'กรุณากรอกอีเมลที่ถูกต้อง',
+    'validation.invalid_phone': 'กรุณากรอกเบอร์โทรศัพท์ที่ถูกต้อง',
+    'validation.invalid_date': 'กรุณากรอกวันที่ที่ถูกต้อง',
+    'validation.min_length': 'ความยาวขั้นต่ำ {{min}} ตัวอักษร',
+    'validation.max_length': 'ความยาวสูงสุด {{max}} ตัวอักษร',
+    
+    // Time and Date
+    'time.today': 'วันนี้',
+    'time.yesterday': 'เมื่อวาน',
+    'time.tomorrow': 'พรุ่งนี้',
+    'time.now': 'ตอนนี้',
+    'time.ago': 'ที่แล้ว',
+    'time.in': 'ใน',
+    
+    // Pagination
+    'pagination.page': 'หน้า',
+    'pagination.of': 'จาก',
+    'pagination.rows_per_page': 'แถวต่อหน้า',
+    'pagination.showing': 'แสดง',
+    'pagination.to': 'ถึง',
+    'pagination.of_total': 'จากทั้งหมด {{total}}',
+    
+    // Search and Sort
+    'search.placeholder': 'ค้นหา...',
+    'search.no_results': 'ไม่พบผลลัพธ์',
+    'search.clear': 'ล้างการค้นหา',
+    'sort.asc': 'เรียงจากน้อยไปมาก',
+    'sort.desc': 'เรียงจากมากไปน้อย',
+    'sort.by': 'เรียงตาม',
   }
 };
 
