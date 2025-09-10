@@ -62,7 +62,8 @@ import {
   Close,
   Clear,
   Home as HomeIcon,
-  NavigateNext as NavigateNextIcon
+  NavigateNext as NavigateNextIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 
 import { useAuth } from '../contexts/AuthContext';
@@ -615,6 +616,17 @@ const EvepSchoolScreenings: React.FC = () => {
         if (!createResponse.ok) {
           const errorData = await createResponse.json();
           console.error('Create error:', errorData);
+          
+          // Check if it's a duplicate screening error
+          if (createResponse.status === 409 && errorData.detail && errorData.detail.includes('already has a screening')) {
+            setSnackbar({
+              open: true,
+              message: `Duplicate screening prevented: ${errorData.detail}. Use the re-screen action instead.`,
+              severity: 'warning'
+            });
+            return;
+          }
+          
           throw new Error(`Creation failed: ${errorData.detail || 'Unknown error'}`);
         }
         
@@ -709,6 +721,77 @@ const EvepSchoolScreenings: React.FC = () => {
   const handleViewScreening = (screening: SchoolScreening) => {
     setViewingScreening(screening);
     setViewDialog(true);
+  };
+
+  const handleRescreenStudent = async (screening: SchoolScreening) => {
+    try {
+      // Get the current user's token
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setSnackbar({
+          open: true,
+          message: 'Authentication token not found',
+          severity: 'error'
+        });
+        return;
+      }
+
+      // Get the first available teacher for the re-screen
+      const availableTeacher = teachers[0];
+      if (!availableTeacher) {
+        setSnackbar({
+          open: true,
+          message: 'No teachers available for re-screen',
+          severity: 'error'
+        });
+        return;
+      }
+
+      // Prepare re-screen data
+      const rescreenData = {
+        teacher_id: availableTeacher.id,
+        screening_type: screening.screening_type,
+        screening_date: new Date().toISOString(),
+        notes: `Re-screen of ${screening.student_name}`
+      };
+
+      console.log('Creating re-screen with data:', rescreenData);
+
+      const response = await fetch(`${API_ENDPOINTS.EVEP_SCHOOL_SCREENINGS}/${screening.screening_id}/rescreen`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(rescreenData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Re-screen error:', errorData);
+        throw new Error(`Re-screen failed: ${errorData.detail || 'Unknown error'}`);
+      }
+
+      const result = await response.json();
+      console.log('Re-screen result:', result);
+
+      setSnackbar({
+        open: true,
+        message: `Re-screen created successfully for ${screening.student_name}`,
+        severity: 'success'
+      });
+
+      // Refresh the screenings list
+      fetchScreenings();
+
+    } catch (error) {
+      console.error('Error creating re-screen:', error);
+      setSnackbar({
+        open: true,
+        message: `Error creating re-screen: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        severity: 'error'
+      });
+    }
   };
 
   const getSelectedStudent = () => {
@@ -1591,15 +1674,26 @@ const EvepSchoolScreenings: React.FC = () => {
                     </TableCell>
                     <TableCell>{new Date(screening.screening_date).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      <IconButton onClick={() => handleViewScreening(screening)}>
-                        <ViewIcon />
-                      </IconButton>
-                      <IconButton onClick={() => handleEditScreening(screening)}>
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton onClick={() => handleDeleteScreening(screening.screening_id)}>
-                        <DeleteIcon />
-                      </IconButton>
+                      <Tooltip title="View Details">
+                        <IconButton onClick={() => handleViewScreening(screening)}>
+                          <ViewIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Edit Screening">
+                        <IconButton onClick={() => handleEditScreening(screening)}>
+                          <EditIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Re-screen Student">
+                        <IconButton onClick={() => handleRescreenStudent(screening)}>
+                          <RefreshIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete Screening">
+                        <IconButton onClick={() => handleDeleteScreening(screening.screening_id)}>
+                          <DeleteIcon />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 ))}

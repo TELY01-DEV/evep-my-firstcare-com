@@ -1318,6 +1318,12 @@ class SchoolScreeningCreate(BaseModel):
     screening_date: Optional[datetime] = Field(None, description="Screening date and time")
     notes: Optional[str] = Field(None, description="Additional notes")
 
+class SchoolScreeningRescreen(BaseModel):
+    teacher_id: str = Field(..., description="Teacher conducting the re-screen")
+    screening_type: str = Field(..., description="Type of screening: basic_school, vision_test, color_blindness, depth_perception")
+    screening_date: Optional[datetime] = Field(None, description="Screening date and time")
+    notes: Optional[str] = Field(None, description="Additional notes")
+
 class SchoolScreeningResult(BaseModel):
     eye: str = Field(..., description="Left or Right eye")
     distance_acuity: Optional[str] = None
@@ -1420,6 +1426,27 @@ async def create_school_screening(
     
     if not school:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="School not found. Please provide school_id or school_name, or ensure teacher has a valid school.")
+    
+    # Check for existing screening for this student on the same date
+    screening_date = screening_data.screening_date
+    if screening_date:
+        # Convert to date string for comparison
+        if isinstance(screening_date, str):
+            screening_date_str = screening_date.split('T')[0]  # Get date part only
+        else:
+            screening_date_str = screening_date.strftime('%Y-%m-%d')
+        
+        # Check for existing screenings on the same date using regex pattern
+        existing_screening = await db.evep.school_screenings.find_one({
+            "student_id": screening_data.student_id,
+            "screening_date": {"$regex": f"^{screening_date_str}"}  # Match date part
+        })
+        
+        if existing_screening:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, 
+                detail=f"Student already has a screening on {screening_date_str}. Use re-screen action instead."
+            )
     
     # Create screening session
     screening_id = f"school_screening_{screening_data.student_id}_{int(datetime.now().timestamp())}"
@@ -1587,6 +1614,82 @@ async def update_school_screening(
     )
     
     return {"message": "School screening updated successfully"}
+
+@router.post("/school-screenings/{screening_id}/rescreen")
+async def rescreen_student(
+    screening_id: str,
+    rescreen_data: SchoolScreeningRescreen,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new screening for a student who already has a screening (re-screen)"""
+    db = get_database()
+    
+    # Get user_id for permission checks
+    user_id = current_user.get("user_id")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User ID not found"
+        )
+    
+    # Check permissions
+    if current_user["role"] not in ["teacher", "school_staff", "admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to create re-screen")
+    
+    # Find the original screening to get student info
+    original_screening = await db.evep.school_screenings.find_one({"screening_id": screening_id})
+    if not original_screening:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Original screening not found")
+    
+    # Verify student exists
+    student = await db.evep["evep.students"].find_one({"_id": ObjectId(original_screening["student_id"])})
+    if not student:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
+    
+    # Verify teacher exists
+    teacher = await db.evep.teachers.find_one({"_id": ObjectId(rescreen_data.teacher_id)})
+    if not teacher:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Teacher not found")
+    
+    # Get school info from original screening
+    school_id = original_screening.get("school_id")
+    school_name = original_screening.get("school_name")
+    
+    # Create new screening session for re-screen
+    new_screening_id = f"school_screening_{original_screening['student_id']}_{int(datetime.now().timestamp())}"
+    
+    # Use rescreen_data but keep original student info
+    screening_data_dict = rescreen_data.model_dump()
+    screening_data_dict.update({
+        "screening_id": new_screening_id,
+        "student_id": original_screening["student_id"],  # Keep original student
+        "student_name": original_screening["student_name"],  # Keep original student name
+        "teacher_id": rescreen_data.teacher_id,  # Use new teacher
+        "teacher_name": f"{teacher.get('first_name', '')} {teacher.get('last_name', '')}",
+        "school_id": school_id,  # Keep original school
+        "school_name": school_name,  # Keep original school name
+        "grade_level": original_screening.get("grade_level", ""),  # Keep original grade
+        "status": "pending",
+        "created_at": get_current_thailand_time(),
+        "updated_at": get_current_thailand_time(),
+        "is_rescreen": True,  # Mark as re-screen
+        "original_screening_id": screening_id  # Reference to original screening
+    })
+    
+    result = await db.evep.school_screenings.insert_one(screening_data_dict)
+    
+    if not result.inserted_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create re-screen")
+    
+    # Log security event
+    log_security_event(
+        request=None,
+        event_type="school_screening_rescreen",
+        description=f"Re-screen created for student {original_screening['student_id']} by teacher {rescreen_data.teacher_id}",
+        portal="medical"
+    )
+    
+    return {"message": "Re-screen created successfully", "screening_id": new_screening_id, "original_screening_id": screening_id}
 
 @router.delete("/school-screenings/{screening_id}")
 async def delete_school_screening(
