@@ -224,7 +224,7 @@ const EvepSchoolScreenings: React.FC = () => {
 
   const fetchSchoolScreenings = async () => {
     try {
-      const response = await fetch(API_ENDPOINTS.EVEP_SCHOOL_SCREENINGS, {
+      const response = await fetch(API_ENDPOINTS.EVEP_SCREENINGS_LIST, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -731,6 +731,16 @@ const EvepSchoolScreenings: React.FC = () => {
 
   const handleViewStudentHistory = async (screening: SchoolScreening) => {
     try {
+      // Check if student_id exists
+      if (!screening.student_id) {
+        setSnackbar({
+          open: true,
+          message: 'Student ID not available for this screening',
+          severity: 'error'
+        });
+        return;
+      }
+
       const response = await fetch(`${API_ENDPOINTS.EVEP_SCHOOL_SCREENINGS}/student/${screening.student_id}/history`, {
         headers: {
           Authorization: `Bearer ${token}`,

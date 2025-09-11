@@ -131,9 +131,9 @@ class Teacher(BaseModel):
 
 class School(BaseModel):
     id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
-    school_code: str
-    name: str
-    type: str
+    school_code: Optional[str] = None
+    name: Optional[str] = None
+    type: Optional[str] = None
     address: Address
     phone: Optional[str] = None
     email: Optional[str] = None

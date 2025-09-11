@@ -408,6 +408,10 @@ async def startup_event():
     app.include_router(medical_staff_router, prefix="/api/v1", tags=["medical_staff"])
     logger.info("Medical Staff Management API router included successfully!")
     
+    # Include medical staff management API router
+    app.include_router(medical_staff_management_router, prefix="/api/v1/medical-staff-management", tags=["medical_staff_management"])
+    logger.info("Medical Staff Management API router included successfully!")
+    
     # Include panel settings API router
     app.include_router(panel_settings_router, prefix="/api/v1/panel-settings", tags=["panel_settings"])
     logger.info("Panel Settings API router included successfully!")

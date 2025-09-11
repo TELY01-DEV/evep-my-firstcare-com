@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import unifiedApi from '../services/unifiedApi';
 import GeographicSelector from '../components/GeographicSelector';
+import provincesService from '../services/provincesService';
+import districtsService from '../services/districtsService';
+import subdistrictsService from '../services/subdistrictsService';
 import {
   Box,
   Typography,
@@ -129,9 +132,64 @@ const EvepSchools: React.FC = () => {
     fetchSchools();
   }, []);
 
-  const handleOpenDialog = (school?: School) => {
+  const handleOpenDialog = async (school?: School) => {
     if (school) {
       setEditingSchool(school);
+      
+      // Initialize geographic IDs based on address names
+      let provinceId = '';
+      let districtId = '';
+      let subdistrictId = '';
+      
+      // Find province ID by name
+      if (school.address.province) {
+        try {
+          const provincesResponse = await provincesService.getProvinces();
+          const province = provincesResponse.provinces.find(p => p.name === school.address.province);
+          if (province) {
+            provinceId = province.id;
+            
+            // Find district ID by name and province
+            if (school.address.district) {
+              const districtsResponse = await districtsService.getDistrictsByProvince(provinceId);
+              // Try exact match first, then try with "เขต" prefix
+              let district = districtsResponse.districts.find(d => d.name === school.address.district);
+              if (!district) {
+                district = districtsResponse.districts.find(d => d.name === `เขต${school.address.district}`);
+              }
+              if (!district) {
+                // Try removing "เขต" prefix from district names
+                district = districtsResponse.districts.find(d => d.name.replace('เขต', '') === school.address.district);
+              }
+              
+              if (district) {
+                districtId = district.id;
+                
+                // Find subdistrict ID by name and district
+                if (school.address.subdistrict) {
+                  const subdistrictsResponse = await subdistrictsService.getSubdistrictsByDistrict(districtId);
+                  // Try exact match first, then try with "แขวง" prefix
+                  let subdistrict = subdistrictsResponse.subdistricts.find(s => s.name === school.address.subdistrict);
+                  if (!subdistrict) {
+                    subdistrict = subdistrictsResponse.subdistricts.find(s => s.name === `แขวง${school.address.subdistrict}`);
+                  }
+                  if (!subdistrict) {
+                    // Try removing "แขวง" prefix from subdistrict names
+                    subdistrict = subdistrictsResponse.subdistricts.find(s => s.name.replace('แขวง', '') === school.address.subdistrict);
+                  }
+                  
+                  if (subdistrict) {
+                    subdistrictId = subdistrict.id;
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error loading geographic data:', error);
+        }
+      }
+      
       setFormData({
         school_code: school.school_code,
         name: school.name,
@@ -146,9 +204,9 @@ const EvepSchools: React.FC = () => {
           province: school.address.province || '',
           postal_code: school.address.postal_code || ''
         },
-        provinceId: '',
-        districtId: '',
-        subdistrictId: '',
+        provinceId,
+        districtId,
+        subdistrictId,
         phone: school.phone || '',
         email: school.email || ''
       });
@@ -186,11 +244,21 @@ const EvepSchools: React.FC = () => {
 
   const handleSubmit = async () => {
     try {
+      // Filter out geographic IDs that are not part of the School model
+      const schoolData = {
+        school_code: formData.school_code,
+        name: formData.name,
+        type: formData.type,
+        address: formData.address,
+        phone: formData.phone,
+        email: formData.email
+      };
+
       if (editingSchool) {
-        await unifiedApi.put(`/api/v1/evep/schools/${editingSchool.id}`, formData);
+        await unifiedApi.put(`/api/v1/evep/schools/${editingSchool.id}`, schoolData);
         setSnackbar({ open: true, message: 'School updated successfully', severity: 'success' });
       } else {
-        await unifiedApi.post('/api/v1/evep/schools', formData);
+        await unifiedApi.post('/api/v1/evep/schools', schoolData);
         setSnackbar({ open: true, message: 'School created successfully', severity: 'success' });
       }
       handleCloseDialog();
@@ -593,9 +661,61 @@ const EvepSchools: React.FC = () => {
                 provinceId={formData.provinceId}
                 districtId={formData.districtId}
                 subdistrictId={formData.subdistrictId}
-                onProvinceChange={(provinceId) => setFormData({ ...formData, provinceId })}
-                onDistrictChange={(districtId) => setFormData({ ...formData, districtId })}
-                onSubdistrictChange={(subdistrictId) => setFormData({ ...formData, subdistrictId })}
+                onProvinceChange={async (provinceId) => {
+                  setFormData({ ...formData, provinceId });
+                  // Update address province name
+                  try {
+                    const provincesResponse = await provincesService.getProvinces();
+                    const province = provincesResponse.provinces.find(p => p.id === provinceId);
+                    if (province) {
+                      setFormData(prev => ({
+                        ...prev,
+                        provinceId,
+                        address: { ...prev.address, province: province.name }
+                      }));
+                    }
+                  } catch (error) {
+                    console.error('Error updating province:', error);
+                  }
+                }}
+                onDistrictChange={async (districtId) => {
+                  setFormData({ ...formData, districtId });
+                  // Update address district name
+                  try {
+                    const districtsResponse = await districtsService.getDistrictsByProvince(formData.provinceId);
+                    const district = districtsResponse.districts.find(d => d.id === districtId);
+                    if (district) {
+                      // Remove "เขต" prefix for storage
+                      const districtName = district.name.replace('เขต', '');
+                      setFormData(prev => ({
+                        ...prev,
+                        districtId,
+                        address: { ...prev.address, district: districtName }
+                      }));
+                    }
+                  } catch (error) {
+                    console.error('Error updating district:', error);
+                  }
+                }}
+                onSubdistrictChange={async (subdistrictId) => {
+                  setFormData({ ...formData, subdistrictId });
+                  // Update address subdistrict name
+                  try {
+                    const subdistrictsResponse = await subdistrictsService.getSubdistrictsByDistrict(formData.districtId);
+                    const subdistrict = subdistrictsResponse.subdistricts.find(s => s.id === subdistrictId);
+                    if (subdistrict) {
+                      // Remove "แขวง" prefix for storage
+                      const subdistrictName = subdistrict.name.replace('แขวง', '');
+                      setFormData(prev => ({
+                        ...prev,
+                        subdistrictId,
+                        address: { ...prev.address, subdistrict: subdistrictName }
+                      }));
+                    }
+                  } catch (error) {
+                    console.error('Error updating subdistrict:', error);
+                  }
+                }}
                 onZipcodeChange={(zipcode) => setFormData({ 
                   ...formData, 
                   address: { ...formData.address, postal_code: zipcode }

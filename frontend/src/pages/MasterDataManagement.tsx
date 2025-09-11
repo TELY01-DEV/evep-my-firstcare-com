@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -19,7 +19,9 @@ import {
   ListItemSecondaryAction,
   Collapse,
   Breadcrumbs,
-  Link
+  Link,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import {
   LocationOn as LocationIcon,
@@ -36,6 +38,9 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import provincesService from '../services/provincesService';
+import districtsService from '../services/districtsService';
+import subdistrictsService from '../services/subdistrictsService';
 
 interface MasterDataSection {
   id: string;
@@ -59,9 +64,47 @@ const MasterDataManagement: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [dataCounts, setDataCounts] = useState({
+    provinces: 0,
+    districts: 0,
+    subdistricts: 0,
+    hospitals: 10349 // We know this from our import
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Debug logging
   console.log('MasterDataManagement component is rendering');
+
+  // Load real data counts
+  useEffect(() => {
+    const loadDataCounts = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [provincesCount, districtsCount, subdistrictsCount] = await Promise.all([
+          provincesService.getProvincesCount(),
+          districtsService.getAllDistricts().then(districts => districts.length),
+          subdistrictsService.getAllSubdistricts().then(subdistricts => subdistricts.length)
+        ]);
+
+        setDataCounts({
+          provinces: provincesCount,
+          districts: districtsCount,
+          subdistricts: subdistrictsCount,
+          hospitals: 10349 // From our import
+        });
+      } catch (err) {
+        console.error('Error loading data counts:', err);
+        setError('Failed to load master data counts');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDataCounts();
+  }, []);
 
   const masterDataSections: MasterDataSection[] = [
     {
@@ -76,21 +119,21 @@ const MasterDataManagement: React.FC = () => {
           id: 'provinces',
           name: 'Provinces',
           description: 'Manage provinces and administrative regions',
-          count: 77,
+          count: dataCounts.provinces,
           route: '/dashboard/master-data/geolocations'
         },
         {
           id: 'districts',
           name: 'Districts',
           description: 'Manage districts within provinces',
-          count: 7000,
+          count: dataCounts.districts,
           route: '/dashboard/master-data/geolocations'
         },
         {
           id: 'subdistricts',
           name: 'Subdistricts',
           description: 'Manage subdistricts within districts',
-          count: 7000,
+          count: dataCounts.subdistricts,
           route: '/dashboard/master-data/geolocations'
         }
       ]
@@ -114,7 +157,7 @@ const MasterDataManagement: React.FC = () => {
           id: 'hospitals',
           name: 'Hospitals',
           description: 'Manage hospital information and details',
-          count: 100,
+          count: dataCounts.hospitals,
           route: '/dashboard/master-data/hospitals'
         }
       ]
@@ -145,6 +188,9 @@ const MasterDataManagement: React.FC = () => {
       <Box sx={{ p: 2, bgcolor: 'success.light', color: 'success.contrastText', mb: 2, borderRadius: 1 }}>
         <Typography variant="body2">
           ✅ MasterDataManagement component is rendering successfully
+          {loading && ' - Loading real data counts...'}
+          {!loading && !error && ' - Real data loaded successfully!'}
+          {error && ' - Error loading data'}
         </Typography>
       </Box>
 
@@ -341,48 +387,58 @@ const MasterDataManagement: React.FC = () => {
           <Typography variant="h6" gutterBottom>
             Master Data Statistics
           </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" color="primary">
-                  77
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Provinces
-                </Typography>
-              </Box>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+              <CircularProgress />
+            </Box>
+          ) : error ? (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          ) : (
+            <Grid container spacing={2}>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="h4" color="primary">
+                    {dataCounts.provinces.toLocaleString()}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Provinces
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="h4" color="primary">
+                    {dataCounts.districts.toLocaleString()}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Districts
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="h4" color="primary">
+                    {dataCounts.subdistricts.toLocaleString()}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Subdistricts
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Typography variant="h4" color="primary">
+                    {dataCounts.hospitals.toLocaleString()}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Hospitals
+                  </Typography>
+                </Box>
+              </Grid>
             </Grid>
-            <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" color="primary">
-                  7,000+
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Districts
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" color="primary">
-                  7,000+
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Subdistricts
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="h4" color="primary">
-                  100+
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Hospitals
-                </Typography>
-              </Box>
-            </Grid>
-          </Grid>
+          )}
         </Paper>
       </Box>
     </Container>

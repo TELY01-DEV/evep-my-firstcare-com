@@ -529,14 +529,15 @@ async def get_schools(
     schools = await db.evep.schools.find({"status": "active"}).skip(skip).limit(limit).to_list(length=None)
     result = []
     for school in schools:
+        address = school.get("address", {})
         result.append({
             "id": str(school["_id"]),
             "name": school.get("name", ""),
-            "code": school.get("code", ""),
+            "code": school.get("school_code", ""),
             "type": school.get("type", ""),
-            "address": school.get("address", ""),
-            "district": school.get("district", ""),
-            "province": school.get("province", ""),
+            "address": address,
+            "district": address.get("district", ""),
+            "province": address.get("province", ""),
             "phone": school.get("phone", ""),
             "email": school.get("email", ""),
             "principal_name": school.get("principal_name", ""),
@@ -544,6 +545,59 @@ async def get_schools(
         })
     total_count = await db.evep.schools.count_documents({"status": "active"})
     return {"schools": result, "total_count": total_count}
+
+@router.get("/schools/statistics")
+async def get_school_statistics(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get school statistics"""
+    db = get_database()
+    if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view school statistics")
+    
+    try:
+        # Total schools count
+        total_schools = await db.evep.schools.count_documents({"status": "active"})
+        
+        # Schools by district - using distinct and count
+        districts = await db.evep.schools.distinct("address.district", {"status": "active"})
+        schools_by_district = []
+        for district in districts:
+            count = await db.evep.schools.count_documents({"status": "active", "address.district": district})
+            schools_by_district.append({"_id": district, "count": count})
+        schools_by_district.sort(key=lambda x: x["count"], reverse=True)
+        
+        # Schools by type - using distinct and count
+        types = await db.evep.schools.distinct("type", {"status": "active"})
+        schools_by_type = []
+        for school_type in types:
+            count = await db.evep.schools.count_documents({"status": "active", "type": school_type})
+            schools_by_type.append({"_id": school_type, "count": count})
+        schools_by_type.sort(key=lambda x: x["count"], reverse=True)
+        
+        # Schools with email
+        schools_with_email = await db.evep.schools.count_documents({
+            "status": "active",
+            "email": {"$exists": True, "$ne": "", "$ne": None}
+        })
+        
+        # Schools with phone
+        schools_with_phone = await db.evep.schools.count_documents({
+            "status": "active",
+            "phone": {"$exists": True, "$ne": "", "$ne": None}
+        })
+        
+        return {
+            "total_schools": total_schools,
+            "schools_by_district": schools_by_district,
+            "schools_by_type": schools_by_type,
+            "schools_with_email": schools_with_email,
+            "schools_with_phone": schools_with_phone,
+            "schools_without_email": total_schools - schools_with_email,
+            "schools_without_phone": total_schools - schools_with_phone
+        }
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error fetching school statistics: {str(e)}")
 
 @router.get("/schools/{school_id}")
 async def get_school(
@@ -557,14 +611,15 @@ async def get_school(
     school = await db.evep.schools.find_one({"_id": ObjectId(school_id)})
     if not school:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="School not found")
+    address = school.get("address", {})
     return {
         "id": str(school["_id"]),
         "name": school.get("name", ""),
-        "code": school.get("code", ""),
+        "code": school.get("school_code", ""),
         "type": school.get("type", ""),
-        "address": school.get("address", ""),
-        "district": school.get("district", ""),
-        "province": school.get("province", ""),
+        "address": address,
+        "district": address.get("district", ""),
+        "province": address.get("province", ""),
         "phone": school.get("phone", ""),
         "email": school.get("email", ""),
         "principal_name": school.get("principal_name", ""),
@@ -619,13 +674,29 @@ async def update_school(
     if not existing_school:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="School not found")
     
-    # Update school data
+    # Update school data - handle null values and filter out empty strings for required fields
     update_data = school_data.model_dump()
     update_data["updated_at"] = get_current_thailand_time()
     
+    # Convert null values to empty strings for required fields to prevent validation errors
+    for key in ["school_code", "name", "type"]:
+        if key in update_data and update_data[key] is None:
+            update_data[key] = ""
+    
+    # Filter out empty strings for required fields to prevent data loss
+    filtered_update_data = {}
+    for key, value in update_data.items():
+        if key in ["school_code", "name", "type"]:
+            # Only update required fields if they have actual values
+            if value and value.strip():
+                filtered_update_data[key] = value
+        else:
+            # For optional fields, include them as-is
+            filtered_update_data[key] = value
+    
     result = await db.evep.schools.update_one(
         {"_id": ObjectId(school_id)},
-        {"$set": update_data}
+        {"$set": filtered_update_data}
     )
     
     if result.modified_count == 0:
@@ -1507,6 +1578,7 @@ async def get_screenings_list(
     return [
         {
             "screening_id": "test1",
+            "student_id": "student1",
             "student_name": "Test Student", 
             "status": "completed",
             "screening_date": "2024-01-01"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   FormControl,
   InputLabel,
@@ -10,6 +10,9 @@ import {
   Box
 } from '@mui/material';
 import unifiedApi from '../services/unifiedApi';
+import provincesService from '../services/provincesService';
+import districtsService from '../services/districtsService';
+import subdistrictsService from '../services/subdistrictsService';
 
 interface GeographicSelectorProps {
   provinceId?: string;
@@ -29,25 +32,24 @@ interface GeographicSelectorProps {
 }
 
 interface Province {
-  _id: string;
-  name: string | { en: string; th: string };
-  active: boolean;
+  id: string;
+  name: string;
+  code: string;
 }
 
 interface District {
-  _id: string;
-  name: string | { en: string; th: string };
-  active: boolean;
-  provinceId: string;
+  id: string;
+  name: string;
+  province_id: string;
+  code: string;
 }
 
 interface Subdistrict {
-  _id: string;
-  name: string | { en: string; th: string };
-  active: boolean;
-  districtId: string;
-  provinceId: string;
-  zipcode?: string;
+  id: string;
+  name: string;
+  district_id: string;
+  province_id: string;
+  zipcode: string;
 }
 
 const GeographicSelector: React.FC<GeographicSelectorProps> = ({
@@ -70,10 +72,55 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
   const [districts, setDistricts] = useState<District[]>([]);
   const [subdistricts, setSubdistricts] = useState<Subdistrict[]>([]);
 
+  const loadProvinces = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Use local provinces service instead of API
+      const response = await provincesService.getProvinces({ limit: 1000, skip: 0, search: '' });
+      setProvinces(response.provinces || []);
+    } catch (err: any) {
+      setError('Failed to load provinces');
+      console.error('Error loading provinces:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadDistricts = useCallback(async (provinceId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Use local districts service instead of API
+      const response = await districtsService.getDistrictsByProvince(provinceId, { limit: 1000, skip: 0, search: '' });
+      setDistricts(response.districts || []);
+    } catch (err: any) {
+      setError('Failed to load districts');
+      console.error('Error loading districts:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadSubdistricts = useCallback(async (districtId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Use local subdistricts service instead of API
+      const response = await subdistrictsService.getSubdistrictsByDistrict(districtId, { limit: 1000, skip: 0, search: '' });
+      setSubdistricts(response.subdistricts || []);
+    } catch (err: any) {
+      setError('Failed to load subdistricts');
+      console.error('Error loading subdistricts:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Load provinces on component mount
   useEffect(() => {
     loadProvinces();
-  }, []);
+  }, [loadProvinces]);
 
   // Load districts when province changes
   useEffect(() => {
@@ -83,7 +130,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
       setDistricts([]);
       setSubdistricts([]);
     }
-  }, [provinceId]);
+  }, [provinceId, loadDistricts]);
 
   // Load subdistricts when district changes
   useEffect(() => {
@@ -92,49 +139,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
     } else {
       setSubdistricts([]);
     }
-  }, [districtId]);
-
-  const loadProvinces = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await unifiedApi.get('/api/v1/master-data/provinces?limit=1000');
-      setProvinces(response.data.provinces || []);
-    } catch (err: any) {
-      setError('Failed to load provinces');
-      console.error('Error loading provinces:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadDistricts = async (provinceId: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await unifiedApi.get(`/api/v1/master-data/districts?province_id=${provinceId}&limit=1000`);
-      setDistricts(response.data.districts || []);
-    } catch (err: any) {
-      setError('Failed to load districts');
-      console.error('Error loading districts:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadSubdistricts = async (districtId: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await unifiedApi.get(`/api/v1/master-data/subdistricts?district_id=${districtId}&limit=1000`);
-      setSubdistricts(response.data.subdistricts || []);
-    } catch (err: any) {
-      setError('Failed to load subdistricts');
-      console.error('Error loading subdistricts:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [districtId, loadSubdistricts]);
 
   const handleProvinceChange = (event: any) => {
     const newProvinceId = event.target.value;
@@ -155,7 +160,7 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
     
     // Auto-fill zipcode if subdistrict is selected
     if (newSubdistrictId && onZipcodeChange) {
-      const selectedSubdistrict = subdistricts.find(s => s._id === newSubdistrictId);
+      const selectedSubdistrict = subdistricts.find(s => s.id === newSubdistrictId);
       if (selectedSubdistrict && selectedSubdistrict.zipcode) {
         onZipcodeChange(selectedSubdistrict.zipcode);
       }
@@ -182,8 +187,8 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
             label="Province"
           >
             {provinces.map((province) => (
-              <MenuItem key={province._id} value={province._id}>
-                {typeof province.name === 'object' ? province.name.en : province.name}
+              <MenuItem key={province.id} value={province.id}>
+                {province.name}
               </MenuItem>
             ))}
           </Select>
@@ -200,8 +205,8 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
             label="District"
           >
             {districts.map((district) => (
-              <MenuItem key={district._id} value={district._id}>
-                {typeof district.name === 'object' ? district.name.en : district.name}
+              <MenuItem key={district.id} value={district.id}>
+                {district.name}
               </MenuItem>
             ))}
           </Select>
@@ -218,8 +223,8 @@ const GeographicSelector: React.FC<GeographicSelectorProps> = ({
             label="Subdistrict"
           >
             {subdistricts.map((subdistrict) => (
-              <MenuItem key={subdistrict._id} value={subdistrict._id}>
-                {typeof subdistrict.name === 'object' ? subdistrict.name.en : subdistrict.name}
+              <MenuItem key={subdistrict.id} value={subdistrict.id}>
+                {subdistrict.name} ({subdistrict.zipcode})
               </MenuItem>
             ))}
           </Select>

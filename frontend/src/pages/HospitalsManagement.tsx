@@ -94,7 +94,8 @@ interface HospitalType {
 
 interface Hospital {
   _id: string;
-  name: string;
+  name: Array<{code: string; name: string}>;
+  en_name: string;
   address?: string;
   phone?: string;
   email?: string;
@@ -108,24 +109,37 @@ interface Hospital {
   remark?: string;
   createdAt: string;
   modifiedAt: string;
+  is_active?: boolean;
+  is_deleted?: boolean;
+  province_code?: number;
+  district_code?: number;
+  sub_district_code?: number;
+  organizecode?: number;
+  hospital_area_code?: string;
 }
 
 interface Province {
   _id: string;
-  name: string | { en: string; th: string };
+  name: string | { en: string; th: string } | Array<{code: string; name: string}>;
+  code?: number;
+  en_name?: string;
 }
 
 interface District {
   _id: string;
-  name: string | { en: string; th: string };
+  name: string | { en: string; th: string } | Array<{code: string; name: string}>;
   provinceId: string;
+  code?: number;
+  en_name?: string;
 }
 
 interface Subdistrict {
   _id: string;
-  name: string | { en: string; th: string };
+  name: string | { en: string; th: string } | Array<{code: string; name: string}>;
   districtId: string;
   provinceId: string;
+  code?: number;
+  en_name?: string;
 }
 
 const HospitalsManagement: React.FC = () => {
@@ -478,10 +492,10 @@ const HospitalsManagement: React.FC = () => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Type</TableCell>
+                <TableCell>Hospital Name</TableCell>
+                <TableCell>Area/Org Code</TableCell>
                 <TableCell>Location</TableCell>
-                <TableCell>Contact</TableCell>
+                <TableCell>Contact Info</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
@@ -489,39 +503,94 @@ const HospitalsManagement: React.FC = () => {
             <TableBody>
               {data.map((hospital) => (
                 <TableRow key={hospital._id}>
-                  <TableCell>{typeof hospital.name === 'object' ? (hospital.name as any).en : hospital.name}</TableCell>
+                  <TableCell>
+                    {hospital.en_name || (hospital.name && hospital.name.length > 0 ? hospital.name[0].name : 'No Name')}
+                  </TableCell>
                   <TableCell>
                     {(() => {
-                      const type = hospitalTypes.find(t => t._id === hospital.hospitalType);
-                      return type ? (typeof type.name === 'object' ? (type.name as any).en : type.name) : '-';
+                      // Hospitals don't have hospitalType field in the current API response
+                      // Show hospital area code or organization code instead
+                      if (hospital.hospital_area_code) {
+                        return `Area: ${hospital.hospital_area_code}`;
+                      }
+                      if (hospital.organizecode) {
+                        return `Org: ${hospital.organizecode}`;
+                      }
+                      return '-';
                     })()}
                   </TableCell>
                   <TableCell>
-                    {[
-                      (() => {
-                        const subdistrict = subdistricts.find(s => s._id === hospital.subDistrictId);
-                        return subdistrict ? (typeof subdistrict.name === 'object' ? subdistrict.name.en : subdistrict.name) : null;
-                      })(),
-                      (() => {
-                        const district = districts.find(d => d._id === hospital.districtId);
-                        return district ? (typeof district.name === 'object' ? district.name.en : district.name) : null;
-                      })(),
-                      (() => {
-                        const province = provinces.find(p => p._id === hospital.provinceId);
-                        return province ? (typeof province.name === 'object' ? province.name.en : province.name) : null;
-                      })()
-                    ].filter(Boolean).join(', ') || '-'}
+                    {(() => {
+                      // Try to get location from province_code, district_code, sub_district_code
+                      const locationParts = [];
+                      
+                      if (hospital.sub_district_code) {
+                        const subdistrict = subdistricts.find(s => s.code === hospital.sub_district_code);
+                        if (subdistrict) {
+                          // Use en_name if available, otherwise get from name array
+                          let subdistrictName = subdistrict.en_name;
+                          if (!subdistrictName && Array.isArray(subdistrict.name) && subdistrict.name.length > 0) {
+                            subdistrictName = subdistrict.name[0].name;
+                          } else if (!subdistrictName && typeof subdistrict.name === 'object' && 'en' in subdistrict.name) {
+                            subdistrictName = subdistrict.name.en;
+                          } else if (!subdistrictName && typeof subdistrict.name === 'string') {
+                            subdistrictName = subdistrict.name;
+                          }
+                          locationParts.push(subdistrictName || 'Unknown');
+                        }
+                      }
+                      
+                      if (hospital.district_code) {
+                        const district = districts.find(d => d.code === hospital.district_code);
+                        if (district) {
+                          // Use en_name if available, otherwise get from name array
+                          let districtName = district.en_name;
+                          if (!districtName && Array.isArray(district.name) && district.name.length > 0) {
+                            districtName = district.name[0].name;
+                          } else if (!districtName && typeof district.name === 'object' && 'en' in district.name) {
+                            districtName = district.name.en;
+                          } else if (!districtName && typeof district.name === 'string') {
+                            districtName = district.name;
+                          }
+                          locationParts.push(districtName || 'Unknown');
+                        }
+                      }
+                      
+                      if (hospital.province_code) {
+                        const province = provinces.find(p => p.code === hospital.province_code);
+                        if (province) {
+                          // Use en_name if available, otherwise get from name array
+                          let provinceName = province.en_name;
+                          if (!provinceName && Array.isArray(province.name) && province.name.length > 0) {
+                            provinceName = province.name[0].name;
+                          } else if (!provinceName && typeof province.name === 'object' && 'en' in province.name) {
+                            provinceName = province.name.en;
+                          } else if (!provinceName && typeof province.name === 'string') {
+                            provinceName = province.name;
+                          }
+                          locationParts.push(provinceName || 'Unknown');
+                        }
+                      }
+                      
+                      return locationParts.length > 0 ? locationParts.join(', ') : 
+                        (hospital.hospital_area_code ? `Area: ${hospital.hospital_area_code}` : '-');
+                    })()}
                   </TableCell>
                   <TableCell>
-                    {hospital.phone && <div>{hospital.phone}</div>}
-                    {hospital.email && <div>{hospital.email}</div>}
-                    {!hospital.phone && !hospital.email && '-'}
+                    {(() => {
+                      const contactInfo = [];
+                      if (hospital.phone) contactInfo.push(`Phone: ${hospital.phone}`);
+                      if (hospital.email) contactInfo.push(`Email: ${hospital.email}`);
+                      if (hospital.organizecode) contactInfo.push(`Org Code: ${hospital.organizecode}`);
+                      if (hospital.hospital_area_code) contactInfo.push(`Area Code: ${hospital.hospital_area_code}`);
+                      return contactInfo.length > 0 ? contactInfo.join(', ') : '-';
+                    })()}
                   </TableCell>
                   <TableCell>
                     <Chip
-                      icon={hospital.visible ? <VisibilityIcon /> : <VisibilityOffIcon />}
-                      label={hospital.visible ? 'Visible' : 'Hidden'}
-                      color={hospital.visible ? 'success' : 'default'}
+                      icon={hospital.is_active ? <VisibilityIcon /> : <VisibilityOffIcon />}
+                      label={hospital.is_active ? 'Active' : 'Inactive'}
+                      color={hospital.is_active ? 'success' : 'default'}
                       size="small"
                     />
                   </TableCell>
@@ -648,7 +717,10 @@ const HospitalsManagement: React.FC = () => {
               >
                 {provinces.map((province) => (
                   <MenuItem key={province._id} value={province._id}>
-                    {typeof province.name === 'object' ? province.name.en : province.name}
+                    {province.en_name || 
+                      (Array.isArray(province.name) && province.name.length > 0 ? province.name[0].name : 
+                       typeof province.name === 'object' && 'en' in province.name ? province.name.en :
+                       typeof province.name === 'string' ? province.name : 'Unknown')}
                   </MenuItem>
                 ))}
               </Select>
@@ -684,7 +756,10 @@ const HospitalsManagement: React.FC = () => {
                   .filter(s => s.districtId === formData.districtId)
                   .map((subdistrict) => (
                     <MenuItem key={subdistrict._id} value={subdistrict._id}>
-                      {typeof subdistrict.name === 'object' ? subdistrict.name.en : subdistrict.name}
+                      {subdistrict.en_name || 
+                        (Array.isArray(subdistrict.name) && subdistrict.name.length > 0 ? subdistrict.name[0].name : 
+                         typeof subdistrict.name === 'object' && 'en' in subdistrict.name ? subdistrict.name.en :
+                         typeof subdistrict.name === 'string' ? subdistrict.name : 'Unknown')}
                     </MenuItem>
                   ))}
               </Select>
@@ -846,7 +921,10 @@ const HospitalsManagement: React.FC = () => {
                               .filter(district => !provinceFilter || district.provinceId === provinceFilter)
                               .map((district) => (
                                 <MenuItem key={district._id} value={district._id}>
-                                  {typeof district.name === 'object' ? district.name.en : district.name}
+                                  {district.en_name || 
+                                    (Array.isArray(district.name) && district.name.length > 0 ? district.name[0].name : 
+                                     typeof district.name === 'object' && 'en' in district.name ? district.name.en :
+                                     typeof district.name === 'string' ? district.name : 'Unknown')}
                                 </MenuItem>
                               ))}
                           </Select>
