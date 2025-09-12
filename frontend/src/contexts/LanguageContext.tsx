@@ -1445,7 +1445,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   }, [language]);
 
   const t = (key: string, params?: Record<string, string | number>): string => {
-    let translation = translations[language][key] || key;
+    let translation = (translations[language] as any)[key] || key;
     
     if (params) {
       Object.entries(params).forEach(([paramKey, paramValue]) => {
