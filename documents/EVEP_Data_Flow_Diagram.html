@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVEP Mobile Reflection Unit - Data Flow Diagram</title>
+    <style>
+        @media print {
+            body { margin: 0; padding: 20px; }
+            .no-print { display: none; }
+            .page-break { page-break-before: always; }
+            .container { max-width: none; }
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #1a1a1a;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #2d2d2d;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+            color: #e0e0e0;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+            page-break-inside: avoid;
+        }
+        
+        .section h2 {
+            color: #4fc3f7;
+            border-bottom: 3px solid #4fc3f7;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        
+        .data-flow-overview {
+            background: #3d3d3d;
+            padding: 30px;
+            border-radius: 15px;
+            margin: 20px 0;
+            border: 2px solid #4fc3f7;
+        }
+        
+        .flow-diagram {
+            background: #1e1e1e;
+            padding: 40px;
+            border-radius: 15px;
+            margin: 20px 0;
+            border: 3px solid #4fc3f7;
+        }
+        
+        .flow-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        
+        .flow-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .flow-node {
+            background: linear-gradient(135deg, #4fc3f7 0%, #29b6f6 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            min-width: 200px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            border: 2px solid #81d4fa;
+            position: relative;
+        }
+        
+        .flow-node.data-source {
+            background: linear-gradient(135deg, #66bb6a 0%, #4caf50 100%);
+            border-color: #81c784;
+        }
+        
+        .flow-node.service {
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+            border-color: #ffb74d;
+        }
+        
+        .flow-node.queue {
+            background: linear-gradient(135deg, #e91e63 0%, #c2185b 100%);
+            border-color: #f48fb1;
+        }
+        
+        .flow-node.processor {
+            background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+            border-color: #ce93d8;
+        }
+        
+        .flow-node.storage {
+            background: linear-gradient(135deg, #607d8b 0%, #455a64 100%);
+            border-color: #90a4ae;
+        }
+        
+        .flow-node.output {
+            background: linear-gradient(135deg, #ff5722 0%, #d84315 100%);
+            border-color: #ffab91;
+        }
+        
+        .node-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .node-port {
+            font-size: 0.9em;
+            opacity: 0.9;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .node-description {
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-top: 8px;
+        }
+        
+        .flow-arrow {
+            color: #4fc3f7;
+            font-size: 2em;
+            font-weight: bold;
+            margin: 0 10px;
+        }
+        
+        .flow-arrow.down {
+            transform: rotate(90deg);
+        }
+        
+        .parallel-flow {
+            display: flex;
+            justify-content: space-around;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .branch-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .branch-arrow {
+            color: #4fc3f7;
+            font-size: 1.5em;
+            margin: 5px 0;
+        }
+        
+        .data-flow-details {
+            background: #3d3d3d;
+            padding: 25px;
+            border-radius: 15px;
+            margin: 20px 0;
+            border: 2px solid #4fc3f7;
+        }
+        
+        .flow-step {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: #2d2d2d;
+            border-radius: 10px;
+            border-left: 5px solid #4fc3f7;
+        }
+        
+        .step-number {
+            background: #4fc3f7;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+        
+        .step-content {
+            flex: 1;
+        }
+        
+        .step-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #4fc3f7;
+            margin-bottom: 8px;
+        }
+        
+        .step-description {
+            color: #b0b0b0;
+            line-height: 1.5;
+        }
+        
+        .api-endpoints {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border: 2px solid #4fc3f7;
+        }
+        
+        .api-endpoints h4 {
+            color: #4fc3f7;
+            margin-bottom: 10px;
+        }
+        
+        .api-endpoint {
+            background: #3d3d3d;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #81d4fa;
+            margin: 5px 0;
+            display: inline-block;
+            border: 1px solid #4fc3f7;
+        }
+        
+        .footer {
+            background: #1a1a1a;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .footer p {
+            margin: 5px 0;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            background: #4caf50;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin: 10px 0;
+        }
+        
+        .legend {
+            background: #3d3d3d;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 2px solid #4fc3f7;
+        }
+        
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-radius: 5px;
+            background: #2d2d2d;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            margin-right: 10px;
+        }
+        
+        .legend-color.data-source { background: #4caf50; }
+        .legend-color.service { background: #ff9800; }
+        .legend-color.queue { background: #e91e63; }
+        .legend-color.processor { background: #9c27b0; }
+        .legend-color.storage { background: #607d8b; }
+        .legend-color.output { background: #ff5722; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 EVEP Mobile Reflection Unit</h1>
+            <p><strong>Data Flow Diagram - Medical Data Processing Workflow</strong></p>
+            <p><strong>Document Version: 1.0 | Last Updated: August 30, 2024 | Print-Friendly Format</strong></p>
+            <div class="status-badge">🟢 LIVE SYSTEM - Production Ready</div>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h2>📊 Data Flow Overview</h2>
+                <div class="data-flow-overview">
+                    <p><strong>EVEP Mobile Reflection Unit</strong> Data Flow Diagram illustrates the complete data processing workflow from medical device input through various services to final output. This event-driven architecture handles vision screening data, patient information, and clinical results through a robust pipeline.</p>
+                    
+                    <div class="legend">
+                        <h3>🎨 Data Flow Legend:</h3>
+                        <div class="legend-grid">
+                            <div class="legend-item">
+                                <div class="legend-color data-source"></div>
+                                <span><strong>Data Source</strong> - Medical devices & input</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color service"></div>
+                                <span><strong>Service</strong> - Processing services</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color queue"></div>
+                                <span><strong>Queue</strong> - Message buffers</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color processor"></div>
+                                <span><strong>Processor</strong> - Data processors</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color storage"></div>
+                                <span><strong>Storage</strong> - Database collections</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color output"></div>
+                                <span><strong>Output</strong> - Final destinations</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🔄 Complete Data Flow Workflow</h2>
+                <div class="flow-diagram">
+                    <h3>📋 Medical Data Processing Pipeline:</h3>
+                    
+                    <!-- Data Source Row -->
+                    <div class="flow-row">
+                        <div class="flow-node data-source">
+                            <div class="node-title">Vision Screening Devices</div>
+                            <div class="node-port">Port: Various</div>
+                            <div class="node-description">Snellen charts, digital devices, mobile units</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-arrow down">↓</div>
+                    
+                    <!-- Initial Ingestion Services -->
+                    <div class="parallel-flow">
+                        <div class="branch-container">
+                            <div class="flow-node service">
+                                <div class="node-title">Mobile Unit API</div>
+                                <div class="node-port">Port: 8013</div>
+                                <div class="node-description">FastAPI backend for data ingestion</div>
+                            </div>
+                        </div>
+                        
+                        <div class="branch-container">
+                            <div class="flow-node service">
+                                <div class="node-title">Frontend App</div>
+                                <div class="node-port">Port: 3013</div>
+                                <div class="node-description">React interface for data entry</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-arrow down">↓</div>
+                    
+                    <!-- Message Queue -->
+                    <div class="flow-row">
+                        <div class="flow-node queue">
+                            <div class="node-title">Redis Cluster</div>
+                            <div class="node-port">Ports: 6395-6400</div>
+                            <div class="node-description">Message queue for async processing</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-arrow down">↓</div>
+                    
+                    <!-- Data Processing -->
+                    <div class="parallel-flow">
+                        <div class="branch-container">
+                            <div class="flow-node processor">
+                                <div class="node-title">Patient Data Processor</div>
+                                <div class="node-port">Internal</div>
+                                <div class="node-description">Patient registration & validation</div>
+                            </div>
+                        </div>
+                        
+                        <div class="branch-container">
+                            <div class="flow-node processor">
+                                <div class="node-title">Screening Data Processor</div>
+                                <div class="node-port">Internal</div>
+                                <div class="node-description">Vision screening results processing</div>
+                            </div>
+                        </div>
+                        
+                        <div class="branch-container">
+                            <div class="flow-node processor">
+                                <div class="node-title">Prescription Processor</div>
+                                <div class="node-port">Internal</div>
+                                <div class="node-description">Optical prescription calculation</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-arrow down">↓</div>
+                    
+                    <!-- Data Storage -->
+                    <div class="parallel-flow">
+                        <div class="branch-container">
+                            <div class="flow-node storage">
+                                <div class="node-title">MongoDB Primary</div>
+                                <div class="node-port">Port: 27030</div>
+                                <div class="node-description">Primary database storage</div>
+                            </div>
+                        </div>
+                        
+                        <div class="branch-container">
+                            <div class="flow-node storage">
+                                <div class="node-title">MongoDB Secondaries</div>
+                                <div class="node-port">Ports: 27031-27032</div>
+                                <div class="node-description">Replica set for redundancy</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-arrow down">↓</div>
+                    
+                    <!-- Data Collections -->
+                    <div class="parallel-flow">
+                        <div class="branch-container">
+                            <div class="flow-node storage">
+                                <div class="node-title">Patients Collection</div>
+                                <div class="node-port">Database</div>
+                                <div class="node-description">Patient demographic data</div>
+                            </div>
+                        </div>
+                        
+                        <div class="branch-container">
+                            <div class="flow-node storage">
+                                <div class="node-title">Screenings Collection</div>
+                                <div class="node-port">Database</div>
+                                <div class="node-description">Vision screening results</div>
+                            </div>
+                        </div>
+                        
+                        <div class="branch-container">
+                            <div class="flow-node storage">
+                                <div class="node-title">Prescriptions Collection</div>
+                                <div class="node-port">Database</div>
+                                <div class="node-description">Optical prescriptions</div>
+                            </div>
+                        </div>
+                        
+                        <div class="branch-container">
+                            <div class="flow-node storage">
+                                <div class="node-title">Deliveries Collection</div>
+                                <div class="node-port">Database</div>
+                                <div class="node-description">Glasses delivery tracking</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-arrow down">↓</div>
+                    
+                    <!-- Analytics & Integration -->
+                    <div class="parallel-flow">
+                        <div class="branch-container">
+                            <div class="flow-node processor">
+                                <div class="node-title">Analytics Service</div>
+                                <div class="node-port">Internal</div>
+                                <div class="node-description">Data aggregation & insights</div>
+                            </div>
+                        </div>
+                        
+                        <div class="branch-container">
+                            <div class="flow-node processor">
+                                <div class="node-title">Integration Service</div>
+                                <div class="node-port">Internal</div>
+                                <div class="node-description">External system integration</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-arrow down">↓</div>
+                    
+                    <!-- Final Output -->
+                    <div class="parallel-flow">
+                        <div class="branch-container">
+                            <div class="flow-node output">
+                                <div class="node-title">Real-time Dashboard</div>
+                                <div class="node-port">Port: 3013</div>
+                                <div class="node-description">Live monitoring interface</div>
+                            </div>
+                        </div>
+                        
+                        <div class="branch-container">
+                            <div class="flow-node output">
+                                <div class="node-title">API Endpoints</div>
+                                <div class="node-port">Port: 8013</div>
+                                <div class="node-description">RESTful API for external access</div>
+                            </div>
+                        </div>
+                        
+                        <div class="branch-container">
+                            <div class="flow-node output">
+                                <div class="node-title">Documentation Server</div>
+                                <div class="node-port">Port: 8084</div>
+                                <div class="node-description">Static documentation hosting</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>📋 Detailed Data Flow Steps</h2>
+                <div class="data-flow-details">
+                    <h3>🔍 Step-by-Step Data Processing:</h3>
+                    
+                    <div class="flow-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <div class="step-title">Data Ingestion</div>
+                            <div class="step-description">Vision screening devices and mobile units send data to the Mobile Unit API (Port 8013) and Frontend App (Port 3013) for initial processing and validation.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <div class="step-title">Message Queuing</div>
+                            <div class="step-description">Processed data is sent to Redis Cluster (Ports 6395-6400) for asynchronous message queuing, ensuring reliable data delivery and system decoupling.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <div class="step-title">Data Processing</div>
+                            <div class="step-description">Specialized processors handle different data types: Patient Data Processor for registration, Screening Data Processor for vision results, and Prescription Processor for optical calculations.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <div class="step-title">Database Storage</div>
+                            <div class="step-description">Processed data is stored in MongoDB replica set with Primary (Port 27030) and Secondaries (Ports 27031-27032) for high availability and data redundancy.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-step">
+                        <div class="step-number">5</div>
+                        <div class="step-content">
+                            <div class="step-title">Collection Organization</div>
+                            <div class="step-description">Data is organized into specialized collections: Patients, Screenings, Prescriptions, and Deliveries, each optimized for specific data types and query patterns.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-step">
+                        <div class="step-number">6</div>
+                        <div class="step-content">
+                            <div class="step-title">Analytics & Integration</div>
+                            <div class="step-description">Analytics Service aggregates data for insights and reporting, while Integration Service handles external system connections and data exchange.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-step">
+                        <div class="step-number">7</div>
+                        <div class="step-content">
+                            <div class="step-title">Output Distribution</div>
+                            <div class="step-description">Processed data is distributed to Real-time Dashboard for monitoring, API Endpoints for external access, and Documentation Server for system documentation.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🔗 API Endpoints & Integration</h2>
+                <div class="api-endpoints">
+                    <h4>📡 Data Ingestion Endpoints:</h4>
+                    <div class="api-endpoint">POST /api/v1/mobile-screening/patients</div>
+                    <div class="api-endpoint">POST /api/v1/mobile-screening/screenings</div>
+                    <div class="api-endpoint">POST /api/v1/mobile-screening/prescriptions</div>
+                    <div class="api-endpoint">POST /api/v1/mobile-screening/deliveries</div>
+                    
+                    <h4>📊 Data Retrieval Endpoints:</h4>
+                    <div class="api-endpoint">GET /api/v1/mobile-screening/patients/{id}</div>
+                    <div class="api-endpoint">GET /api/v1/mobile-screening/screenings/{id}</div>
+                    <div class="api-endpoint">GET /api/v1/mobile-screening/prescriptions/{id}</div>
+                    <div class="api-endpoint">GET /api/v1/mobile-screening/deliveries/{id}</div>
+                    
+                    <h4>📈 Analytics Endpoints:</h4>
+                    <div class="api-endpoint">GET /api/v1/insights/history</div>
+                    <div class="api-endpoint">GET /api/v1/insights/analytics</div>
+                    <div class="api-endpoint">GET /api/v1/mobile-screening/inventory</div>
+                    
+                    <h4>🔧 System Health Endpoints:</h4>
+                    <div class="api-endpoint">GET /health</div>
+                    <div class="api-endpoint">GET /docs</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>EVEP Mobile Reflection Unit - Data Flow Diagram</strong></p>
+            <p>Document Version: 1.0 | Last Updated: August 30, 2024 | Next Review: November 2024</p>
+            <p>This document provides a comprehensive data flow diagram for the EVEP Mobile Reflection Unit system, showing complete data processing workflow from medical devices to final output.</p>
+            <p><strong>Status: 🟢 LIVE - All Systems Operational | Production Server: 103.22.182.146:2222</strong></p>
+            <p><strong>Implementation Status: ✅ Complete | Ready for Production Use</strong></p>
+        </div>
+    </div>
+</body>
+</html>

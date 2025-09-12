@@ -1,0 +1,352 @@
+[
+  {
+    "id": "1",
+    "name": "คลองเตย",
+    "district_id": "1",
+    "province_id": "1",
+    "zipcode": "10110"
+  },
+  {
+    "id": "2",
+    "name": "คลองตัน",
+    "district_id": "1", 
+    "province_id": "1",
+    "zipcode": "10110"
+  },
+  {
+    "id": "3",
+    "name": "พระโขนง",
+    "district_id": "1",
+    "province_id": "1",
+    "zipcode": "10110"
+  },
+  {
+    "id": "4",
+    "name": "คลองสาน",
+    "district_id": "2",
+    "province_id": "1",
+    "zipcode": "10600"
+  },
+  {
+    "id": "5",
+    "name": "คลองต้นไทร",
+    "district_id": "2",
+    "province_id": "1",
+    "zipcode": "10600"
+  },
+  {
+    "id": "6",
+    "name": "คลองสาน",
+    "district_id": "2",
+    "province_id": "1",
+    "zipcode": "10600"
+  },
+  {
+    "id": "7",
+    "name": "คลองสามวา",
+    "district_id": "3",
+    "province_id": "1",
+    "zipcode": "10510"
+  },
+  {
+    "id": "8",
+    "name": "คลองหก",
+    "district_id": "3",
+    "province_id": "1",
+    "zipcode": "10510"
+  },
+  {
+    "id": "9",
+    "name": "คลองเจ็ด",
+    "district_id": "3",
+    "province_id": "1",
+    "zipcode": "10510"
+  },
+  {
+    "id": "10",
+    "name": "จตุจักร",
+    "district_id": "4",
+    "province_id": "1",
+    "zipcode": "10900"
+  },
+  {
+    "id": "11",
+    "name": "ลาดยาว",
+    "district_id": "4",
+    "province_id": "1",
+    "zipcode": "10900"
+  },
+  {
+    "id": "12",
+    "name": "จอมพล",
+    "district_id": "4",
+    "province_id": "1",
+    "zipcode": "10900"
+  },
+  {
+    "id": "13",
+    "name": "จอมทอง",
+    "district_id": "5",
+    "province_id": "1",
+    "zipcode": "10150"
+  },
+  {
+    "id": "14",
+    "name": "บางขุนเทียน",
+    "district_id": "5",
+    "province_id": "1",
+    "zipcode": "10150"
+  },
+  {
+    "id": "15",
+    "name": "ดอนเมือง",
+    "district_id": "6",
+    "province_id": "1",
+    "zipcode": "10210"
+  },
+  {
+    "id": "16",
+    "name": "สนามบิน",
+    "district_id": "6",
+    "province_id": "1",
+    "zipcode": "10210"
+  },
+  {
+    "id": "17",
+    "name": "ดินแดง",
+    "district_id": "7",
+    "province_id": "1",
+    "zipcode": "10400"
+  },
+  {
+    "id": "18",
+    "name": "รัชดาภิเษก",
+    "district_id": "7",
+    "province_id": "1",
+    "zipcode": "10400"
+  },
+  {
+    "id": "19",
+    "name": "ดุสิต",
+    "district_id": "8",
+    "province_id": "1",
+    "zipcode": "10300"
+  },
+  {
+    "id": "20",
+    "name": "วชิรพยาบาล",
+    "district_id": "8",
+    "province_id": "1",
+    "zipcode": "10300"
+  },
+  {
+    "id": "21",
+    "name": "ตลิ่งชัน",
+    "district_id": "9",
+    "province_id": "1",
+    "zipcode": "10170"
+  },
+  {
+    "id": "22",
+    "name": "คลองชักพระ",
+    "district_id": "9",
+    "province_id": "1",
+    "zipcode": "10170"
+  },
+  {
+    "id": "23",
+    "name": "ทวีวัฒนา",
+    "district_id": "10",
+    "province_id": "1",
+    "zipcode": "10170"
+  },
+  {
+    "id": "24",
+    "name": "ศาลาธรรมสพน์",
+    "district_id": "10",
+    "province_id": "1",
+    "zipcode": "10170"
+  },
+  {
+    "id": "25",
+    "name": "ทุ่งครุ",
+    "district_id": "11",
+    "province_id": "1",
+    "zipcode": "10140"
+  },
+  {
+    "id": "26",
+    "name": "บางมด",
+    "district_id": "11",
+    "province_id": "1",
+    "zipcode": "10140"
+  },
+  {
+    "id": "27",
+    "name": "ธนบุรี",
+    "district_id": "12",
+    "province_id": "1",
+    "zipcode": "10600"
+  },
+  {
+    "id": "28",
+    "name": "วัดกัลยาณ์",
+    "district_id": "12",
+    "province_id": "1",
+    "zipcode": "10600"
+  },
+  {
+    "id": "29",
+    "name": "บางกอกน้อย",
+    "district_id": "13",
+    "province_id": "1",
+    "zipcode": "10700"
+  },
+  {
+    "id": "30",
+    "name": "บางขุนนนท์",
+    "district_id": "13",
+    "province_id": "1",
+    "zipcode": "10700"
+  },
+  {
+    "id": "31",
+    "name": "บางกอกใหญ่",
+    "district_id": "14",
+    "province_id": "1",
+    "zipcode": "10600"
+  },
+  {
+    "id": "32",
+    "name": "วัดอรุณ",
+    "district_id": "14",
+    "province_id": "1",
+    "zipcode": "10600"
+  },
+  {
+    "id": "33",
+    "name": "บางขุนเทียน",
+    "district_id": "15",
+    "province_id": "1",
+    "zipcode": "10150"
+  },
+  {
+    "id": "34",
+    "name": "บางค้อ",
+    "district_id": "15",
+    "province_id": "1",
+    "zipcode": "10150"
+  },
+  {
+    "id": "35",
+    "name": "บางคอแหลม",
+    "district_id": "16",
+    "province_id": "1",
+    "zipcode": "10120"
+  },
+  {
+    "id": "36",
+    "name": "บางโคล่",
+    "district_id": "16",
+    "province_id": "1",
+    "zipcode": "10120"
+  },
+  {
+    "id": "37",
+    "name": "บางซื่อ",
+    "district_id": "17",
+    "province_id": "1",
+    "zipcode": "10800"
+  },
+  {
+    "id": "38",
+    "name": "วงศ์สว่าง",
+    "district_id": "17",
+    "province_id": "1",
+    "zipcode": "10800"
+  },
+  {
+    "id": "39",
+    "name": "บางนา",
+    "district_id": "18",
+    "province_id": "1",
+    "zipcode": "10260"
+  },
+  {
+    "id": "40",
+    "name": "บางโพ",
+    "district_id": "18",
+    "province_id": "1",
+    "zipcode": "10260"
+  },
+  {
+    "id": "41",
+    "name": "บางบอน",
+    "district_id": "19",
+    "province_id": "1",
+    "zipcode": "10150"
+  },
+  {
+    "id": "42",
+    "name": "บางบอน",
+    "district_id": "19",
+    "province_id": "1",
+    "zipcode": "10150"
+  },
+  {
+    "id": "43",
+    "name": "บางพลัด",
+    "district_id": "20",
+    "province_id": "1",
+    "zipcode": "10700"
+  },
+  {
+    "id": "44",
+    "name": "บางอ้อ",
+    "district_id": "20",
+    "province_id": "1",
+    "zipcode": "10700"
+  },
+  {
+    "id": "45",
+    "name": "บางรัก",
+    "district_id": "21",
+    "province_id": "1",
+    "zipcode": "10500"
+  },
+  {
+    "id": "46",
+    "name": "สี่พระยา",
+    "district_id": "21",
+    "province_id": "1",
+    "zipcode": "10500"
+  },
+  {
+    "id": "47",
+    "name": "บางเขน",
+    "district_id": "22",
+    "province_id": "1",
+    "zipcode": "10220"
+  },
+  {
+    "id": "48",
+    "name": "ท่าแร้ง",
+    "district_id": "22",
+    "province_id": "1",
+    "zipcode": "10220"
+  },
+  {
+    "id": "49",
+    "name": "บางแค",
+    "district_id": "23",
+    "province_id": "1",
+    "zipcode": "10160"
+  },
+  {
+    "id": "50",
+    "name": "บางแคเหนือ",
+    "district_id": "23",
+    "province_id": "1",
+    "zipcode": "10160"
+  }
+]

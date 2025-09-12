@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVEP Workflow Diagrams & Documentation</title>
+    <style>
+        @media print {
+            body { margin: 0; }
+            .page-break { page-break-before: always; }
+            .no-break { page-break-inside: avoid; }
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+        }
+        
+        h1, h2, h3, h4 {
+            color: #2c3e50;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            text-align: center;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 20px;
+            margin-bottom: 40px;
+        }
+        
+        h2 {
+            font-size: 1.8em;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+            background: #f8f9fa;
+            padding: 10px 15px;
+        }
+        
+        h3 {
+            font-size: 1.4em;
+            color: #34495e;
+        }
+        
+        h4 {
+            font-size: 1.2em;
+            color: #7f8c8d;
+        }
+        
+        .workflow-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            background: #fafbfc;
+        }
+        
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .mermaid img {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        
+        .code-block {
+            background: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        
+        .highlight {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+        
+        li {
+            margin: 8px 0;
+        }
+        
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid #3498db;
+            text-align: center;
+            color: #7f8c8d;
+        }
+        
+        @media print {
+            .no-print { display: none; }
+            body { font-size: 12px; }
+            h1 { font-size: 18px; }
+            h2 { font-size: 16px; }
+            h3 { font-size: 14px; }
+            h4 { font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <h1>EVEP Workflow Diagrams & Documentation</h1>
+    
+    <div class="info">
+        <strong>Document Version:</strong> 1.0<br>
+        <strong>Last Updated:</strong> August 30, 2025<br>
+        <strong>Status:</strong> ✅ COMPLETE
+    </div>
+
+    <h2>🔄 System Workflow Overview</h2>
+    
+    <p>The EVEP (EYE Vision Evaluation Platform) system consists of multiple interconnected workflows designed to support vision screening from school-based detection to professional medical treatment.</p>
+
+    <h3>Core Workflow Categories:</h3>
+    <ol>
+        <li><strong>School-Based Screening Workflow</strong> - Teachers conduct basic vision screening</li>
+        <li><strong>Medical Screening Workflow</strong> - Medical staff handle professional evaluation</li>
+        <li><strong>Patient Management Workflow</strong> - Comprehensive patient care management</li>
+        <li><strong>Treatment & Follow-up Workflow</strong> - Medical diagnosis and treatment planning</li>
+        <li><strong>Administrative Management Workflow</strong> - System administration and oversight</li>
+    </ol>
+
+    <div class="page-break"></div>
+
+    <h2>🏫 1. School-Based Screening Workflow</h2>
+    
+    <div class="workflow-section">
+        <h3>Process Overview:</h3>
+        <ol>
+            <li><strong>Teacher Authentication</strong> - Teacher logs into EVEP Management portal</li>
+            <li><strong>Student Selection</strong> - Select students for screening session</li>
+            <li><strong>Screening Session Setup</strong> - Create new screening session</li>
+            <li><strong>Conduct Screening</strong> - Administer vision tests to students</li>
+            <li><strong>Result Assessment</strong> - Review screening results</li>
+            <li><strong>Result Processing</strong> - Normal results: Schedule follow-up; Abnormal results: Create medical referral</li>
+            <li><strong>Communication</strong> - Send results to parents via LINE</li>
+        </ol>
+    </div>
+
+    <h3>Key Features:</h3>
+    <ul>
+        <li>Basic vision screening administration</li>
+        <li>Real-time result recording</li>
+        <li>Automatic referral generation</li>
+        <li>Parent notification system</li>
+        <li>School record management</li>
+    </ul>
+
+    <div class="page-break"></div>
+
+    <h2>🏥 2. Medical Screening Workflow</h2>
+    
+    <div class="workflow-section">
+        <h3>Process Overview:</h3>
+        <ol>
+            <li><strong>Patient Registration</strong> - Convert students to patients or direct registration</li>
+            <li><strong>Screening Preparation</strong> - Review patient history and prepare equipment</li>
+            <li><strong>Professional Screening</strong> - Conduct comprehensive vision tests</li>
+            <li><strong>Result Analysis</strong> - Review screening results and AI analysis</li>
+            <li><strong>Treatment Planning</strong> - Create treatment plans and follow-up schedules</li>
+        </ol>
+    </div>
+
+    <h3>Key Features:</h3>
+    <ul>
+        <li>Professional vision assessment</li>
+        <li>Comprehensive medical evaluation</li>
+        <li>AI-powered result analysis</li>
+        <li>Treatment plan generation</li>
+        <li>Follow-up coordination</li>
+    </ul>
+
+    <div class="page-break"></div>
+
+    <h2>👥 3. Patient Management Workflow</h2>
+    
+    <div class="workflow-section">
+        <h3>Process Overview:</h3>
+        <ol>
+            <li><strong>Information Collection</strong> - Personal demographics and medical history</li>
+            <li><strong>Documentation</strong> - Consent forms and insurance information</li>
+            <li><strong>Profile Management</strong> - Update patient information and track progress</li>
+            <li><strong>Communication</strong> - Send reminders and coordinate care</li>
+        </ol>
+    </div>
+
+    <h3>Key Features:</h3>
+    <ul>
+        <li>Comprehensive patient profiles</li>
+        <li>Medical history tracking</li>
+        <li>Appointment management</li>
+        <li>Communication coordination</li>
+        <li>Document management</li>
+    </ul>
+
+    <div class="page-break"></div>
+
+    <h2>🔍 4. Vision Screening Session Management Workflow</h2>
+    
+    <div class="workflow-section">
+        <h3>Process Overview:</h3>
+        <ol>
+            <li><strong>Session Setup</strong> - Create new screening session</li>
+            <li><strong>Scheduling</strong> - Set appointment time and send notifications</li>
+            <li><strong>Patient Check-in</strong> - Verify patient identity and prepare environment</li>
+            <li><strong>Screening Conduct</strong> - Administer vision tests and record results</li>
+            <li><strong>Result Processing</strong> - Review results and generate reports</li>
+            <li><strong>Follow-up Actions</strong> - Schedule follow-up or create referrals</li>
+        </ol>
+    </div>
+
+    <h3>Key Features:</h3>
+    <ul>
+        <li>Session scheduling and management</li>
+        <li>Equipment tracking</li>
+        <li>Staff assignment</li>
+        <li>Real-time status updates</li>
+        <li>Result documentation</li>
+    </ul>
+
+    <div class="page-break"></div>
+
+    <h2>🩺 5. Diagnosis & Treatment Workflow</h2>
+    
+    <div class="workflow-section">
+        <h3>Process Overview:</h3>
+        <ol>
+            <li><strong>Patient Review</strong> - Review screening results and medical history</li>
+            <li><strong>Medical Evaluation</strong> - Conduct comprehensive eye exam</li>
+            <li><strong>Diagnosis Formulation</strong> - Analyze data and formulate diagnosis</li>
+            <li><strong>Treatment Planning</strong> - Create treatment plans and set goals</li>
+            <li><strong>Treatment Execution</strong> - Prescribe glasses or initiate medical treatment</li>
+            <li><strong>Follow-up Management</strong> - Monitor progress and adjust plans</li>
+        </ol>
+    </div>
+
+    <h3>Key Features:</h3>
+    <ul>
+        <li>Professional medical diagnosis</li>
+        <li>Comprehensive treatment planning</li>
+        <li>Prescription management</li>
+        <li>Follow-up coordination</li>
+        <li>Patient education</li>
+    </ul>
+
+    <div class="page-break"></div>
+
+    <h2>📊 6. Complete EVEP System Workflow</h2>
+    
+    <div class="workflow-section">
+        <h3>End-to-End Process Flow:</h3>
+        <ol>
+            <li><strong>School Screening</strong> - Teachers conduct basic vision screening</li>
+            <li><strong>Referral Process</strong> - Abnormal results trigger medical referral</li>
+            <li><strong>Patient Registration</strong> - Convert students to patients</li>
+            <li><strong>Medical Screening</strong> - Professional vision assessment</li>
+            <li><strong>Diagnosis & Treatment</strong> - Medical diagnosis and treatment planning</li>
+            <li><strong>Treatment Implementation</strong> - Glasses management or medical treatment</li>
+            <li><strong>Follow-up Management</strong> - Long-term monitoring and care</li>
+        </ol>
+    </div>
+
+    <h3>Data Flow:</h3>
+    <ul>
+        <li><strong>Students Collection</strong> → <strong>Student-to-Patient Registration</strong></li>
+        <li><strong>Patients Collection</strong> → <strong>Vision Screenings</strong></li>
+        <li><strong>VA Screening Interface</strong> → <strong>Screening Results</strong></li>
+        <li><strong>Diagnosis & Treatment</strong> → <strong>Treatment Plans</strong></li>
+        <li><strong>Follow-up Management</strong> → <strong>Long-term Monitoring</strong></li>
+    </ul>
+
+    <div class="page-break"></div>
+
+    <h2>📋 7. Role-Based Access Matrix</h2>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Role</th>
+                <th>School Screening</th>
+                <th>Patient Registration</th>
+                <th>VA Screening</th>
+                <th>Diagnosis</th>
+                <th>Admin</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Teacher</strong></td>
+                <td>✅ Full Access</td>
+                <td>❌ No Access</td>
+                <td>❌ No Access</td>
+                <td>❌ No Access</td>
+                <td>❌ No Access</td>
+            </tr>
+            <tr>
+                <td><strong>Medical Staff</strong></td>
+                <td>✅ View Only</td>
+                <td>✅ Full Access</td>
+                <td>✅ Basic Access</td>
+                <td>❌ No Access</td>
+                <td>❌ No Access</td>
+            </tr>
+            <tr>
+                <td><strong>Doctor</strong></td>
+                <td>✅ View Only</td>
+                <td>✅ Full Access</td>
+                <td>✅ Full Access</td>
+                <td>✅ Full Access</td>
+                <td>❌ No Access</td>
+            </tr>
+            <tr>
+                <td><strong>Admin</strong></td>
+                <td>✅ Full Access</td>
+                <td>✅ Full Access</td>
+                <td>✅ Full Access</td>
+                <td>✅ Full Access</td>
+                <td>✅ Full Access</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h2>🔧 8. Technical Implementation Details</h2>
+    
+    <h3>Component Architecture:</h3>
+    <div class="code-block">
+EVEP System
+├── Frontend Components
+│   ├── StudentToPatientRegistration.tsx
+│   ├── VAScreeningInterface.tsx
+│   ├── Screenings.tsx
+│   └── DiagnosisTreatment.tsx
+├── Backend APIs
+│   ├── /api/v1/evep/students
+│   ├── /api/v1/patients/registrations
+│   ├── /api/v1/screenings/
+│   └── /api/v1/va-screening/
+└── Database Collections
+    ├── students
+    ├── patients
+    ├── screenings
+    └── va_screenings
+    </div>
+
+    <h3>Data Flow:</h3>
+    <ol>
+        <li><strong>School Data</strong> → <strong>Student Records</strong> → <strong>Patient Records</strong></li>
+        <li><strong>Screening Results</strong> → <strong>AI Analysis</strong> → <strong>Medical Recommendations</strong></li>
+        <li><strong>Patient Data</strong> → <strong>Treatment Plans</strong> → <strong>Follow-up Management</strong></li>
+    </ol>
+
+    <div class="page-break"></div>
+
+    <h2>📈 9. Key Performance Indicators (KPIs)</h2>
+    
+    <h3>Screening Metrics:</h3>
+    <ul>
+        <li><strong>Screening Completion Rate</strong>: % of scheduled screenings completed</li>
+        <li><strong>Referral Rate</strong>: % of school screenings requiring medical referral</li>
+        <li><strong>Treatment Compliance</strong>: % of patients following treatment plans</li>
+        <li><strong>Follow-up Attendance</strong>: % of follow-up appointments attended</li>
+    </ul>
+
+    <h3>Quality Metrics:</h3>
+    <ul>
+        <li><strong>Screening Accuracy</strong>: Correlation between school and medical screening results</li>
+        <li><strong>Treatment Effectiveness</strong>: Improvement in vision after treatment</li>
+        <li><strong>Patient Satisfaction</strong>: Parent and patient satisfaction scores</li>
+        <li><strong>System Uptime</strong>: Platform availability and performance</li>
+    </ul>
+
+    <div class="page-break"></div>
+
+    <h2>🚀 10. Future Enhancements</h2>
+    
+    <h3>Planned Features:</h3>
+    <ol>
+        <li><strong>AI-Powered Screening</strong>: Automated vision assessment</li>
+        <li><strong>Mobile Screening App</strong>: Portable screening capabilities</li>
+        <li><strong>Advanced Analytics</strong>: Predictive analytics for vision health</li>
+        <li><strong>Integration APIs</strong>: School management system integration</li>
+        <li><strong>Telemedicine</strong>: Remote consultation capabilities</li>
+    </ol>
+
+    <h3>Scalability Considerations:</h3>
+    <ul>
+        <li><strong>Multi-school Support</strong>: Handle multiple school districts</li>
+        <li><strong>Multi-language Support</strong>: International deployment</li>
+        <li><strong>Cloud Infrastructure</strong>: Scalable cloud-based deployment</li>
+        <li><strong>Data Analytics</strong>: Advanced reporting and analytics</li>
+    </ul>
+
+    <div class="footer">
+        <p><strong>EVEP Workflow Diagrams & Documentation</strong></p>
+        <p>Document Version: 1.0 | Last Updated: August 30, 2025 | Status: ✅ COMPLETE</p>
+        <p>EYE Vision Evaluation Platform - Comprehensive Vision Screening Management System</p>
+    </div>
+</body>
+</html>

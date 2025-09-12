@@ -1,0 +1,232 @@
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { API_ENDPOINTS } from '../config/api';
+
+interface User {
+  user_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  organization?: string;
+  permissions?: string[];
+  portal_access?: string[];
+  last_login?: string;
+}
+
+interface AuthContextType {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => void;
+  loading: boolean;
+  hasPermission: (permission: string) => boolean;
+  hasPortalAccess: (portal: string) => boolean;
+  isMedicalAdmin: () => boolean;
+  isSystemAdmin: () => boolean;
+  refreshToken: () => Promise<boolean>;
+  isTokenExpired: () => boolean;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [storedCredentials, setStoredCredentials] = useState<{ email: string; password: string } | null>(null);
+
+  useEffect(() => {
+    // Check for existing token and user data on app start
+    const storedToken = localStorage.getItem('evep_token');
+    const storedUser = localStorage.getItem('evep_user');
+    const storedEmail = localStorage.getItem('evep_email');
+    const storedPassword = localStorage.getItem('evep_password');
+    
+    if (storedToken && storedUser) {
+      try {
+        const userData = JSON.parse(storedUser);
+        setToken(storedToken);
+        setUser(userData);
+        
+        // Store credentials for auto-refresh (in production, use more secure methods)
+        if (storedEmail && storedPassword) {
+          setStoredCredentials({ email: storedEmail, password: storedPassword });
+        }
+      } catch (error) {
+        console.error('Error parsing stored user data:', error);
+        localStorage.removeItem('evep_token');
+        localStorage.removeItem('evep_user');
+        localStorage.removeItem('evep_email');
+        localStorage.removeItem('evep_password');
+      }
+    }
+    
+    setLoading(false);
+  }, []);
+
+
+
+  const refreshToken = async (): Promise<boolean> => {
+    if (!storedCredentials) {
+      console.log('No stored credentials for auto-refresh');
+      return false;
+    }
+
+    try {
+      console.log('Attempting auto-refresh with stored credentials...');
+      const success = await login(storedCredentials.email, storedCredentials.password);
+      if (success) {
+        console.log('Auto-refresh successful');
+        return true;
+      } else {
+        console.log('Auto-refresh failed');
+        // Clear stored credentials if refresh fails
+        setStoredCredentials(null);
+        localStorage.removeItem('evep_email');
+        localStorage.removeItem('evep_password');
+        return false;
+      }
+    } catch (error) {
+      console.error('Auto-refresh error:', error);
+      return false;
+    }
+  };
+
+  // Enhanced token validation with rate limiting
+  const isTokenExpired = (): boolean => {
+    if (!token) return true;
+    
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Date.now() / 1000;
+      
+      // Consider token expired if it expires within 5 minutes
+      return payload.exp < (currentTime + 300);
+    } catch (error) {
+      console.error('Error checking token expiration:', error);
+      return true;
+    }
+  };
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const response = await fetch(API_ENDPOINTS.LOGIN, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Login failed:', data.detail);
+        return false;
+      }
+
+      // Fetch complete user profile including last_login
+      const profileResponse = await fetch(API_ENDPOINTS.PROFILE, {
+        headers: {
+          'Authorization': `Bearer ${data.access_token}`,
+        },
+      });
+
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        const completeUserData = { ...data.user, ...profileData };
+        
+        // Store token and complete user data
+        localStorage.setItem('evep_token', data.access_token);
+        localStorage.setItem('evep_user', JSON.stringify(completeUserData));
+        localStorage.setItem('evep_email', email);
+        localStorage.setItem('evep_password', password);
+        
+        setToken(data.access_token);
+        setUser(completeUserData);
+        setStoredCredentials({ email, password });
+      } else {
+        // Fallback to basic user data if profile fetch fails
+        localStorage.setItem('evep_token', data.access_token);
+        localStorage.setItem('evep_user', JSON.stringify(data.user));
+        localStorage.setItem('evep_email', email);
+        localStorage.setItem('evep_password', password);
+        
+        setToken(data.access_token);
+        setUser(data.user);
+        setStoredCredentials({ email, password });
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
+    }
+  };
+
+  const logout = () => {
+    // Clear stored data
+    localStorage.removeItem('evep_token');
+    localStorage.removeItem('evep_user');
+    localStorage.removeItem('evep_email');
+    localStorage.removeItem('evep_password');
+    
+    // Clear state
+    setToken(null);
+    setUser(null);
+    setStoredCredentials(null);
+  };
+
+  // Role-based access control functions
+  const hasPermission = (permission: string): boolean => {
+    if (!user || !user.permissions) return false;
+    return user.permissions.includes(permission) || user.permissions.includes('full_access');
+  };
+
+  const hasPortalAccess = (portal: string): boolean => {
+    if (!user || !user.portal_access) return false;
+    return user.portal_access.includes(portal);
+  };
+
+  const isMedicalAdmin = (): boolean => {
+    return user?.role === 'medical_admin';
+  };
+
+  const isSystemAdmin = (): boolean => {
+    return user?.role === 'system_admin';
+  };
+
+  const value: AuthContextType = {
+    user,
+    token,
+    isAuthenticated: !!token && !!user,
+    login,
+    logout,
+    loading,
+    hasPermission,
+    hasPortalAccess,
+    isMedicalAdmin,
+    isSystemAdmin,
+    refreshToken,
+    isTokenExpired,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};

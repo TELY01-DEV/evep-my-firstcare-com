@@ -1,0 +1,20 @@
+EVEP Server Data Backup Summary
+Generated: Thu Aug 28 14:19:56 +07 2025
+Backup Directory: ./backups
+
+Files Created:
+- evep_mongodb_backup_20250828_141948.gz (MongoDB backup)
+- evep_redis_backup_20250828_141948.rdb (Redis backup)
+- evep_env_backup_20250828_141948.env (Environment backup)
+- restore_local.sh (Restore script)
+
+To restore data to local environment:
+1. Navigate to the backup directory: cd ./backups
+2. Run the restore script: ./restore_local.sh
+3. Start local development: docker-compose up -d
+
+Server Information:
+- Host: 103.22.182.146
+- Port: 2222
+- User: root
+- Remote Path: /www/dk_project/evep-my-firstcare-com

@@ -1,182 +1,572 @@
-version: '3.8'
-
 services:
-  # Backend API Service
+  # Main EVEP Backend (without AI/ML)
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    build: ./backend
     container_name: evep-backend
     ports:
-      - "8000:8000"
+      - "8014:8000"
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=mongodb://mongo:27017/evep
-      - REDIS_URL=redis://redis:6379
-      - SECRET_KEY=${SECRET_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - LINE_CHANNEL_ACCESS_TOKEN=${LINE_CHANNEL_ACCESS_TOKEN}
-      - LINE_CHANNEL_SECRET=${LINE_CHANNEL_SECRET}
+      - ENVIRONMENT=production
+      - MONGODB_URL=mongodb://admin:Sim!44335599@mongo-primary:27017,mongo-secondary-1:27017,mongo-secondary-2:27017/evep?replicaSet=rs0&authSource=admin
+      - REDIS_URL=redis://redis-master-1:6379
+      - AI_SERVICE_ENABLED=${AI_SERVICE_ENABLED:-false}
+      - AI_SERVICE_URL=${AI_SERVICE_URL:-http://ai-service:8001}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+
     volumes:
       - ./backend:/app
-      - backend_data:/app/data
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
     depends_on:
-      - mongo
-      - redis
+      - mongo-primary
+      - mongo-secondary-1
+      - mongo-secondary-2
+      - mongo-arbiter
+      - redis-master-1
     networks:
       - evep-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Frontend Web Application
+  # AI/ML Service (Separate Container)
+  ai-service:
+    build: ./ai-service
+    container_name: evep-ai-service
+    ports:
+      - "8015:8001"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - CHROMA_PERSIST_DIR=/app/chroma_db
+      - MODEL_CACHE_DIR=/app/models
+      - MAX_CONCURRENT_REQUESTS=${AI_MAX_CONCURRENT_REQUESTS:-5}
+      - REQUEST_TIMEOUT=${AI_REQUEST_TIMEOUT:-60}
+    volumes:
+      - ai_chroma_data:/app/chroma_db
+      - ai_model_cache:/app/models
+      - ./ai-service/logs:/app/logs
+    networks:
+      - evep-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    profiles:
+      - ai
+
+  # AI/ML Worker Service (for background processing)
+  ai-worker:
+    build: ./ai-service
+    container_name: evep-ai-worker
+    command: ["python", "-m", "app.worker"]
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - CHROMA_PERSIST_DIR=/app/chroma_db
+      - MODEL_CACHE_DIR=/app/models
+      - REDIS_URL=redis://redis-master-1:6379
+      - MAX_WORKERS=${AI_MAX_WORKERS:-3}
+    volumes:
+      - ai_chroma_data:/app/chroma_db
+      - ai_model_cache:/app/models
+      - ./ai-service/logs:/app/logs
+    networks:
+      - evep-network
+    restart: unless-stopped
+    depends_on:
+      - redis-master-1
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    profiles:
+      - ai
+
+  # AI/ML Monitoring Service
+  ai-monitor:
+    build: ./ai-service
+    container_name: evep-ai-monitor
+    command: ["python", "-m", "app.monitor"]
+    environment:
+      - PROMETHEUS_MULTIPROC_DIR=/tmp
+      - METRICS_PORT=8002
+    ports:
+      - "8016:8002"
+    volumes:
+      - ./ai-service/logs:/app/logs
+    networks:
+      - evep-network
+    restart: unless-stopped
+    profiles:
+      - ai
+
+  # Frontend Web Application (Medical Professional Portal)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: https://stardust.evep.my-firstcare.com
+        REACT_APP_SOCKET_URL: https://socketio.evep.my-firstcare.com
+        REACT_APP_ENVIRONMENT: production
+        REACT_APP_PORTAL_TYPE: medical
     container_name: evep-frontend
     ports:
-      - "3000:3000"
+      - "3013:3000"
     environment:
-      - REACT_APP_API_URL=http://localhost:8000
-      - REACT_APP_ENVIRONMENT=development
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - REACT_APP_API_URL=https://stardust.evep.my-firstcare.com
+      - REACT_APP_ENVIRONMENT=production
+      - REACT_APP_PORTAL_TYPE=medical
+      - REACT_APP_SOCKET_URL=https://socketio.evep.my-firstcare.com
+      - NODE_ENV=production
+    # volumes:
+      # - ./frontend:/app
+      # - /app/node_modules
     depends_on:
       - backend
     networks:
       - evep-network
     restart: unless-stopped
 
-  # MongoDB Database
-  mongo:
-    image: mongo:6.0
-    container_name: evep-mongo
+  # Admin Panel Web Application (Separate System)
+  admin-panel:
+    build:
+      context: ./admin-panel
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: https://stardust.evep.my-firstcare.com
+        REACT_APP_SOCKET_URL: https://socketio.evep.my-firstcare.com
+        REACT_APP_ENVIRONMENT: production
+        REACT_APP_PORTAL_TYPE: admin
+    container_name: evep-admin-panel
     ports:
-      - "27017:27017"
+      - "3015:3000"
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
-      - MONGO_INITDB_DATABASE=evep
+      - REACT_APP_API_URL=https://stardust.evep.my-firstcare.com
+      - REACT_APP_ENVIRONMENT=production
+      - REACT_APP_SOCKET_URL=https://socketio.evep.my-firstcare.com
+      - NODE_ENV=production
+    # volumes:
+      # - ./admin-panel:/app
+      # - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - evep-network
+    restart: unless-stopped
+
+  # MongoDB Replica Set (Primary)
+  mongo-primary:
+    image: mongo:6.0
+    container_name: evep-mongo-primary
+    ports:
+      - "27030:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=${MONGO_DATABASE}
+      - MONGO_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
     volumes:
-      - mongo_data:/data/db
+      - mongo_primary_data:/data/db
       - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - ./mongo-keyfile:/etc/mongo-keyfile:ro
     networks:
       - evep-network
     restart: unless-stopped
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--auth", "--keyFile", "/etc/mongo-keyfile"]
 
-  # Redis Cache
-  redis:
+  # MongoDB Replica Set (Secondary 1) - Secured (No External Access)
+  mongo-secondary-1:
+    image: mongo:6.0
+    container_name: evep-mongo-secondary-1
+    ports: []  # No external ports - internal access only
+    environment:
+      - MONGO_INITDB_DATABASE=${MONGO_DATABASE}
+    volumes:
+      - mongo_secondary1_data:/data/db
+      - ./mongo-keyfile:/etc/mongo-keyfile:ro
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--auth", "--keyFile", "/etc/mongo-keyfile"]
+    depends_on:
+      - mongo-primary
+
+  # MongoDB Replica Set (Secondary 2) - Secured (No External Access)
+  mongo-secondary-2:
+    image: mongo:6.0
+    container_name: evep-mongo-secondary-2
+    ports: []  # No external ports - internal access only
+    environment:
+      - MONGO_INITDB_DATABASE=${MONGO_DATABASE}
+    volumes:
+      - mongo_secondary2_data:/data/db
+      - ./mongo-keyfile:/etc/mongo-keyfile:ro
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--auth", "--keyFile", "/etc/mongo-keyfile"]
+    depends_on:
+      - mongo-primary
+
+  # MongoDB Arbiter - Secured (No External Access)
+  mongo-arbiter:
+    image: mongo:6.0
+    container_name: evep-mongo-arbiter
+    ports: []  # No external ports - internal access only
+    environment:
+      - MONGO_INITDB_DATABASE=${MONGO_DATABASE}
+    volumes:
+      - mongo_arbiter_data:/data/db
+      - ./mongo-keyfile:/etc/mongo-keyfile:ro
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--auth", "--keyFile", "/etc/mongo-keyfile"]
+    depends_on:
+      - mongo-primary
+
+  # Redis Cluster (Master 1)
+  redis-master-1:
     image: redis:7-alpine
-    container_name: evep-redis
+    container_name: evep-redis-master-1
     ports:
-      - "6379:6379"
+      - "6395:6379"
     volumes:
-      - redis_data:/data
+      - redis_master1_data:/data
     networks:
       - evep-network
     restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf", "--cluster-node-timeout", "5000"]
 
-  # Traefik Reverse Proxy
-  traefik:
-    image: traefik:v2.10
-    container_name: evep-traefik
+  # Redis Cluster (Master 2)
+  redis-master-2:
+    image: redis:7-alpine
+    container_name: evep-redis-master-2
     ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"  # Traefik dashboard
+      - "6396:6379"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - redis_master2_data:/data
     networks:
       - evep-network
     restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf", "--cluster-node-timeout", "5000"]
+
+  # Redis Cluster (Master 3)
+  redis-master-3:
+    image: redis:7-alpine
+    container_name: evep-redis-master-3
+    ports:
+      - "6397:6379"
+    volumes:
+      - redis_master3_data:/data
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf", "--cluster-node-timeout", "5000"]
+
+  # Redis Cluster (Replica 1)
+  redis-replica-1:
+    image: redis:7-alpine
+    container_name: evep-redis-replica-1
+    ports:
+      - "6398:6379"
+    volumes:
+      - redis_replica1_data:/data
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf", "--cluster-node-timeout", "5000"]
+
+  # Redis Cluster (Replica 2)
+  redis-replica-2:
+    image: redis:7-alpine
+    container_name: evep-redis-replica-2
+    ports:
+      - "6399:6379"
+    volumes:
+      - redis_replica2_data:/data
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf", "--cluster-node-timeout", "5000"]
+
+  # Redis Cluster (Replica 3)
+  redis-replica-3:
+    image: redis:7-alpine
+    container_name: evep-redis-replica-3
+    ports:
+      - "6400:6379"
+    volumes:
+      - redis_replica3_data:/data
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--cluster-enabled", "yes", "--cluster-config-file", "nodes.conf", "--cluster-node-timeout", "5000"]
+
+  # FastAPI/Swagger Documentation Service
+  stardust:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: evep-stardust
+    ports:
+      - "8013:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - MONGODB_URL=mongodb://admin:Sim!44335599@mongo-primary:27017,mongo-secondary-1:27017,mongo-secondary-2:27017/evep?replicaSet=rs0&authSource=admin
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - LINE_CHANNEL_ACCESS_TOKEN=${LINE_CHANNEL_ACCESS_TOKEN}
+      - LINE_CHANNEL_SECRET=${LINE_CHANNEL_SECRET}
+      - MONGO_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_DATABASE=${MONGO_DATABASE}
+      - MONGO_REPLICA_SET_NAME=${MONGO_REPLICA_SET_NAME}
+      - REDIS_CLUSTER_ENABLED=${REDIS_CLUSTER_ENABLED}
+      - FILE_STORAGE_PATH=/tmp/uploads
+      - CDN_ENABLED=true
+      - SECURE_FILE_ACCESS=true
+      - SWAGGER_UI_ENABLED=true
+      - DOCS_URL=/docs
+      - REDOC_URL=/redoc
+    volumes:
+      - ./backend:/app
+      - stardust_data:/app/data
+    depends_on:
+      - mongo-primary
+      - mongo-secondary-1
+      - mongo-secondary-2
+      - mongo-arbiter
+      - redis-master-1
+      - redis-master-2
+      - redis-master-3
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  # CDN External Secure File Access Service
+  cdn:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: evep-cdn
+    ports:
+      - "3014:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - MONGODB_URL=mongodb://admin:Sim!44335599@mongo-primary:27017,mongo-secondary-1:27017,mongo-secondary-2:27017/evep?replicaSet=rs0&authSource=admin
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - MONGO_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_DATABASE=${MONGO_DATABASE}
+      - MONGO_REPLICA_SET_NAME=${MONGO_REPLICA_SET_NAME}
+      - REDIS_CLUSTER_ENABLED=${REDIS_CLUSTER_ENABLED}
+      - FILE_STORAGE_PATH=/app/storage
+      - CDN_ENABLED=true
+      - SECURE_FILE_ACCESS=false
+    volumes:
+      - ./backend:/app
+      - cdn_storage:/app/storage
+    depends_on:
+      - mongo-primary
+      - mongo-secondary-1
+      - mongo-secondary-2
+      - mongo-arbiter
+      - redis-master-1
+      - redis-master-2
+      - redis-master-3
+    networks:
+      - evep-network
+    restart: unless-stopped
+    command: ["uvicorn", "app.cdn:app", "--host", "0.0.0.0", "--port", "8000"]
 
   # Prometheus Monitoring
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: evep-prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus_data:/prometheus
-    networks:
-      - evep-network
-    restart: unless-stopped
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: evep-prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   volumes:
+  #     - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+  #     - prometheus_data:/prometheus
+  #   networks:
+  #     - evep-network
+  #   restart: unless-stopped
+  #   profiles:
+  #     - monitoring
 
   # Grafana Dashboard
-  grafana:
-    image: grafana/grafana:latest
-    container_name: evep-grafana
-    ports:
-      - "3001:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
-    networks:
-      - evep-network
-    restart: unless-stopped
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: evep-grafana
+  #   ports:
+  #     - "3001:3000"
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+  #   volumes:
+  #     - grafana_data:/var/lib/grafana
+  #     - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+  #     - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+  #   networks:
+  #     - evep-network
+  #   restart: unless-stopped
+  #   profiles:
+  #     - monitoring
 
   # Elasticsearch for Logging
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
-    container_name: evep-elasticsearch
-    ports:
-      - "9200:9200"
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - evep-network
-    restart: unless-stopped
+  # elasticsearch:
+  #   image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+  #   container_name: evep-elasticsearch
+  #   ports:
+  #     - "9200:9200"
+  #   environment:
+  #     - discovery.type=single-node
+  #     - xpack.security.enabled=false
+  #     - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+  #   volumes:
+  #     - elasticsearch_data:/usr/share/elasticsearch/data
+  #   networks:
+  #     - evep-network
+  #   restart: unless-stopped
+  #   profiles:
+  #     - monitoring
 
   # Kibana for Log Visualization
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.8.0
-    container_name: evep-kibana
-    ports:
-      - "5601:5601"
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    depends_on:
-      - elasticsearch
-    networks:
-      - evep-network
-    restart: unless-stopped
+  # kibana:
+  #   image: docker.elastic.co/kibana/kibana:8.8.0
+  #   container_name: evep-kibana
+  #   ports:
+  #     - "5601:5601"
+  #   environment:
+  #     - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+  #   depends_on:
+  #     - elasticsearch
+  #   networks:
+  #     - evep-network
+  #   restart: unless-stopped
+  #   profiles:
+  #     - monitoring
 
   # Filebeat for Log Collection
-  filebeat:
-    image: docker.elastic.co/beats/filebeat:8.8.0
-    container_name: evep-filebeat
+  # filebeat:
+  #   image: docker.elastic.co/beats/filebeat:8.8.0
+  #   container_name: evep-filebeat
+  #   volumes:
+  #     - ./monitoring/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+  #     - /var/lib/docker/containers:/var/lib/docker/containers:ro
+  #     - /var/run/docker.sock:/var/run/docker.sock:ro
+  #   depends_on:
+  #     - elasticsearch
+  #   networks:
+  #     - evep-network
+  #   restart: unless-stopped
+  #   profiles:
+  #     - monitoring
+
+  # Socket.IO Service for Real-time Communication
+  socketio:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: evep-socketio
+    ports:
+      - "9014:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=${DATABASE_URL}
+      - MONGODB_URL=mongodb://admin:Sim!44335599@mongo-primary:27017,mongo-secondary-1:27017,mongo-secondary-2:27017/evep?replicaSet=rs0&authSource=admin
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - MONGO_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_DATABASE=${MONGO_DATABASE}
+      - MONGO_REPLICA_SET_NAME=${MONGO_REPLICA_SET_NAME}
+      - REDIS_CLUSTER_ENABLED=${REDIS_CLUSTER_ENABLED}
+      - SOCKETIO_ENABLED=true
+      - SOCKETIO_PORT=8000
     volumes:
-      - ./monitoring/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./backend:/app
+      - ./logs:/app/logs
     depends_on:
-      - elasticsearch
+      - mongo-primary
+      - mongo-secondary-1
+      - mongo-secondary-2
+      - mongo-arbiter
+      - redis-master-1
     networks:
       - evep-network
     restart: unless-stopped
+    command: ["python", "socketio_standalone.py"]
 
 volumes:
-  mongo_data:
+  # MongoDB Replica Set Volumes
+  mongo_primary_data:
     driver: local
-  redis_data:
+  mongo_secondary1_data:
     driver: local
+  mongo_secondary2_data:
+    driver: local
+  mongo_arbiter_data:
+    driver: local
+  
+  # Redis Cluster Volumes
+  redis_master1_data:
+    driver: local
+  redis_master2_data:
+    driver: local
+  redis_master3_data:
+    driver: local
+  redis_replica1_data:
+    driver: local
+  redis_replica2_data:
+    driver: local
+  redis_replica3_data:
+    driver: local
+  
+  # Application Volumes
   backend_data:
     driver: local
-  prometheus_data:
+  stardust_data:
     driver: local
-  grafana_data:
+  cdn_storage:
     driver: local
-  elasticsearch_data:
+  
+  # Monitoring Volumes
+  # prometheus_data:
+  #   driver: local
+  # grafana_data:
+  #   driver: local
+  # elasticsearch_data:
+  #   driver: local
+  ai_chroma_data:
+    driver: local
+  ai_model_cache:
     driver: local
 
 networks:
@@ -184,4 +574,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 192.168.90.0/24

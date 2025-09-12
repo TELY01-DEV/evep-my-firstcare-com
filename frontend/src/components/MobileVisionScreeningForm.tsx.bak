@@ -1,0 +1,915 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Chip,
+  Grid,
+  FormControlLabel,
+  Switch,
+  Alert,
+  CircularProgress,
+  Divider,
+  Paper,
+  Stepper,
+  Step,
+  StepLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton,
+  Tooltip,
+  Avatar,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
+} from '@mui/material';
+import {
+  Visibility,
+  VisibilityOff,
+  CheckCircle,
+  Warning,
+  Info,
+  LocalHospital,
+  School,
+  Person,
+  Add,
+  Remove,
+  Save,
+  Send,
+  Inventory,
+  DeliveryDining,
+  Assessment,
+} from '@mui/icons-material';
+
+import { useAuth } from '../contexts/AuthContext';
+import axios from 'axios';
+
+interface MobileVisionScreeningFormProps {
+  patientId: string;
+  patientName: string;
+  onScreeningCompleted?: (screening: any) => void;
+  onCancel?: () => void;
+}
+
+interface VisionResults {
+  // Basic Vision Tests
+  left_eye_distance: string;
+  right_eye_distance: string;
+  left_eye_near: string;
+  right_eye_near: string;
+  
+  // Additional Tests
+  color_vision: 'normal' | 'deficient' | 'failed';
+  depth_perception: 'normal' | 'impaired' | 'failed';
+  
+  // Mobile Unit Specific
+  glasses_needed: boolean;
+  glasses_prescription?: {
+    left_eye_sphere: string;
+    right_eye_sphere: string;
+    left_eye_cylinder: string;
+    right_eye_cylinder: string;
+    left_eye_axis: string;
+    right_eye_axis: string;
+    pupillary_distance: string;
+  };
+  glasses_fitted: boolean;
+  glasses_delivered: boolean;
+  delivery_method?: 'immediate' | 'school_delivery' | 'home_delivery';
+  delivery_date?: string;
+  
+  // Assessment
+  overall_assessment: 'normal' | 'mild_impairment' | 'moderate_impairment' | 'severe_impairment';
+  academic_impact: 'none' | 'mild' | 'moderate' | 'significant';
+  follow_up_required: boolean;
+  follow_up_type?: 're_screening' | 'specialist_referral' | 'glasses_adjustment' | 'academic_accommodation';
+  follow_up_date?: string;
+  
+  // Notes
+  screening_notes: string;
+  recommendations: string;
+  
+  // Enhanced Mobile Screening Features
+  screening_location?: 'school' | 'mobile_unit' | 'hospital' | 'community_center';
+  screening_device?: string;
+  screening_operator?: string;
+  weather_conditions?: string;
+  lighting_conditions?: string;
+  
+  // Clinical Decision Support
+  ai_assessment?: {
+    confidence_score: number;
+    suggested_diagnosis: string;
+    risk_factors: string[];
+    recommended_actions: string[];
+  };
+  
+  // Inventory Integration
+  available_glasses?: {
+    frame_style: string;
+    lens_type: string;
+    prescription_match: boolean;
+    inventory_id: string;
+  };
+  
+  // Delivery Tracking
+  delivery_status?: 'pending' | 'in_transit' | 'delivered' | 'failed';
+  delivery_tracking_number?: string;
+  delivery_notes?: string;
+  
+  // Quality Assurance
+  quality_score?: number;
+  quality_issues?: string[];
+  re_screening_recommended?: boolean;
+  
+  // Parent Notification
+  parent_notification_sent: boolean;
+}
+
+const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
+  patientId,
+  patientName,
+  onScreeningCompleted,
+  onCancel
+}) => {
+  const { token } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [activeStep, setActiveStep] = useState(0);
+  const [glassesDialogOpen, setGlassesDialogOpen] = useState(false);
+
+  // Form state
+  const [results, setResults] = useState<VisionResults>({
+    left_eye_distance: '',
+    right_eye_distance: '',
+    left_eye_near: '',
+    right_eye_near: '',
+    color_vision: 'normal',
+    depth_perception: 'normal',
+    glasses_needed: false,
+    glasses_fitted: false,
+    glasses_delivered: false,
+    overall_assessment: 'normal',
+    academic_impact: 'none',
+    follow_up_required: false,
+    screening_notes: '',
+    recommendations: '',
+    parent_notification_sent: false,
+  });
+
+  const steps = [
+    'Vision Testing',
+    'Glasses Assessment',
+    'Delivery Setup',
+    'Follow-up Planning',
+    'Complete Screening'
+  ];
+
+  const handleNextStep = () => {
+    if (activeStep < steps.length - 1) {
+      setActiveStep(activeStep + 1);
+    }
+  };
+
+  const handlePreviousStep = () => {
+    if (activeStep > 0) {
+      setActiveStep(activeStep - 1);
+    }
+  };
+
+  const handleGlassesNeededChange = (needed: boolean) => {
+    setResults(prev => ({
+      ...prev,
+      glasses_needed: needed,
+      glasses_fitted: needed ? prev.glasses_fitted : false,
+      glasses_delivered: needed ? prev.glasses_delivered : false,
+    }));
+  };
+
+  const handleGlassesFittedChange = (fitted: boolean) => {
+    setResults(prev => ({
+      ...prev,
+      glasses_fitted: fitted,
+      glasses_delivered: fitted ? prev.glasses_delivered : false,
+    }));
+  };
+
+  const handleSubmit = async () => {
+    if (!results.left_eye_distance || !results.right_eye_distance) {
+      setError('Please complete basic vision testing');
+      return;
+    }
+
+    if (results.glasses_needed && !results.glasses_prescription) {
+      setError('Please enter glasses prescription details');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const screeningData = {
+        patient_id: patientId,
+        screening_type: 'mobile_vision_screening',
+        screening_category: 'medical_screening',
+        equipment_used: 'Mobile Vision Screening Kit',
+        results: results,
+        status: 'completed',
+        notes: results.screening_notes,
+        recommendations: results.recommendations,
+        follow_up_required: results.follow_up_required,
+        follow_up_type: results.follow_up_type,
+        follow_up_date: results.follow_up_date,
+      };
+
+      const response = await axios.post(
+        '/api/v1/screenings/sessions',
+        screeningData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      setSuccess('Mobile vision screening completed successfully!');
+      if (onScreeningCompleted) {
+        onScreeningCompleted(response.data);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to complete screening');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getAssessmentColor = (assessment: string) => {
+    switch (assessment) {
+      case 'normal': return 'success';
+      case 'mild_impairment': return 'warning';
+      case 'moderate_impairment': return 'error';
+      case 'severe_impairment': return 'error';
+      default: return 'default';
+    }
+  };
+
+  const getAssessmentIcon = (assessment: string) => {
+    switch (assessment) {
+      case 'normal': return <CheckCircle />;
+      case 'mild_impairment': return <Warning />;
+      case 'moderate_impairment': return <Warning />;
+      case 'severe_impairment': return <LocalHospital />;
+      default: return <Info />;
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+          <Avatar sx={{ bgcolor: 'primary.main' }}>
+            <Assessment />
+          </Avatar>
+          <Box>
+            <Typography variant="h6">
+              Mobile Vision Screening
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Patient: {patientName}
+            </Typography>
+          </Box>
+        </Box>
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        {success && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {success}
+          </Alert>
+        )}
+
+        {/* Stepper */}
+        <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+          {steps.map((label) => (
+            <Step key={label}>
+              <StepLabel>{label}</StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+
+        {/* Step 1: Vision Testing */}
+        {activeStep === 0 && (
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              <Visibility sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Vision Testing
+            </Typography>
+            
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Left Eye Distance Vision"
+                  value={results.left_eye_distance}
+                  onChange={(e) => setResults(prev => ({ ...prev, left_eye_distance: e.target.value }))}
+                  placeholder="e.g., 20/20"
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Right Eye Distance Vision"
+                  value={results.right_eye_distance}
+                  onChange={(e) => setResults(prev => ({ ...prev, right_eye_distance: e.target.value }))}
+                  placeholder="e.g., 20/25"
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Left Eye Near Vision"
+                  value={results.left_eye_near}
+                  onChange={(e) => setResults(prev => ({ ...prev, left_eye_near: e.target.value }))}
+                  placeholder="e.g., 20/20"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Right Eye Near Vision"
+                  value={results.right_eye_near}
+                  onChange={(e) => setResults(prev => ({ ...prev, right_eye_near: e.target.value }))}
+                  placeholder="e.g., 20/20"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Color Vision</InputLabel>
+                  <Select
+                    value={results.color_vision}
+                    label="Color Vision"
+                    onChange={(e) => setResults(prev => ({ ...prev, color_vision: e.target.value as any }))}
+                  >
+                    <MenuItem value="normal">Normal</MenuItem>
+                    <MenuItem value="deficient">Deficient</MenuItem>
+                    <MenuItem value="failed">Failed</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Depth Perception</InputLabel>
+                  <Select
+                    value={results.depth_perception}
+                    label="Depth Perception"
+                    onChange={(e) => setResults(prev => ({ ...prev, depth_perception: e.target.value as any }))}
+                  >
+                    <MenuItem value="normal">Normal</MenuItem>
+                    <MenuItem value="impaired">Impaired</MenuItem>
+                    <MenuItem value="failed">Failed</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+          </Box>
+        )}
+
+        {/* Step 2: Glasses Assessment */}
+        {activeStep === 1 && (
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              <Inventory sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Glasses Assessment
+            </Typography>
+            
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={results.glasses_needed}
+                      onChange={(e) => handleGlassesNeededChange(e.target.checked)}
+                    />
+                  }
+                  label="Glasses Prescription Required"
+                />
+              </Grid>
+
+              {results.glasses_needed && (
+                <>
+                  <Grid item xs={12}>
+                    <Button
+                      variant="outlined"
+                      onClick={() => setGlassesDialogOpen(true)}
+                      startIcon={<Add />}
+                    >
+                      Enter Glasses Prescription
+                    </Button>
+                  </Grid>
+
+                  {results.glasses_prescription && (
+                    <Grid item xs={12}>
+                      <Paper sx={{ p: 2, bgcolor: 'grey.50' }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                          Prescription Details:
+                        </Typography>
+                        <Grid container spacing={2}>
+                          <Grid item xs={6}>
+                            <Typography variant="body2">
+                              <strong>Left Eye:</strong> {results.glasses_prescription.left_eye_sphere} / {results.glasses_prescription.left_eye_cylinder} x {results.glasses_prescription.left_eye_axis}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="body2">
+                              <strong>Right Eye:</strong> {results.glasses_prescription.right_eye_sphere} / {results.glasses_prescription.right_eye_cylinder} x {results.glasses_prescription.right_eye_axis}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="body2">
+                              <strong>PD:</strong> {results.glasses_prescription.pupillary_distance}mm
+                            </Typography>
+                          </Grid>
+                        </Grid>
+                      </Paper>
+                    </Grid>
+                  )}
+
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={results.glasses_fitted}
+                          onChange={(e) => handleGlassesFittedChange(e.target.checked)}
+                          disabled={!results.glasses_prescription}
+                        />
+                      }
+                      label="Glasses Fitted Today"
+                    />
+                  </Grid>
+                </>
+              )}
+
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Overall Assessment</InputLabel>
+                  <Select
+                    value={results.overall_assessment}
+                    label="Overall Assessment"
+                    onChange={(e) => setResults(prev => ({ ...prev, overall_assessment: e.target.value as any }))}
+                  >
+                    <MenuItem value="normal">Normal Vision</MenuItem>
+                    <MenuItem value="mild_impairment">Mild Impairment</MenuItem>
+                    <MenuItem value="moderate_impairment">Moderate Impairment</MenuItem>
+                    <MenuItem value="severe_impairment">Severe Impairment</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Academic Impact</InputLabel>
+                  <Select
+                    value={results.academic_impact}
+                    label="Academic Impact"
+                    onChange={(e) => setResults(prev => ({ ...prev, academic_impact: e.target.value as any }))}
+                  >
+                    <MenuItem value="none">No Impact</MenuItem>
+                    <MenuItem value="mild">Mild Impact</MenuItem>
+                    <MenuItem value="moderate">Moderate Impact</MenuItem>
+                    <MenuItem value="significant">Significant Impact</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+          </Box>
+        )}
+
+        {/* Step 3: Delivery Setup */}
+        {activeStep === 2 && (
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              <DeliveryDining sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Delivery Setup
+            </Typography>
+            
+            <Grid container spacing={3}>
+              {results.glasses_needed && (
+                <>
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={results.glasses_delivered}
+                          onChange={(e) => setResults(prev => ({ ...prev, glasses_delivered: e.target.checked }))}
+                          disabled={!results.glasses_fitted}
+                        />
+                      }
+                      label="Glasses Delivered Today"
+                    />
+                  </Grid>
+
+                  {!results.glasses_delivered && results.glasses_needed && (
+                    <>
+                      <Grid item xs={12} md={6}>
+                        <FormControl fullWidth>
+                          <InputLabel>Delivery Method</InputLabel>
+                          <Select
+                            value={results.delivery_method}
+                            label="Delivery Method"
+                            onChange={(e) => setResults(prev => ({ ...prev, delivery_method: e.target.value as any }))}
+                          >
+                            <MenuItem value="school_delivery">School Delivery</MenuItem>
+                            <MenuItem value="home_delivery">Home Delivery</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Delivery Date"
+                          type="date"
+                          value={results.delivery_date || ''}
+                          onChange={(e) => setResults(prev => ({ ...prev, delivery_date: e.target.value }))}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Grid>
+                    </>
+                  )}
+                </>
+              )}
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Screening Notes"
+                  multiline
+                  rows={3}
+                  value={results.screening_notes}
+                  onChange={(e) => setResults(prev => ({ ...prev, screening_notes: e.target.value }))}
+                  placeholder="Additional observations and notes..."
+                />
+              </Grid>
+            </Grid>
+          </Box>
+        )}
+
+        {/* Step 4: Follow-up Planning */}
+        {activeStep === 3 && (
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              <Schedule sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Follow-up Planning
+            </Typography>
+            
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={results.follow_up_required}
+                      onChange={(e) => setResults(prev => ({ ...prev, follow_up_required: e.target.checked }))}
+                    />
+                  }
+                  label="Follow-up Required"
+                />
+              </Grid>
+
+              {results.follow_up_required && (
+                <>
+                  <Grid item xs={12} md={6}>
+                    <FormControl fullWidth>
+                      <InputLabel>Follow-up Type</InputLabel>
+                      <Select
+                        value={results.follow_up_type}
+                        label="Follow-up Type"
+                        onChange={(e) => setResults(prev => ({ ...prev, follow_up_type: e.target.value as any }))}
+                      >
+                        <MenuItem value="re_screening">Re-screening</MenuItem>
+                        <MenuItem value="specialist_referral">Specialist Referral</MenuItem>
+                        <MenuItem value="glasses_adjustment">Glasses Adjustment</MenuItem>
+                        <MenuItem value="academic_accommodation">Academic Accommodation</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Follow-up Date"
+                      type="date"
+                      value={results.follow_up_date || ''}
+                      onChange={(e) => setResults(prev => ({ ...prev, follow_up_date: e.target.value }))}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                </>
+              )}
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Recommendations"
+                  multiline
+                  rows={3}
+                  value={results.recommendations}
+                  onChange={(e) => setResults(prev => ({ ...prev, recommendations: e.target.value }))}
+                  placeholder="Recommendations for parents, teachers, and follow-up care..."
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={results.parent_notification_sent}
+                      onChange={(e) => setResults(prev => ({ ...prev, parent_notification_sent: e.target.checked }))}
+                    />
+                  }
+                  label="Parent Notification Sent"
+                />
+              </Grid>
+            </Grid>
+          </Box>
+        )}
+
+        {/* Step 5: Complete Screening */}
+        {activeStep === 4 && (
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              <CheckCircle sx={{ mr: 1, verticalAlign: 'middle' }} />
+              Screening Summary
+            </Typography>
+            
+            <Paper sx={{ p: 3, bgcolor: 'grey.50' }}>
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Vision Results:
+                  </Typography>
+                  <List dense>
+                    <ListItem>
+                      <ListItemText 
+                        primary="Left Eye Distance" 
+                        secondary={results.left_eye_distance || 'Not recorded'} 
+                      />
+                    </ListItem>
+                    <ListItem>
+                      <ListItemText 
+                        primary="Right Eye Distance" 
+                        secondary={results.right_eye_distance || 'Not recorded'} 
+                      />
+                    </ListItem>
+                    <ListItem>
+                      <ListItemText 
+                        primary="Color Vision" 
+                        secondary={results.color_vision} 
+                      />
+                    </ListItem>
+                  </List>
+                </Grid>
+                
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Assessment:
+                  </Typography>
+                  <Chip
+                    icon={getAssessmentIcon(results.overall_assessment)}
+                    label={results.overall_assessment.replace('_', ' ')}
+                    color={getAssessmentColor(results.overall_assessment) as any}
+                    sx={{ mb: 1 }}
+                  />
+                  <br />
+                  <Chip
+                    label={`Academic Impact: ${results.academic_impact}`}
+                    variant="outlined"
+                    sx={{ mb: 1 }}
+                  />
+                  {results.glasses_needed && (
+                    <Chip
+                      label="Glasses Prescribed"
+                      color="primary"
+                      sx={{ mb: 1 }}
+                    />
+                  )}
+                  {results.glasses_fitted && (
+                    <Chip
+                      label="Glasses Fitted"
+                      color="success"
+                      sx={{ mb: 1 }}
+                    />
+                  )}
+                  {results.glasses_delivered && (
+                    <Chip
+                      label="Glasses Delivered"
+                      color="success"
+                    />
+                  )}
+                </Grid>
+
+                {results.follow_up_required && (
+                  <Grid item xs={12}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Follow-up Required:
+                    </Typography>
+                    <Typography variant="body2">
+                      {results.follow_up_type?.replace('_', ' ')} - {results.follow_up_date}
+                    </Typography>
+                  </Grid>
+                )}
+              </Grid>
+            </Paper>
+          </Box>
+        )}
+
+        {/* Action Buttons */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+          <Box>
+            {onCancel && (
+              <Button variant="outlined" onClick={onCancel}>
+                Cancel
+              </Button>
+            )}
+          </Box>
+          
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            {activeStep > 0 && (
+              <Button variant="outlined" onClick={handlePreviousStep}>
+                Back
+              </Button>
+            )}
+            
+            {activeStep < steps.length - 1 ? (
+              <Button variant="contained" onClick={handleNextStep}>
+                Next
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={handleSubmit}
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={20} /> : <Save />}
+              >
+                {loading ? 'Completing...' : 'Complete Screening'}
+              </Button>
+            )}
+          </Box>
+        </Box>
+      </CardContent>
+
+      {/* Glasses Prescription Dialog */}
+      <Dialog open={glassesDialogOpen} onClose={() => setGlassesDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Glasses Prescription</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" gutterBottom>
+                Left Eye
+              </Typography>
+            </Grid>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                label="Sphere"
+                value={results.glasses_prescription?.left_eye_sphere || ''}
+                onChange={(e) => setResults(prev => ({
+                  ...prev,
+                  glasses_prescription: {
+                    ...prev.glasses_prescription,
+                    left_eye_sphere: e.target.value
+                  }
+                }))}
+                placeholder="e.g., -2.50"
+              />
+            </Grid>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                label="Cylinder"
+                value={results.glasses_prescription?.left_eye_cylinder || ''}
+                onChange={(e) => setResults(prev => ({
+                  ...prev,
+                  glasses_prescription: {
+                    ...prev.glasses_prescription,
+                    left_eye_cylinder: e.target.value
+                  }
+                }))}
+                placeholder="e.g., -1.00"
+              />
+            </Grid>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                label="Axis"
+                value={results.glasses_prescription?.left_eye_axis || ''}
+                onChange={(e) => setResults(prev => ({
+                  ...prev,
+                  glasses_prescription: {
+                    ...prev.glasses_prescription,
+                    left_eye_axis: e.target.value
+                  }
+                }))}
+                placeholder="e.g., 90"
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" gutterBottom>
+                Right Eye
+              </Typography>
+            </Grid>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                label="Sphere"
+                value={results.glasses_prescription?.right_eye_sphere || ''}
+                onChange={(e) => setResults(prev => ({
+                  ...prev,
+                  glasses_prescription: {
+                    ...prev.glasses_prescription,
+                    right_eye_sphere: e.target.value
+                  }
+                }))}
+                placeholder="e.g., -2.25"
+              />
+            </Grid>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                label="Cylinder"
+                value={results.glasses_prescription?.right_eye_cylinder || ''}
+                onChange={(e) => setResults(prev => ({
+                  ...prev,
+                  glasses_prescription: {
+                    ...prev.glasses_prescription,
+                    right_eye_cylinder: e.target.value
+                  }
+                }))}
+                placeholder="e.g., -0.75"
+              />
+            </Grid>
+            <Grid item xs={4}>
+              <TextField
+                fullWidth
+                label="Axis"
+                value={results.glasses_prescription?.right_eye_axis || ''}
+                onChange={(e) => setResults(prev => ({
+                  ...prev,
+                  glasses_prescription: {
+                    ...prev.glasses_prescription,
+                    right_eye_axis: e.target.value
+                  }
+                }))}
+                placeholder="e.g., 85"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Pupillary Distance (mm)"
+                value={results.glasses_prescription?.pupillary_distance || ''}
+                onChange={(e) => setResults(prev => ({
+                  ...prev,
+                  glasses_prescription: {
+                    ...prev.glasses_prescription,
+                    pupillary_distance: e.target.value
+                  }
+                }))}
+                placeholder="e.g., 62"
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setGlassesDialogOpen(false)}>Cancel</Button>
+          <Button 
+            variant="contained" 
+            onClick={() => setGlassesDialogOpen(false)}
+            disabled={!results.glasses_prescription?.left_eye_sphere || !results.glasses_prescription?.right_eye_sphere}
+          >
+            Save Prescription
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Card>
+  );
+};
+
+export default MobileVisionScreeningForm;

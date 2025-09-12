@@ -1,5 +1,5 @@
 
-# EVEP (Early Vision Evaluation Platform) - Comprehensive Project Requirements
+# EVEP (EYE Vision Evaluation Platform) - Comprehensive Project Requirements
 
 ## 🎯 **Project Overview**
 EVEP is a comprehensive vision screening platform designed for children aged 6-12 years. The system facilitates early detection of vision problems through digital screening tools, automated analysis, and seamless communication between healthcare providers, parents, and educational institutions.
@@ -16,7 +16,8 @@ EVEP is a comprehensive vision screening platform designed for children aged 6-1
 
 ### **Frontend Stack**
 - **Web Application**: React 18+ with TypeScript
-- **Mobile Apps**: React Native (iOS/Android)
+- **Mobile Apps**: React Native (iOS/Android) 
+
 - **UI Framework**: Material-UI or Ant Design
 - **State Management**: Redux Toolkit or Zustand
 - **Real-time**: WebSocket connections

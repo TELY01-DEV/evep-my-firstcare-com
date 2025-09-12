@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVEP Entity-Relationship (ER) Diagram</title>
+    <style>
+        @media print {
+            body { margin: 0; }
+            .page-break { page-break-before: always; }
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+        }
+        
+        h1, h2, h3 {
+            color: #2c3e50;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            text-align: center;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 20px;
+            margin-bottom: 40px;
+        }
+        
+        h2 {
+            font-size: 1.8em;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+            background: #f8f9fa;
+            padding: 10px 15px;
+        }
+        
+        .entity {
+            background: #e8f4fd;
+            border: 2px solid #3498db;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .entity-title {
+            background: #3498db;
+            color: white;
+            padding: 8px 12px;
+            margin: -15px -15px 10px -15px;
+            border-radius: 3px 3px 0 0;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .primary-key { color: #e74c3c; font-weight: bold; }
+        .foreign-key { color: #f39c12; font-weight: bold; }
+        .required { color: #27ae60; }
+        .optional { color: #7f8c8d; font-style: italic; }
+        
+        .relationship {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 15px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid #3498db;
+            text-align: center;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <h1>EVEP Entity-Relationship (ER) Diagram</h1>
+    
+    <div class="info">
+        <strong>Document Version:</strong> 1.0<br>
+        <strong>Last Updated:</strong> August 30, 2025<br>
+        <strong>Status:</strong> ✅ COMPLETE<br>
+        <strong>Database:</strong> MongoDB (NoSQL Document Database)
+    </div>
+
+    <h2>📊 Database Schema Overview</h2>
+    
+    <p>The EVEP system uses MongoDB as its primary database, with collections representing different entities in the vision screening and patient management workflow.</p>
+
+    <h2>🏫 1. EVEP Management Entities</h2>
+    
+    <div class="entity">
+        <div class="entity-title">📚 Students Collection</div>
+        <div class="primary-key">_id: ObjectId</div>
+        <div class="required">student_code: String</div>
+        <div class="required">first_name: String</div>
+        <div class="required">last_name: String</div>
+        <div class="required">date_of_birth: Date</div>
+        <div class="required">grade_level: String</div>
+        <div class="foreign-key">school_id: ObjectId</div>
+        <div class="foreign-key">parent_id: ObjectId</div>
+        <div class="optional">teacher_id: ObjectId</div>
+        <div class="optional">status: String</div>
+        <div class="optional">created_at: Date</div>
+        <div class="optional">updated_at: Date</div>
+    </div>
+
+    <div class="entity">
+        <div class="entity-title">👨‍👩‍👧‍👦 Parents Collection</div>
+        <div class="primary-key">_id: ObjectId</div>
+        <div class="required">first_name: String</div>
+        <div class="required">last_name: String</div>
+        <div class="required">phone: String</div>
+        <div class="required">email: String</div>
+        <div class="optional">address: String</div>
+        <div class="optional">line_user_id: String</div>
+        <div class="optional">consent_status: String</div>
+        <div class="optional">created_at: Date</div>
+        <div class="optional">updated_at: Date</div>
+    </div>
+
+    <div class="entity">
+        <div class="entity-title">👨‍🏫 Teachers Collection</div>
+        <div class="primary-key">_id: ObjectId</div>
+        <div class="required">first_name: String</div>
+        <div class="required">last_name: String</div>
+        <div class="required">email: String</div>
+        <div class="required">phone: String</div>
+        <div class="foreign-key">school_id: ObjectId</div>
+        <div class="optional">subject: String</div>
+        <div class="optional">status: String</div>
+        <div class="optional">created_at: Date</div>
+        <div class="optional">updated_at: Date</div>
+    </div>
+
+    <div class="entity">
+        <div class="entity-title">🏫 Schools Collection</div>
+        <div class="primary-key">_id: ObjectId</div>
+        <div class="required">school_name: String</div>
+        <div class="required">school_code: String</div>
+        <div class="required">address: String</div>
+        <div class="required">district: String</div>
+        <div class="required">province: String</div>
+        <div class="optional">phone: String</div>
+        <div class="optional">email: String</div>
+        <div class="optional">status: String</div>
+        <div class="optional">created_at: Date</div>
+        <div class="optional">updated_at: Date</div>
+    </div>
+
+    <div class="relationship">
+        Students ↔ Parents (1:1 via parent_id) | Students ↔ Schools (1:1 via school_id) | Teachers ↔ Schools (1:1 via school_id)
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>🏥 2. Medical Management Entities</h2>
+    
+    <div class="entity">
+        <div class="entity-title">👥 Patients Collection</div>
+        <div class="primary-key">_id: ObjectId</div>
+        <div class="required">patient_code: String</div>
+        <div class="required">first_name: String</div>
+        <div class="required">last_name: String</div>
+        <div class="required">date_of_birth: Date</div>
+        <div class="required">gender: String</div>
+        <div class="foreign-key">student_id: ObjectId</div>
+        <div class="foreign-key">parent_id: ObjectId</div>
+        <div class="optional">emergency_contact: String</div>
+        <div class="optional">medical_history: Array</div>
+        <div class="optional">status: String</div>
+        <div class="optional">created_at: Date</div>
+        <div class="optional">updated_at: Date</div>
+    </div>
+
+    <div class="entity">
+        <div class="entity-title">👨‍⚕️ Staff Collection</div>
+        <div class="primary-key">_id: ObjectId</div>
+        <div class="required">staff_code: String</div>
+        <div class="required">first_name: String</div>
+        <div class="required">last_name: String</div>
+        <div class="required">email: String</div>
+        <div class="required">phone: String</div>
+        <div class="required">role: String</div>
+        <div class="required">department: String</div>
+        <div class="optional">specialization: String</div>
+        <div class="optional">license_number: String</div>
+        <div class="optional">status: String</div>
+        <div class="optional">created_at: Date</div>
+        <div class="optional">updated_at: Date</div>
+    </div>
+
+    <div class="entity">
+        <div class="entity-title">👤 Users Collection</div>
+        <div class="primary-key">_id: ObjectId</div>
+        <div class="required">username: String</div>
+        <div class="required">email: String</div>
+        <div class="required">password_hash: String</div>
+        <div class="required">role: String</div>
+        <div class="foreign-key">staff_id: ObjectId</div>
+        <div class="foreign-key">teacher_id: ObjectId</div>
+        <div class="optional">last_login: Date</div>
+        <div class="optional">status: String</div>
+        <div class="optional">created_at: Date</div>
+        <div class="optional">updated_at: Date</div>
+    </div>
+
+    <div class="relationship">
+        Patients ↔ Students (1:1 via student_id) | Patients ↔ Parents (1:1 via parent_id) | Users ↔ Staff (1:1 via staff_id) | Users ↔ Teachers (1:1 via teacher_id)
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>🔍 3. Screening Management Entities</h2>
+    
+    <div class="entity">
+        <div class="entity-title">🔬 Screenings Collection</div>
+        <div class="primary-key">_id: ObjectId</div>
+        <div class="required">screening_code: String</div>
+        <div class="foreign-key">patient_id: ObjectId</div>
+        <div class="foreign-key">examiner_id: ObjectId</div>
+        <div class="required">screening_type: String</div>
+        <div class="required">screening_category: String</div>
+        <div class="required">screening_date: Date</div>
+        <div class="optional">equipment_used: String</div>
+        <div class="optional">location: String</div>
+        <div class="optional">notes: String</div>
+        <div class="optional">status: String</div>
+        <div class="optional">created_at: Date</div>
+        <div class="optional">updated_at: Date</div>
+    </div>
+
+    <div class="entity">
+        <div class="entity-title">📊 VA Screenings Collection</div>
+        <div class="primary-key">_id: ObjectId</div>
+        <div class="foreign-key">screening_id: ObjectId</div>
+        <div class="foreign-key">patient_id: ObjectId</div>
+        <div class="foreign-key">examiner_id: ObjectId</div>
+        <div class="required">test_date: Date</div>
+        <div class="optional">right_eye_uncorrected: String</div>
+        <div class="optional">left_eye_uncorrected: String</div>
+        <div class="optional">right_eye_corrected: String</div>
+        <div class="optional">left_eye_corrected: String</div>
+        <div class="optional">color_vision: String</div>
+        <div class="optional">depth_perception: String</div>
+        <div class="optional">contrast_sensitivity: String</div>
+        <div class="optional">additional_tests: Object</div>
+        <div class="optional">notes: String</div>
+        <div class="optional">created_at: Date</div>
+        <div class="optional">updated_at: Date</div>
+    </div>
+
+    <div class="relationship">
+        VA Screenings ↔ Screenings (1:1 via screening_id) | VA Screenings ↔ Patients (1:1 via patient_id) | VA Screenings ↔ Staff (1:1 via examiner_id)
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>🩺 4. Medical Treatment Entities</h2>
+    
+    <div class="entity">
+        <div class="entity-title">📋 Diagnoses Collection</div>
+        <div class="primary-key">_id: ObjectId</div>
+        <div class="required">diagnosis_code: String</div>
+        <div class="foreign-key">patient_id: ObjectId</div>
+        <div class="foreign-key">doctor_id: ObjectId</div>
+        <div class="required">diagnosis_date: Date</div>
+        <div class="required">diagnosis_type: String</div>
+        <div class="required">diagnosis_description: String</div>
+        <div class="optional">screening_results: Array</div>
+        <div class="optional">severity_level: String</div>
+        <div class="optional">recommendations: Array</div>
+        <div class="optional">follow_up_date: Date</div>
+        <div class="optional">status: String</div>
+        <div class="optional">created_at: Date</div>
+        <div class="optional">updated_at: Date</div>
+    </div>
+
+    <div class="entity">
+        <div class="entity-title">💊 Treatment Plans Collection</div>
+        <div class="primary-key">_id: ObjectId</div>
+        <div class="required">treatment_code: String</div>
+        <div class="foreign-key">patient_id: ObjectId</div>
+        <div class="foreign-key">diagnosis_id: ObjectId</div>
+        <div class="foreign-key">doctor_id: ObjectId</div>
+        <div class="required">treatment_type: String</div>
+        <div class="required">treatment_description: String</div>
+        <div class="required">start_date: Date</div>
+        <div class="optional">end_date: Date</div>
+        <div class="optional">prescriptions: Array</div>
+        <div class="optional">follow_up_schedule: Array</div>
+        <div class="optional">progress_notes: Array</div>
+        <div class="optional">status: String</div>
+        <div class="optional">created_at: Date</div>
+        <div class="optional">updated_at: Date</div>
+    </div>
+
+    <div class="relationship">
+        Diagnoses ↔ Patients (1:1 via patient_id) | Diagnoses ↔ Staff (1:1 via doctor_id) | Treatment Plans ↔ Diagnoses (1:1 via diagnosis_id) | Treatment Plans ↔ Patients (1:1 via patient_id) | Treatment Plans ↔ Staff (1:1 via doctor_id)
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>📅 5. Appointment & Communication Entities</h2>
+    
+    <div class="entity">
+        <div class="entity-title">📅 Appointments Collection</div>
+        <div class="primary-key">_id: ObjectId</div>
+        <div class="required">appointment_code: String</div>
+        <div class="foreign-key">patient_id: ObjectId</div>
+        <div class="foreign-key">doctor_id: ObjectId</div>
+        <div class="required">appointment_type: String</div>
+        <div class="required">scheduled_date: Date</div>
+        <div class="required">scheduled_time: String</div>
+        <div class="optional">actual_date: Date</div>
+        <div class="optional">actual_time: String</div>
+        <div class="optional">duration: Number</div>
+        <div class="optional">notes: String</div>
+        <div class="optional">status: String</div>
+        <div class="optional">created_at: Date</div>
+        <div class="optional">updated_at: Date</div>
+    </div>
+
+    <div class="entity">
+        <div class="entity-title">📱 LINE Notifications Collection</div>
+        <div class="primary-key">_id: ObjectId</div>
+        <div class="required">notification_code: String</div>
+        <div class="foreign-key">recipient_id: ObjectId</div>
+        <div class="required">notification_type: String</div>
+        <div class="required">message_content: String</div>
+        <div class="required">scheduled_time: Date</div>
+        <div class="optional">sent_time: Date</div>
+        <div class="optional">delivery_status: String</div>
+        <div class="optional">read_status: String</div>
+        <div class="optional">template_id: String</div>
+        <div class="optional">created_at: Date</div>
+        <div class="optional">updated_at: Date</div>
+    </div>
+
+    <div class="relationship">
+        Appointments ↔ Patients (1:1 via patient_id) | Appointments ↔ Staff (1:1 via doctor_id) | LINE Notifications ↔ Patients (1:1 via recipient_id)
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>📊 6. Complete Entity Relationships</h2>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Source Entity</th>
+                <th>Relationship</th>
+                <th>Target Entity</th>
+                <th>Purpose</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Students</td>
+                <td>→</td>
+                <td>Patients</td>
+                <td>School screening referrals to medical patients</td>
+            </tr>
+            <tr>
+                <td>Patients</td>
+                <td>→</td>
+                <td>Screenings</td>
+                <td>Patient vision screening sessions</td>
+            </tr>
+            <tr>
+                <td>Screenings</td>
+                <td>→</td>
+                <td>VA Screenings</td>
+                <td>Professional vision assessment</td>
+            </tr>
+            <tr>
+                <td>VA Screenings</td>
+                <td>→</td>
+                <td>Diagnoses</td>
+                <td>Medical diagnosis based on screening results</td>
+            </tr>
+            <tr>
+                <td>Diagnoses</td>
+                <td>→</td>
+                <td>Treatment Plans</td>
+                <td>Treatment planning based on diagnosis</td>
+            </tr>
+            <tr>
+                <td>Treatment Plans</td>
+                <td>→</td>
+                <td>Appointments</td>
+                <td>Follow-up appointment scheduling</td>
+            </tr>
+            <tr>
+                <td>Patients</td>
+                <td>→</td>
+                <td>LINE Notifications</td>
+                <td>Patient communication and updates</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="footer">
+        <p><strong>EVEP Entity-Relationship (ER) Diagram</strong></p>
+        <p>Document Version: 1.0 | Last Updated: August 30, 2025 | Status: ✅ COMPLETE</p>
+        <p>EYE Vision Evaluation Platform - Database Schema Documentation</p>
+    </div>
+</body>
+</html>

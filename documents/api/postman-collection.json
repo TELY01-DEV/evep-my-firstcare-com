@@ -1,0 +1,217 @@
+{
+  "info": {
+    "name": "EVEP Platform API",
+    "description": "Complete API collection for EVEP Platform",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8013/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin@evep.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/auth/health",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Patient Management",
+      "item": [
+        {
+          "name": "List Patients",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/patient_management/api/v1/patients/",
+              "host": ["{{base_url}}"],
+              "path": ["patient_management", "api", "v1", "patients", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"date_of_birth\": \"1990-01-01\",\n  \"gender\": \"male\",\n  \"email\": \"john.doe@example.com\",\n  \"phone\": \"+1234567890\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/patient_management/api/v1/patients/",
+              "host": ["{{base_url}}"],
+              "path": ["patient_management", "api", "v1", "patients", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Screening",
+      "item": [
+        {
+          "name": "List Screenings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/screening/api/v1/screenings/",
+              "host": ["{{base_url}}"],
+              "path": ["screening", "api", "v1", "screenings", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Screening",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"patient_id_here\",\n  \"screening_type\": \"vision\",\n  \"scheduled_date\": \"2024-01-15T10:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/screening/api/v1/screenings/",
+              "host": ["{{base_url}}"],
+              "path": ["screening", "api", "v1", "screenings", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI/ML",
+      "item": [
+        {
+          "name": "Analyze Screening",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"screening_id\": \"screening_id_here\",\n  \"user_role\": \"doctor\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/ai_ml/analyze-screening",
+              "host": ["{{base_url}}"],
+              "path": ["ai_ml", "analyze-screening"]
+            }
+          }
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/ai_ml/health",
+              "host": ["{{base_url}}"],
+              "path": ["ai_ml", "health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "LINE Integration",
+      "item": [
+        {
+          "name": "Send Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"user_id_here\",\n  \"message\": \"Hello from EVEP Platform!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/line_integration/send-message",
+              "host": ["{{base_url}}"],
+              "path": ["line_integration", "send-message"]
+            }
+          }
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/line_integration/health",
+              "host": ["{{base_url}}"],
+              "path": ["line_integration", "health"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

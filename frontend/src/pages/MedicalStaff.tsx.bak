@@ -1,0 +1,334 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Chip,
+  IconButton,
+  Alert,
+  CircularProgress
+} from '@mui/material';
+import { Add as AddIcon, Edit as EditIcon, Visibility as ViewIcon } from '@mui/icons-material';
+
+interface MedicalStaff {
+  medical_staff_id: string;
+  staff_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  role: string;
+  specialization: string;
+  license_number: string;
+  hire_date: string;
+  department?: string;
+  status: string;
+}
+
+const MedicalStaff: React.FC = () => {
+  const [medicalStaff, setMedicalStaff] = useState<MedicalStaff[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [editingStaff, setEditingStaff] = useState<MedicalStaff | null>(null);
+  const [formData, setFormData] = useState({
+    staff_id: '',
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    role: '',
+    specialization: '',
+    license_number: '',
+    department: ''
+  });
+
+  const roles = ['doctor', 'nurse', 'optometrist', 'ophthalmologist', 'technician'];
+  const departments = ['Ophthalmology', 'Pediatrics', 'Emergency', 'Mobile Unit'];
+
+  useEffect(() => {
+    fetchMedicalStaff();
+  }, []);
+
+  const fetchMedicalStaff = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/v1/medical-staff/', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch medical staff');
+      }
+
+      const data = await response.json();
+      setMedicalStaff(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const url = editingStaff 
+        ? `/api/v1/medical-staff/${editingStaff.medical_staff_id}`
+        : '/api/v1/medical-staff/';
+      
+      const method = editingStaff ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save medical staff');
+      }
+
+      await fetchMedicalStaff();
+      setOpenDialog(false);
+      setEditingStaff(null);
+      resetForm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      staff_id: '',
+      first_name: '',
+      last_name: '',
+      email: '',
+      phone: '',
+      role: '',
+      specialization: '',
+      license_number: '',
+      department: ''
+    });
+  };
+
+  const handleEdit = (staff: MedicalStaff) => {
+    setEditingStaff(staff);
+    setFormData({
+      staff_id: staff.staff_id,
+      first_name: staff.first_name,
+      last_name: staff.last_name,
+      email: staff.email,
+      phone: staff.phone,
+      role: staff.role,
+      specialization: staff.specialization,
+      license_number: staff.license_number,
+      department: staff.department || ''
+    });
+    setOpenDialog(true);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'success';
+      case 'inactive': return 'error';
+      default: return 'default';
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Box p={3}>
+      <Typography variant="h4" gutterBottom>
+        Medical Staff Management
+      </Typography>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      <Box mb={2}>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => {
+            setEditingStaff(null);
+            resetForm();
+            setOpenDialog(true);
+          }}
+        >
+          Add Medical Staff
+        </Button>
+      </Box>
+
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Staff ID</TableCell>
+              <TableCell>Name</TableCell>
+              <TableCell>Role</TableCell>
+              <TableCell>Department</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {medicalStaff.map((staff) => (
+              <TableRow key={staff.medical_staff_id}>
+                <TableCell>{staff.staff_id}</TableCell>
+                <TableCell>
+                  {staff.first_name} {staff.last_name}
+                  <br />
+                  <Typography variant="caption" color="textSecondary">
+                    {staff.specialization}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Chip label={staff.role} size="small" />
+                </TableCell>
+                <TableCell>{staff.department || 'Unassigned'}</TableCell>
+                <TableCell>{staff.email}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={staff.status}
+                    color={getStatusColor(staff.status) as any}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>
+                  <IconButton size="small" onClick={() => handleEdit(staff)}>
+                    <EditIcon />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          {editingStaff ? 'Edit Medical Staff' : 'Add New Medical Staff'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <TextField
+              fullWidth
+              label="Staff ID"
+              value={formData.staff_id}
+              onChange={(e) => setFormData({ ...formData, staff_id: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="First Name"
+              value={formData.first_name}
+              onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Last Name"
+              value={formData.last_name}
+              onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Phone"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Role</InputLabel>
+              <Select
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                label="Role"
+              >
+                {roles.map(role => (
+                  <MenuItem key={role} value={role}>{role}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              label="Specialization"
+              value={formData.specialization}
+              onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="License Number"
+              value={formData.license_number}
+              onChange={(e) => setFormData({ ...formData, license_number: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <FormControl fullWidth>
+              <InputLabel>Department</InputLabel>
+              <Select
+                value={formData.department}
+                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                label="Department"
+              >
+                <MenuItem value="">Select Department</MenuItem>
+                {departments.map(dept => (
+                  <MenuItem key={dept} value={dept}>{dept}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={handleSubmit} variant="contained">
+            {editingStaff ? 'Update' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default MedicalStaff;
