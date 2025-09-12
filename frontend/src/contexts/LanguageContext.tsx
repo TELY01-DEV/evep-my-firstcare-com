@@ -1444,13 +1444,8 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     localStorage.setItem('language', language);
   }, [language]);
 
-// Helper function to get nested translation
-const getNestedTranslation = (obj: any, key: string): string | undefined => {
-  return key.split(".").reduce((current, prop) => current?.[prop], obj);
-};
-
   const t = (key: string, params?: Record<string, string | number>): string => {
-    let translation = getNestedTranslation(translations[language], key) || key;
+    let translation = translations[language][key] || key;
     
     if (params) {
       Object.entries(params).forEach(([paramKey, paramValue]) => {
