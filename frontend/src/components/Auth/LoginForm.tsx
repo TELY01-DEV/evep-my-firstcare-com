@@ -12,6 +12,7 @@ import {
   Link,
   Divider,
 } from '@mui/material';
+import LanguageToggle from "../LanguageToggle";
 import {
   Visibility,
   VisibilityOff,
@@ -21,6 +22,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface LoginFormProps {
   onSwitchToRegister?: () => void;
@@ -32,6 +34,9 @@ const LoginForm: React.FC<LoginFormProps> = ({
   onForgotPassword,
 }) => {
   const navigate = useNavigate();
+  const { t, language } = useLanguage();
+  console.log("🔍 LoginForm - Component rendering", language);
+  console.log("🔍 LoginForm - Translation test:", t("auth.login_title"));
   const { login } = useAuth();
   
   const [formData, setFormData] = useState({
@@ -157,7 +162,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
         <Box component="form" onSubmit={handleSubmit} sx={{ mb: 3 }}>
           <TextField
             fullWidth
-            label="Email Address"
+            label={t("auth.email_address")}
             type="email"
             value={formData.email}
             onChange={handleInputChange('email')}
@@ -179,7 +184,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
           
           <TextField
             fullWidth
-            label="Password"
+            label={t("auth.password")}
             type={showPassword ? 'text' : 'password'}
             value={formData.password}
             onChange={handleInputChange('password')}
@@ -230,7 +235,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
               },
             }}
           >
-            {loading ? 'Signing In...' : 'Sign In'}
+            {loading ? t("auth.signing_in") : t("auth.sign_in")}
           </Button>
         </Box>
         
@@ -293,6 +298,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
           </Typography>
         </Box>
       </Paper>
+      <Box sx={{ position: "fixed", top: 16, right: 16, zIndex: 1000 }}>        <LanguageToggle />      </Box>
     </Box>
   );
 };

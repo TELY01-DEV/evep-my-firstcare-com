@@ -91,6 +91,37 @@ const translations = {
     'nav.profile': 'Profile',
     'nav.notifications': 'Notifications',
     'nav.language': 'Language',
+    "nav.system_overview": "System Overview",
+    "nav.admin_panel_users": "Admin Panel Users",
+    "nav.medical_portal_users": "Medical Portal Users",
+    "nav.system_configuration": "System Configuration",
+    "nav.security_audit": "Security & Audit",
+    "nav.database_management": "Database Management",
+    "nav.system_monitoring": "System Monitoring",
+    "nav.backup_recovery": "Backup & Recovery",
+    "nav.health_analytics": "Health Analytics",
+    "nav.medical_screening": "Medical Screening",
+    "nav.medical_reports": "Medical Reports",
+    "nav.patient_management": "Patient Management",
+    "nav.vision_screening": "Vision Screening",
+    "nav.patient_registration": "Patient Registration",
+    "nav.va_screening_interface": "VA Screening Interface",
+    "nav.diagnosis_treatment": "Diagnosis & Treatment",
+    "nav.appointment_scheduling": "Appointment Scheduling",
+    "nav.user_directory": "User Directory",
+    "nav.medical_staff_management": "Medical Staff Management",
+    "nav.staff_directory": "Staff Directory",
+    "nav.staff_management": "Staff Management",
+    "nav.inventory_management": "Inventory Management",
+    "nav.glasses_inventory": "Glasses Inventory",
+    "nav.glasses_delivery": "Glasses Delivery",
+    "nav.master_data": "Master Data",
+    "nav.geolocations": "Geolocations",
+    "nav.panel_settings": "Panel Settings",
+    "nav.general_settings": "General Settings",
+    "nav.rbac_management": "RBAC Management",
+    "nav.line_notifications": "LINE Notifications",
+    "nav.school_based_screening": "School-based Screening",
     
     // School Screenings
     'school_screenings.title': 'School Screenings',
@@ -768,6 +799,37 @@ const translations = {
     'nav.profile': 'โปรไฟล์',
     'nav.notifications': 'การแจ้งเตือน',
     'nav.language': 'ภาษา',
+    "nav.system_overview": "ภาพรวมระบบ",
+    "nav.admin_panel_users": "ผู้ใช้แผงควบคุมผู้ดูแล",
+    "nav.medical_portal_users": "ผู้ใช้พอร์ทัลทางการแพทย์",
+    "nav.system_configuration": "การกำหนดค่าระบบ",
+    "nav.security_audit": "ความปลอดภัยและการตรวจสอบ",
+    "nav.database_management": "จัดการฐานข้อมูล",
+    "nav.system_monitoring": "การตรวจสอบระบบ",
+    "nav.backup_recovery": "สำรองข้อมูลและการกู้คืน",
+    "nav.health_analytics": "การวิเคราะห์สุขภาพ",
+    "nav.medical_screening": "การตรวจทางการแพทย์",
+    "nav.medical_reports": "รายงานทางการแพทย์",
+    "nav.patient_management": "จัดการผู้ป่วย",
+    "nav.vision_screening": "การตรวจสายตา",
+    "nav.patient_registration": "ลงทะเบียนผู้ป่วย",
+    "nav.va_screening_interface": "อินเทอร์เฟซตรวจสายตา VA",
+    "nav.diagnosis_treatment": "การวินิจฉัยและการรักษา",
+    "nav.appointment_scheduling": "การนัดหมาย",
+    "nav.user_directory": "ไดเรกทอรีผู้ใช้",
+    "nav.medical_staff_management": "จัดการบุคลากรทางการแพทย์",
+    "nav.staff_directory": "ไดเรกทอรีบุคลากร",
+    "nav.staff_management": "จัดการบุคลากร",
+    "nav.inventory_management": "จัดการสินค้าคงคลัง",
+    "nav.glasses_inventory": "สินค้าคงคลังแว่นตา",
+    "nav.glasses_delivery": "การส่งมอบแว่นตา",
+    "nav.master_data": "ข้อมูลหลัก",
+    "nav.geolocations": "ตำแหน่งทางภูมิศาสตร์",
+    "nav.panel_settings": "การตั้งค่าแผง",
+    "nav.general_settings": "การตั้งค่าทั่วไป",
+    "nav.rbac_management": "จัดการ RBAC",
+    "nav.line_notifications": "การแจ้งเตือน LINE",
+    "nav.school_based_screening": "การตรวจสายตาโรงเรียน",
     
     // School Screenings
     'school_screenings.title': 'การตรวจสายตาโรงเรียน',
@@ -1382,8 +1444,13 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     localStorage.setItem('language', language);
   }, [language]);
 
+// Helper function to get nested translation
+const getNestedTranslation = (obj: any, key: string): string | undefined => {
+  return key.split(".").reduce((current, prop) => current?.[prop], obj);
+};
+
   const t = (key: string, params?: Record<string, string | number>): string => {
-    let translation = (translations[language] as any)[key] || key;
+    let translation = getNestedTranslation(translations[language], key) || key;
     
     if (params) {
       Object.entries(params).forEach(([paramKey, paramValue]) => {
