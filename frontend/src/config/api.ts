@@ -49,6 +49,7 @@ export const API_ENDPOINTS = {
   EVEP_TEACHERS: `${currentConfig.baseUrl}/api/v1/evep/teachers`,
   EVEP_PARENTS: `${currentConfig.baseUrl}/api/v1/evep/parents`,
   EVEP_SCHOOL_SCREENINGS: `${currentConfig.baseUrl}/api/v1/evep/school-screenings`,
+  EVEP_SCREENINGS_LIST: `${currentConfig.baseUrl}/api/v1/evep/screenings-list`,
   
   // Appointments
   APPOINTMENTS: `${currentConfig.baseUrl}/api/v1/appointments`,

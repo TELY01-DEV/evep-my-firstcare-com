@@ -106,7 +106,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     clean_payload = convert_objectids_to_strings(payload)
     return clean_payload
 
-@router.post("/register", response_model=TokenResponse)
+@router.post("/register")
 async def register_user(user_data: UserRegister):
     """Register a new user"""
     

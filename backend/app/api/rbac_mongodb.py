@@ -10,10 +10,14 @@ from datetime import datetime
 from pydantic import BaseModel
 from bson import ObjectId
 import asyncio
+import logging
+import traceback
 
 from app.api.auth import get_current_user
 from app.core.database import get_database
 from app.utils.comprehensivePermissions import COMPREHENSIVE_PERMISSIONS
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 security = HTTPBearer()
@@ -73,6 +77,11 @@ async def get_permissions_collection():
 async def get_user_roles_collection():
     db = get_database()
     return db.evep.rbac_user_roles
+
+def get_users_collection():
+    """Get users collection from MongoDB"""
+    db = get_database()
+    return db.evep.users
 
 # MongoDB RBAC Operations
 async def load_roles_from_mongodb() -> List[Role]:
@@ -185,14 +194,19 @@ async def save_user_role_to_mongodb(user_role: UserRole) -> bool:
         collection = await get_user_roles_collection()
         user_role_dict = user_role.dict()
         
-        await collection.replace_one(
+        logger.info(f"Saving user role: user_id={user_role.user_id}, role_id={user_role.role_id}")
+        
+        result = await collection.replace_one(
             {'user_id': user_role.user_id, 'role_id': user_role.role_id},
             user_role_dict,
             upsert=True
         )
+        
+        logger.info(f"User role saved successfully: matched={result.matched_count}, modified={result.modified_count}, upserted={result.upserted_id}")
         return True
     except Exception as e:
-        print(f"Error saving user role to MongoDB: {e}")
+        logger.error(f"Error saving user role to MongoDB: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return False
 
 async def create_default_roles() -> List[Role]:
@@ -448,12 +462,25 @@ async def assign_user_role(
         )
     
     try:
+        logger.info(f"Assign user role request: user_id={assignment.user_id}, role_id={assignment.role_id}")
+        
+        # Validate ObjectId format
+        try:
+            ObjectId(assignment.user_id)
+        except Exception as e:
+            logger.error(f"Invalid user_id format: {assignment.user_id}, error: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid user_id format: {str(e)}"
+            )
+        
         user_roles = await load_user_roles_from_mongodb()
         roles = await load_roles_from_mongodb()
         
         # Check if role exists
         role = next((r for r in roles if r.id == assignment.role_id), None)
         if not role:
+            logger.warning(f"Role not found: {assignment.role_id}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Role not found"
@@ -504,7 +531,11 @@ async def assign_user_role(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to save user role to MongoDB"
             )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Failed to assign role: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to assign role: {str(e)}"

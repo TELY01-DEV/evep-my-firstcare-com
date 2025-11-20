@@ -29,6 +29,10 @@ class ScreeningSessionCreate(BaseModel):
     screening_category: str = Field(..., description="Category: 'school_screening' for teachers, 'medical_screening' for doctors")
     equipment_used: Optional[str] = None
     notes: Optional[str] = None
+    current_step: Optional[int] = Field(None, description="Current workflow step (for partial progress)")
+    current_step_name: Optional[str] = Field(None, description="Name of current workflow step")
+    workflow_data: Optional[dict] = Field(None, description="Workflow data for partial progress")
+    status: Optional[str] = Field('in_progress', description="Session status")
 
 class ScreeningResult(BaseModel):
     eye: str = Field(..., description="Left or Right eye")
@@ -67,16 +71,21 @@ class ScreeningOutcomeResponse(BaseModel):
     updated_at: str
 
 class ScreeningSessionUpdate(BaseModel):
-    results: List[ScreeningResult]
+    results: Optional[List[ScreeningResult]] = None
     conclusion: Optional[str] = None
     recommendations: Optional[str] = None
     follow_up_date: Optional[str] = None
-    status: str = Field(..., description="Status: 'in_progress', 'completed', 'cancelled'")
+    status: Optional[str] = Field(None, description="Status: 'in_progress', 'completed', 'cancelled'")
+    current_step: Optional[int] = Field(None, description="Current workflow step (for partial progress)")
+    current_step_name: Optional[str] = Field(None, description="Name of current workflow step")
+    workflow_data: Optional[dict] = Field(None, description="Workflow data for partial progress")
 
 class ScreeningSessionResponse(BaseModel):
     session_id: str
     patient_id: str
+    patient_name: Optional[str] = None
     examiner_id: str
+    examiner_name: Optional[str] = None
     screening_type: str
     screening_category: str
     status: str
@@ -86,6 +95,9 @@ class ScreeningSessionResponse(BaseModel):
     conclusion: Optional[str] = None
     recommendations: Optional[str] = None
     follow_up_date: Optional[str] = None
+    current_step: Optional[int] = None
+    current_step_name: Optional[str] = None
+    workflow_data: Optional[dict] = None
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
     """Get current authenticated user"""
@@ -160,7 +172,10 @@ async def create_screening_session(
         "screening_category": session_data.screening_category,
         "equipment_used": session_data.equipment_used,
         "notes": session_data.notes,
-        "status": "in_progress",
+        "status": session_data.status or "in_progress",
+        "current_step": session_data.current_step,
+        "current_step_name": session_data.current_step_name,
+        "workflow_data": session_data.workflow_data,
         "created_at": datetime.utcnow().isoformat(),
         "updated_at": datetime.utcnow().isoformat(),
         "audit_hash": generate_blockchain_hash(f"screening_session_created:{session_data.patient_id}")
@@ -183,14 +198,34 @@ async def create_screening_session(
         }
     })
     
+    # Get patient name
+    patient_name = f"{patient.get('first_name', '')} {patient.get('last_name', '')}".strip() or "Unknown Patient"
+    
+    # Get examiner name
+    examiner_name = None
+    if session_data.examiner_id:
+        try:
+            examiner = await db.evep.users.find_one({"_id": ObjectId(session_data.examiner_id)})
+            if examiner:
+                examiner_name = f"{examiner.get('first_name', '')} {examiner.get('last_name', '')}".strip()
+                if not examiner_name:
+                    examiner_name = examiner.get('username', 'Unknown Examiner')
+        except:
+            examiner_name = "Unknown Examiner"
+    
     return ScreeningSessionResponse(
         session_id=str(result.inserted_id),
         patient_id=session_data.patient_id,
+        patient_name=patient_name,
         examiner_id=session_data.examiner_id,
+        examiner_name=examiner_name or "Unknown Examiner",
         screening_type=session_data.screening_type,
         screening_category=session_data.screening_category,
-        status="in_progress",
-        created_at=session_doc["created_at"]
+        status=session_data.status or "in_progress",
+        created_at=session_doc["created_at"],
+        current_step=session_data.current_step,
+        current_step_name=session_data.current_step_name,
+        workflow_data=session_data.workflow_data
     )
 
 @router.get("/sessions/{session_id}", response_model=ScreeningSessionResponse)
@@ -217,10 +252,39 @@ async def get_screening_session(
             detail="Insufficient permissions to view this screening session"
         )
     
+    # Get patient name
+    patient_name = None
+    if session.get("patient_id"):
+        try:
+            patient = await db.evep.patients.find_one({"_id": ObjectId(session["patient_id"])})
+            if patient:
+                patient_name = f"{patient.get('first_name', '')} {patient.get('last_name', '')}".strip()
+            else:
+                # Try students collection if not in patients
+                student = await db.evep.students.find_one({"_id": ObjectId(session["patient_id"])})
+                if student:
+                    patient_name = f"{student.get('first_name', '')} {student.get('last_name', '')}".strip()
+        except:
+            patient_name = "Unknown Patient"
+    
+    # Get examiner name
+    examiner_name = None
+    if session.get("examiner_id"):
+        try:
+            examiner = await db.evep.users.find_one({"_id": ObjectId(session["examiner_id"])})
+            if examiner:
+                examiner_name = f"{examiner.get('first_name', '')} {examiner.get('last_name', '')}".strip()
+                if not examiner_name:
+                    examiner_name = examiner.get('username', 'Unknown Examiner')
+        except:
+            examiner_name = "Unknown Examiner"
+    
     return ScreeningSessionResponse(
         session_id=str(session["_id"]),
         patient_id=str(session["patient_id"]),
+        patient_name=patient_name or "Unknown Patient",
         examiner_id=str(session["examiner_id"]),
+        examiner_name=examiner_name or "Unknown Examiner",
         screening_type=session["screening_type"],
         screening_category=session.get("screening_category", "medical_screening"),  # Default for backward compatibility
         status=session["status"],
@@ -229,7 +293,10 @@ async def get_screening_session(
         results=session.get("results"),
         conclusion=session.get("conclusion"),
         recommendations=session.get("recommendations"),
-        follow_up_date=session.get("follow_up_date")
+        follow_up_date=session.get("follow_up_date"),
+        current_step=session.get("current_step"),
+        current_step_name=session.get("current_step_name"),
+        workflow_data=session.get("workflow_data")
     )
 
 @router.put("/sessions/{session_id}", response_model=ScreeningSessionResponse)
@@ -260,10 +327,12 @@ async def update_screening_session(
     
     # Prepare update data
     update_doc = {
-        "status": update_data.status,
         "updated_at": datetime.utcnow().isoformat(),
         "audit_hash": generate_blockchain_hash(f"screening_session_updated:{session_id}")
     }
+    
+    if update_data.status:
+        update_doc["status"] = update_data.status
     
     if update_data.results:
         update_doc["results"] = [result.dict() for result in update_data.results]
@@ -276,6 +345,15 @@ async def update_screening_session(
     
     if update_data.follow_up_date:
         update_doc["follow_up_date"] = update_data.follow_up_date
+    
+    if update_data.current_step is not None:
+        update_doc["current_step"] = update_data.current_step
+    
+    if update_data.current_step_name:
+        update_doc["current_step_name"] = update_data.current_step_name
+    
+    if update_data.workflow_data:
+        update_doc["workflow_data"] = update_data.workflow_data
     
     # Mark as completed if status is completed
     if update_data.status == "completed":
@@ -304,18 +382,51 @@ async def update_screening_session(
     # Get updated session
     updated_session = await db.evep.screenings.find_one({"_id": ObjectId(session_id)})
     
+    # Get patient name
+    patient_name = None
+    if updated_session.get("patient_id"):
+        try:
+            patient = await db.evep.patients.find_one({"_id": ObjectId(updated_session["patient_id"])})
+            if patient:
+                patient_name = f"{patient.get('first_name', '')} {patient.get('last_name', '')}".strip()
+            else:
+                # Try students collection if not in patients
+                student = await db.evep.students.find_one({"_id": ObjectId(updated_session["patient_id"])})
+                if student:
+                    patient_name = f"{student.get('first_name', '')} {student.get('last_name', '')}".strip()
+        except:
+            patient_name = "Unknown Patient"
+    
+    # Get examiner name
+    examiner_name = None
+    if updated_session.get("examiner_id"):
+        try:
+            examiner = await db.evep.users.find_one({"_id": ObjectId(updated_session["examiner_id"])})
+            if examiner:
+                examiner_name = f"{examiner.get('first_name', '')} {examiner.get('last_name', '')}".strip()
+                if not examiner_name:
+                    examiner_name = examiner.get('username', 'Unknown Examiner')
+        except:
+            examiner_name = "Unknown Examiner"
+    
     return ScreeningSessionResponse(
         session_id=str(updated_session["_id"]),
         patient_id=str(updated_session["patient_id"]),
+        patient_name=patient_name or "Unknown Patient",
         examiner_id=str(updated_session["examiner_id"]),
+        examiner_name=examiner_name or "Unknown Examiner",
         screening_type=updated_session["screening_type"],
+        screening_category=updated_session.get("screening_category", "medical_screening"),
         status=updated_session["status"],
         created_at=updated_session["created_at"],
         completed_at=updated_session.get("completed_at"),
         results=updated_session.get("results"),
         conclusion=updated_session.get("conclusion"),
         recommendations=updated_session.get("recommendations"),
-        follow_up_date=updated_session.get("follow_up_date")
+        follow_up_date=updated_session.get("follow_up_date"),
+        current_step=updated_session.get("current_step"),
+        current_step_name=updated_session.get("current_step_name"),
+        workflow_data=updated_session.get("workflow_data")
     )
 
 @router.get("/sessions", response_model=List[ScreeningSessionResponse])
@@ -389,23 +500,59 @@ async def list_screening_sessions(
     cursor = db.evep.screenings.find(filter_query).sort("created_at", -1).skip(skip).limit(limit)
     sessions = await cursor.to_list(length=limit)
     
-    return [
-        ScreeningSessionResponse(
-            session_id=str(session["_id"]),
-            patient_id=str(session["patient_id"]),
-            examiner_id=str(session.get("examiner_id", "")),
-            screening_type=session["screening_type"],
-            screening_category=session.get("screening_category", "medical_screening"),
-            status=session["status"],
-            created_at=session["created_at"].isoformat() if isinstance(session["created_at"], datetime) else session["created_at"],
-            completed_at=session.get("completed_at").isoformat() if session.get("completed_at") and isinstance(session["completed_at"], datetime) else session.get("completed_at"),
-            results=None,  # Skip results for now to avoid validation issues
-            conclusion=session.get("conclusion"),
-            recommendations=session.get("recommendations"),
-            follow_up_date=session.get("follow_up_date")
+    # Enrich sessions with patient and examiner names
+    enriched_sessions = []
+    for session in sessions:
+        # Get patient name
+        patient_name = None
+        if session.get("patient_id"):
+            try:
+                patient = await db.evep.patients.find_one({"_id": ObjectId(session["patient_id"])})
+                if patient:
+                    patient_name = f"{patient.get('first_name', '')} {patient.get('last_name', '')}".strip()
+                else:
+                    # Try students collection if not in patients
+                    student = await db.evep.students.find_one({"_id": ObjectId(session["patient_id"])})
+                    if student:
+                        patient_name = f"{student.get('first_name', '')} {student.get('last_name', '')}".strip()
+            except:
+                patient_name = "Unknown Patient"
+        
+        # Get examiner name
+        examiner_name = None
+        if session.get("examiner_id"):
+            try:
+                examiner = await db.evep.users.find_one({"_id": ObjectId(session["examiner_id"])})
+                if examiner:
+                    examiner_name = f"{examiner.get('first_name', '')} {examiner.get('last_name', '')}".strip()
+                    if not examiner_name:
+                        examiner_name = examiner.get('username', 'Unknown Examiner')
+            except:
+                examiner_name = "Unknown Examiner"
+        
+        enriched_sessions.append(
+            ScreeningSessionResponse(
+                session_id=str(session["_id"]),
+                patient_id=str(session["patient_id"]),
+                patient_name=patient_name or "Unknown Patient",
+                examiner_id=str(session.get("examiner_id", "")),
+                examiner_name=examiner_name or "Unknown Examiner",
+                screening_type=session["screening_type"],
+                screening_category=session.get("screening_category", "medical_screening"),
+                status=session["status"],
+                created_at=session["created_at"].isoformat() if isinstance(session["created_at"], datetime) else session["created_at"],
+                completed_at=session.get("completed_at").isoformat() if session.get("completed_at") and isinstance(session["completed_at"], datetime) else session.get("completed_at"),
+                results=None,  # Skip results for now to avoid validation issues
+                conclusion=session.get("conclusion"),
+                recommendations=session.get("recommendations"),
+                follow_up_date=session.get("follow_up_date"),
+                current_step=session.get("current_step"),
+                current_step_name=session.get("current_step_name"),
+                workflow_data=session.get("workflow_data")
+            )
         )
-        for session in sessions
-    ]
+    
+    return enriched_sessions
 
 @router.delete("/sessions/{session_id}")
 async def delete_screening_session(

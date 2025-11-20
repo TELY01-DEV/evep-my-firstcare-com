@@ -82,6 +82,9 @@ interface ScreeningSession {
   created_at: string;
   updated_at: string;
   results?: ScreeningResults;
+  current_step?: number;
+  current_step_name?: string;
+  workflow_data?: any;
 }
 
 interface ScreeningResults {
@@ -435,6 +438,45 @@ const Screenings: React.FC = () => {
     setDeleteConfirmDialogOpen(true);
   };
 
+  const handleConfirmDelete = async () => {
+    if (!selectedSession || !selectedSession._id) {
+      console.error('Cannot delete screening: selectedSession or _id is missing', selectedSession);
+      setError('Cannot delete screening: Session ID is missing');
+      setDeleteConfirmDialogOpen(false);
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      const token = localStorage.getItem('evep_token');
+
+      const response = await fetch(`${API_ENDPOINTS.SCREENINGS_SESSIONS}/${selectedSession._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        setSuccess('Screening session deleted successfully');
+        setDeleteConfirmDialogOpen(false);
+        setSelectedSession(null);
+        fetchData(); // Refresh the data
+      } else {
+        const errorData = await response.json();
+        setError(errorData.detail || 'Failed to delete screening session');
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      setError('Failed to delete screening session');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSaveScreeningChanges = async () => {
     if (!selectedSession || !selectedSession._id) {
       console.error('Cannot save screening: selectedSession or _id is missing', selectedSession);
@@ -657,6 +699,7 @@ const Screenings: React.FC = () => {
                   <TableCell>Type</TableCell>
                   <TableCell>Examiner</TableCell>
                   <TableCell>Status</TableCell>
+                  <TableCell>Current Step</TableCell>
                   <TableCell>Date</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
@@ -700,6 +743,20 @@ const Screenings: React.FC = () => {
                         color={getStatusColor(session.status) as any}
                         size="small"
                       />
+                    </TableCell>
+                    <TableCell>
+                      {session.current_step_name ? (
+                        <Chip
+                          label={session.current_step_name}
+                          color="info"
+                          size="small"
+                          variant="outlined"
+                        />
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          -
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
@@ -1551,20 +1608,19 @@ const Screenings: React.FC = () => {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirmDialogOpen(false)}>
+          <Button 
+            onClick={() => setDeleteConfirmDialogOpen(false)}
+            disabled={saving}
+          >
             Cancel
           </Button>
           <Button 
             variant="contained" 
             color="error"
-            onClick={() => {
-              // TODO: Implement actual deletion
-              console.log('Deleting session:', selectedSession);
-              setDeleteConfirmDialogOpen(false);
-              setSelectedSession(null);
-            }}
+            onClick={handleConfirmDelete}
+            disabled={saving}
           >
-            Delete
+            {saving ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>

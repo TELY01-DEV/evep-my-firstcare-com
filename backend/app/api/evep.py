@@ -220,6 +220,92 @@ async def get_students(
     total_count = await db.evep["evep.students"].count_documents({"status": "active"})
     return {"students": result, "total_count": total_count}
 
+@router.get("/students/ready-for-patient-registration")
+async def get_students_ready_for_patient_registration(
+    current_user: dict = Depends(get_current_user),
+    skip: int = 0,
+    limit: int = 100
+):
+    """Get students who have completed school screening and are ready for patient registration"""
+    db = get_database()
+    
+    # Check permissions
+    if current_user["role"] not in ["admin", "super_admin", "medical_admin", "medical_staff", "doctor", "nurse"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to view students ready for patient registration"
+        )
+    
+    # Get students who have completed school screening
+    # First, get all completed school screenings
+    completed_screenings = await db.evep["school_screenings"].find({
+        "status": "completed"
+    }).to_list(length=None)
+    
+    # Extract student IDs from completed screenings
+    student_ids = [ObjectId(screening["student_id"]) for screening in completed_screenings]
+    
+    if not student_ids:
+        return {"students": [], "total_count": 0}
+    
+    # Get students who have completed screening and are not already registered as patients
+    # Check which students are already registered as patients
+    existing_patients = await db.evep["student_patient_mapping"].find({
+        "student_id": {"$in": student_ids},
+        "status": "active"
+    }).to_list(length=None)
+    
+    # Get student IDs that are already registered as patients
+    already_registered_ids = [mapping["student_id"] for mapping in existing_patients]
+    
+    # Filter out students who are already registered as patients
+    available_student_ids = [sid for sid in student_ids if sid not in already_registered_ids]
+    
+    if not available_student_ids:
+        return {"students": [], "total_count": 0}
+    
+    # Get student details for available students
+    students = await db.evep["evep.students"].find({
+        "_id": {"$in": available_student_ids},
+        "status": "active"
+    }).skip(skip).limit(limit).to_list(length=None)
+    
+    result = []
+    for student in students:
+        # Get the latest screening for this student
+        latest_screening = await db.evep["school_screenings"].find_one({
+            "student_id": student["_id"],
+            "status": "completed"
+        }, sort=[("created_at", -1)])
+        
+        result.append({
+            "id": str(student["_id"]),
+            "title": student.get("title", ""),
+            "first_name": student.get("first_name", ""),
+            "last_name": student.get("last_name", ""),
+            "cid": student.get("cid", ""),
+            "student_code": student.get("student_code", ""),
+            "grade_level": student.get("grade_level", ""),
+            "grade_number": student.get("grade_number", ""),
+            "school_name": student.get("school_name", ""),
+            "birth_date": student.get("birth_date", ""),
+            "gender": student.get("gender", ""),
+            "parent_id": str(student.get("parent_id", "")),
+            "teacher_id": str(student.get("teacher_id", "")),
+            "consent_document": student.get("consent_document", False),
+            "profile_photo": student.get("profile_photo", ""),
+            "extra_photos": student.get("extra_photos", []),
+            "photo_metadata": student.get("photo_metadata", {}),
+            "address": student.get("address", {}),
+            "disease": student.get("disease", ""),
+            "status": student.get("status", ""),
+            "screening_completed_at": latest_screening.get("created_at") if latest_screening else None,
+            "screening_results": latest_screening.get("results", {}) if latest_screening else {}
+        })
+    
+    total_count = len(available_student_ids)
+    return {"students": result, "total_count": total_count}
+
 @router.get("/students/{student_id}")
 async def get_student(
     student_id: str,
@@ -1001,100 +1087,6 @@ async def get_parent_students(
         })
     
     return {"students": result, "total_count": len(result)}
-
-
-
-
-@router.get("/students/ready-for-patient-registration")
-async def get_students_ready_for_patient_registration(
-    # current_user: dict = Depends(get_current_user),  # Temporarily disabled for testing
-    skip: int = 0,
-    limit: int = 100
-):
-    """Get students who have completed school screening and are ready for patient registration"""
-    db = get_database()
-    
-    # Check permissions - Temporarily disabled for testing
-    # if current_user["role"] not in ["admin", "super_admin", "medical_admin", "medical_staff", "doctor"]:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Insufficient permissions to view students ready for patient registration"
-    #     )
-    
-    # Get students who have completed school screening
-    # First, get all completed school screenings
-    completed_screenings = await db.evep["school_screenings"].find({
-        "status": "completed"
-    }).to_list(length=None)
-    
-    # Extract student IDs from completed screenings
-    student_ids = [ObjectId(screening["student_id"]) for screening in completed_screenings]
-    
-    if not student_ids:
-        return {"students": [], "total_count": 0}
-    
-    # Get students who have completed screening and are not already registered as patients
-    # Check which students are already registered as patients
-    existing_patients = await db.evep["student_patient_mapping"].find({
-        "student_id": {"$in": student_ids},
-        "status": "active"
-    }).to_list(length=None)
-    
-    # Get student IDs that are already registered as patients
-    already_registered_ids = [mapping["student_id"] for mapping in existing_patients]
-    
-    # Filter out students who are already registered as patients
-    available_student_ids = [sid for sid in student_ids if sid not in already_registered_ids]
-    
-    if not available_student_ids:
-        return {"students": [], "total_count": 0}
-    
-    # Get student details for available students
-    students = await db.evep["evep.students"].find({
-        "_id": {"$in": available_student_ids},
-        "status": "active"
-    }).skip(skip).limit(limit).to_list(length=None)
-    
-    result = []
-    for student in students:
-        # Get the latest screening for this student
-        latest_screening = await db.evep["school_screenings"].find_one({
-            "student_id": student["_id"],
-            "status": "completed"
-        }, sort=[("created_at", -1)])
-        
-        result.append({
-            "id": str(student["_id"]),
-            "title": student.get("title", ""),
-            "first_name": student.get("first_name", ""),
-            "last_name": student.get("last_name", ""),
-            "cid": student.get("cid", ""),
-            "student_code": student.get("student_code", ""),
-            "grade_level": student.get("grade_level", ""),
-            "grade_number": student.get("grade_number", ""),
-            "school_name": student.get("school_name", ""),
-            "birth_date": student.get("birth_date", ""),
-            "gender": student.get("gender", ""),
-            "parent_id": str(student.get("parent_id", "")),
-            "teacher_id": str(student.get("teacher_id", "")),
-            "consent_document": student.get("consent_document", False),
-            "profile_photo": student.get("profile_photo", ""),
-            "extra_photos": student.get("extra_photos", []),
-            "photo_metadata": student.get("photo_metadata", {}),
-            "address": student.get("address", {}),
-            "disease": student.get("disease", ""),
-            "status": student.get("status", ""),
-            "screening_completed_at": latest_screening.get("created_at") if latest_screening else None,
-            "screening_results": latest_screening.get("results", {}) if latest_screening else {}
-        })
-    
-    total_count = len(available_student_ids)
-    
-    return {"students": result, "total_count": total_count}
-
-
-
-
 # Teachers CRUD
 @router.get("/teachers")
 async def get_teachers(
@@ -1584,6 +1576,14 @@ async def get_screenings_list(
             "screening_date": "2024-01-01"
         }
     ]
+
+@router.get("/screenings")
+async def get_screenings_alias(
+    current_user: dict = Depends(get_current_user)
+):
+    """Alias for screenings-list endpoint to fix frontend compatibility"""
+    # Just call the existing screenings-list endpoint
+    return await get_screenings_list(current_user)
 
 # Removed school-screenings endpoint from router - now defined directly in main.py
 # to bypass router-level authentication issues

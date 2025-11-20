@@ -53,6 +53,7 @@ import {
   SystemUpdate as SystemUpdateIcon
 } from '@mui/icons-material';
 import { useLanguage } from '../contexts/LanguageContext';
+import LanguageToggle from '../components/LanguageToggle';
 
 interface Setting {
   key: string;
@@ -318,7 +319,8 @@ export default function AdminSettings() {
             {t('settings.title')}
           </Typography>
         </Box>
-        <Box display="flex" gap={2}>
+        <Box display="flex" gap={2} alignItems="center">
+          <LanguageToggle />
           <Button
             variant="outlined"
             startIcon={<RefreshIcon />}

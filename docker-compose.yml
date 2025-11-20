@@ -140,9 +140,8 @@ services:
       - REACT_APP_PORTAL_TYPE=medical
       - REACT_APP_SOCKET_URL=https://socketio.evep.my-firstcare.com
       - NODE_ENV=production
-    # volumes:
-      # - ./frontend:/app
-      # - /app/node_modules
+    volumes:
+      - ./frontend/build:/usr/share/nginx/html
     depends_on:
       - backend
     networks:
@@ -193,7 +192,7 @@ services:
     networks:
       - evep-network
     restart: unless-stopped
-    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--auth", "--keyFile", "/etc/mongo-keyfile"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--auth", "--keyFile", "/etc/mongo-keyfile/keyfile"]
 
   # MongoDB Replica Set (Secondary 1) - Secured (No External Access)
   mongo-secondary-1:
@@ -208,7 +207,7 @@ services:
     networks:
       - evep-network
     restart: unless-stopped
-    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--auth", "--keyFile", "/etc/mongo-keyfile"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--keyFile", "/etc/mongo-keyfile/keyfile"]
     depends_on:
       - mongo-primary
 
@@ -225,11 +224,11 @@ services:
     networks:
       - evep-network
     restart: unless-stopped
-    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--auth", "--keyFile", "/etc/mongo-keyfile"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--auth", "--keyFile", "/etc/mongo-keyfile/keyfile"]
     depends_on:
       - mongo-primary
 
-  # MongoDB Arbiter - Secured (No External Access)
+  # MongoDB Arbiter - For 3-Node Replica Set High Availability
   mongo-arbiter:
     image: mongo:6.0
     container_name: evep-mongo-arbiter
@@ -242,7 +241,7 @@ services:
     networks:
       - evep-network
     restart: unless-stopped
-    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--auth", "--keyFile", "/etc/mongo-keyfile"]
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--auth", "--keyFile", "/etc/mongo-keyfile/keyfile"]
     depends_on:
       - mongo-primary
 
@@ -337,6 +336,7 @@ services:
       - MONGODB_URL=mongodb://admin:Sim!44335599@mongo-primary:27017,mongo-secondary-1:27017,mongo-secondary-2:27017/evep?replicaSet=rs0&authSource=admin
       - REDIS_URL=${REDIS_URL}
       - SECRET_KEY=${SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}

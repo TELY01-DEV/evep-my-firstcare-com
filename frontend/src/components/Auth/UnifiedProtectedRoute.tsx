@@ -64,35 +64,41 @@ const UnifiedProtectedRoute: React.FC<UnifiedProtectedRouteProps> = ({
         return;
       }
 
-      // Check role requirements
-      if (requiredRole) {
-        const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-        const hasRequiredRole = roles.some(role => hasRole(role));
-        
-        if (!hasRequiredRole) {
-          console.log('❌ User does not have required role:', requiredRole);
-          console.log('   User role:', user.role);
-          setAuthCheckComplete(true);
-          return;
-        }
-      }
+  // Super admin bypasses all checks
+  if (user.role === 'super_admin') {
+    console.log('✅ Super admin access granted - bypassing all checks');
+    setIsChecking(false);
+    setAuthCheckComplete(true);
+    return;
+  }
 
-      // Check admin requirements
-      if (adminOnly && !isAdmin()) {
-        console.log('❌ Admin access required but user is not admin');
-        console.log('   User role:', user.role);
-        setAuthCheckComplete(true);
-        return;
-      }
+  // Check role requirements
+  if (requiredRole) {
+    const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+    const hasRequiredRole = roles.some(role => hasRole(role));
+    
+    if (!hasRequiredRole) {
+      console.log('❌ User does not have required role:', requiredRole);
+      console.log('   User role:', user.role);
+      setAuthCheckComplete(true);
+      return;
+    }
+  }
 
-      // Check permission requirements
-      if (requiredPermission && !hasPermission(requiredPermission)) {
-        console.log('❌ User does not have required permission:', requiredPermission);
-        setAuthCheckComplete(true);
-        return;
-      }
+  // Check admin requirements
+  if (adminOnly && !isAdmin()) {
+    console.log('❌ Admin access required but user is not admin');
+    console.log('   User role:', user.role);
+    setAuthCheckComplete(true);
+    return;
+  }
 
-      console.log('✅ Authentication check passed for user:', user.email);
+  // Check permission requirements
+  if (requiredPermission && !hasPermission(requiredPermission)) {
+    console.log('❌ User does not have required permission:', requiredPermission);
+    setAuthCheckComplete(true);
+    return;
+  }      console.log('✅ Authentication check passed for user:', user.email);
       console.log('   Role:', user.role);
       console.log('   Route:', location.pathname);
       
@@ -139,6 +145,12 @@ const UnifiedProtectedRoute: React.FC<UnifiedProtectedRouteProps> = ({
   if (!isAuthenticated || !user) {
     console.log('🔄 Redirecting to login - not authenticated');
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
+  }
+
+  // Super admin bypasses all checks
+  if (user.role === 'super_admin') {
+    console.log('✅ Super admin - rendering protected content');
+    return <>{children}</>;
   }
 
   // Check role requirements

@@ -37,9 +37,9 @@ const LanguageToggle: React.FC = () => {
   const getLanguageLabel = (lang: 'en' | 'th') => {
     switch (lang) {
       case 'en':
-        return 'English';
+        return t('language.english');
       case 'th':
-        return 'ไทย';
+        return t('language.thai');
       default:
         return lang;
     }
@@ -98,8 +98,8 @@ const LanguageToggle: React.FC = () => {
             <Box sx={{ fontSize: '1.2rem' }}>🇺🇸</Box>
           </ListItemIcon>
           <ListItemText 
-            primary="English"
-            secondary={language === 'en' ? 'Current' : undefined}
+            primary={t('language.english')}
+            secondary={language === 'en' ? t('language.current') : undefined}
           />
           {language === 'en' && (
             <CheckIcon sx={{ ml: 1, color: 'primary.main' }} />
@@ -114,8 +114,8 @@ const LanguageToggle: React.FC = () => {
             <Box sx={{ fontSize: '1.2rem' }}>🇹🇭</Box>
           </ListItemIcon>
           <ListItemText 
-            primary="ไทย"
-            secondary={language === 'th' ? 'ปัจจุบัน' : undefined}
+            primary={t('language.thai')}
+            secondary={language === 'th' ? t('language.current') : undefined}
           />
           {language === 'th' && (
             <CheckIcon sx={{ ml: 1, color: 'primary.main' }} />

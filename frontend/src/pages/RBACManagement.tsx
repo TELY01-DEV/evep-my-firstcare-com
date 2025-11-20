@@ -213,8 +213,11 @@ const RBACManagement: React.FC = () => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-      // Load roles, permissions, user roles, and users
-      const [rolesResponse, permissionsResponse, userRolesResponse] = await Promise.all([
+      console.log('🔄 Loading RBAC data from User Management system...');
+      
+      // Load roles and permissions from RBAC collections for role/permission management
+      // But load actual user roles from User Management API (users collection)
+      const [rolesResponse, permissionsResponse, usersResponse] = await Promise.all([
         fetch('https://stardust.evep.my-firstcare.com/api/v1/rbac/roles/', {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -227,7 +230,7 @@ const RBACManagement: React.FC = () => {
             'Content-Type': 'application/json',
           },
         }),
-        fetch('https://stardust.evep.my-firstcare.com/api/v1/rbac/user-roles/', {
+        fetch('https://stardust.evep.my-firstcare.com/api/v1/user-management/?page=1&limit=100', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -277,9 +280,31 @@ const RBACManagement: React.FC = () => {
       
       console.log(`📋 Total permissions available for role creation: ${allAvailablePermissions.length}`);
 
-      if (userRolesResponse.ok) {
-        const userRolesData = await userRolesResponse.json();
-        setUserRoles(userRolesData.user_roles || []);
+      // Convert users from User Management into user role format for display
+      if (usersResponse.ok) {
+        const userData = await usersResponse.json();
+        const userList = userData.users || [];
+        
+        console.log(`✅ Loaded ${userList.length} users from User Management`);
+        
+        // Transform users into user role format for the RBAC table
+        const userRoles = userList
+          .filter((user: any) => user.role) // Only users with a role
+          .map((user: any) => ({
+            user_id: user.id,
+            user_name: `${user.first_name} ${user.last_name}`.trim(),
+            user_email: user.email,
+            role_id: user.role,
+            role_name: getRoleDisplayName(user.role),
+            assigned_at: user.created_at || new Date().toISOString(),
+            source: 'user_management' // Mark as coming from User Management
+          }));
+        
+        console.log(`📊 Displaying ${userRoles.length} user role assignments from User Management`);
+        setUserRoles(userRoles);
+      } else {
+        console.error('❌ Failed to load users from User Management');
+        setUserRoles([]);
       }
       
       // Load users for role assignment
@@ -435,79 +460,47 @@ const RBACManagement: React.FC = () => {
       setSaving(true);
       const token = localStorage.getItem('evep_token');
       
-      let response;
+      console.log(`🔄 Updating user role: user_id=${selectedUser}, new_role=${selectedRole}`);
       
-      if (editingUserRole) {
-        // UPDATE existing user role assignment
-        response = await fetch(`https://stardust.evep.my-firstcare.com/api/v1/rbac/user-roles/${editingUserRole.user_id}/${editingUserRole.role_id}/`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            user_id: selectedUser,
-            role_id: selectedRole,
-          }),
-        });
-      } else {
-        // CREATE new user role assignment
-        response = await fetch('https://stardust.evep.my-firstcare.com/api/v1/rbac/user-roles/', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            user_id: selectedUser,
-            role_id: selectedRole,
-          }),
-        });
-      }
+      // Update the user's role in the users collection via User Management API
+      const response = await fetch(`https://stardust.evep.my-firstcare.com/api/v1/user-management/${selectedUser}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          role: selectedRole,
+        }),
+      });
 
       if (response.ok) {
-        setSuccess(editingUserRole ? 'User role updated successfully!' : 'User role assigned successfully!');
+        setSuccess('User role updated successfully!');
         setUserRoleDialogOpen(false);
         setEditingUserRole(null);
         setSelectedUser('');
         setSelectedRole('');
         setUserSearchQuery('');
         loadRBACData();
+        console.log('✅ User role updated successfully');
       } else {
-        setError(editingUserRole ? 'Failed to update user role' : 'Failed to assign user role');
+        // Get detailed error message from backend
+        const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        const errorMessage = errorData.detail || 'Failed to update user role';
+        setError(errorMessage);
+        console.error('❌ Failed to update user role:', errorMessage);
       }
     } catch (err) {
-      console.error('Failed to assign/update user role:', err);
-      setError('Failed to assign user role');
+      console.error('Failed to update user role:', err);
+      setError('Failed to update user role');
     } finally {
       setSaving(false);
     }
   };
 
   const handleRemoveUserRole = async (userRole: UserRole) => {
-    if (!window.confirm(`Are you sure you want to remove the "${userRole.role_name}" role from ${userRole.user_name}? This action cannot be undone.`)) return;
-    
-    try {
-      const token = localStorage.getItem('evep_token');
-      
-      const response = await fetch(`https://stardust.evep.my-firstcare.com/api/v1/rbac/user-roles/${userRole.user_id}/${userRole.role_id}/`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        setSuccess('User role removed successfully!');
-        loadRBACData();
-      } else {
-        setError('Failed to remove user role');
-      }
-    } catch (err) {
-      console.error('Failed to remove user role:', err);
-      setError('Failed to remove user role');
-    }
+    // Since users must have a role, we redirect to edit instead of deleting
+    setError('Users must have a role. Please use the edit button to change the role instead.');
   };
 
   // Seed comprehensive permissions to backend
@@ -662,6 +655,24 @@ const RBACManagement: React.FC = () => {
       console.error('Failed to delete permission:', err);
       setError('Failed to delete permission');
     }
+  };
+
+  const getRoleDisplayName = (roleId: string): string => {
+    const roleMap: { [key: string]: string } = {
+      'super_admin': 'Super Administrator',
+      'admin': 'Administrator',
+      'medical_admin': 'Medical Administrator',
+      'system_admin': 'System Administrator',
+      'doctor': 'Doctor',
+      'nurse': 'Nurse',
+      'teacher': 'Teacher',
+      'medical_staff': 'Medical Staff',
+      'executive': 'Executive',
+      'hospital_staff': 'Hospital Staff',
+      'parent': 'Parent',
+      'student': 'Student'
+    };
+    return roleMap[roleId] || roleId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   };
 
   const getRoleColor = (roleName: string) => {
@@ -922,15 +933,9 @@ const RBACManagement: React.FC = () => {
                           size="small"
                           onClick={() => handleEditUserRole(userRole)}
                           color="primary"
+                          title="Change user role"
                         >
                           <EditIcon />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleRemoveUserRole(userRole)}
-                          color="error"
-                        >
-                          <DeleteIcon />
                         </IconButton>
                       </Box>
                     </TableCell>
@@ -1247,7 +1252,7 @@ const RBACManagement: React.FC = () => {
         <DialogTitle>
           <Box display="flex" alignItems="center">
             <AdminPanelSettings sx={{ mr: 1 }} />
-            {editingUserRole ? 'Edit User Role' : 'Assign User Role'}
+            {editingUserRole ? 'Change User Role' : 'Assign User Role'}
           </Box>
         </DialogTitle>
         <DialogContent>
@@ -1339,22 +1344,22 @@ const RBACManagement: React.FC = () => {
                   onChange={(e) => setSelectedRole(e.target.value)}
                 >
                   {roles.map((role) => (
-                    <MenuItem key={role.id} value={role.id}>
-                      <Box display="flex" alignItems="center" justifyContent="space-between" width="100%">
-                        <Box>
-                          <Typography variant="body1">{role.name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {role.description}
-                          </Typography>
+                      <MenuItem key={role.id} value={role.id}>
+                        <Box display="flex" alignItems="center" justifyContent="space-between" width="100%">
+                          <Box>
+                            <Typography variant="body1">{role.name}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {role.description}
+                            </Typography>
+                          </Box>
+                          <Chip
+                            label={role.is_system ? 'System' : 'Custom'}
+                            color={role.is_system ? 'primary' : 'default'}
+                            size="small"
+                          />
                         </Box>
-                        <Chip
-                          label={role.is_system ? 'System' : 'Custom'}
-                          color={role.is_system ? 'primary' : 'default'}
-                          size="small"
-                        />
-                      </Box>
-                    </MenuItem>
-                  ))}
+                      </MenuItem>
+                    ))}
                 </Select>
               </FormControl>
             </Grid>

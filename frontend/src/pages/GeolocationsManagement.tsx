@@ -471,11 +471,23 @@ const GeolocationsManagement: React.FC = () => {
                     {activeTab === 1 ? 
                       (() => {
                         const province = provinces.find(p => p._id === item.provinceId);
-                        return province ? (typeof province.name === 'object' ? province.name.en : province.name) : 'Unknown';
+                        if (!province) return 'Unknown';
+                        const displayName = typeof province.name === 'string' 
+                          ? province.name 
+                          : (province.name && typeof province.name === 'object' && !Array.isArray(province.name) && 'en' in province.name)
+                            ? province.name.en
+                            : String(province.name || 'Unknown');
+                        return displayName;
                       })() :
                       (() => {
                         const district = districts.find(d => d._id === item.districtId);
-                        return district ? (typeof district.name === 'object' ? district.name.en : district.name) : 'Unknown';
+                        if (!district) return 'Unknown';
+                        const displayName = typeof district.name === 'string' 
+                          ? district.name 
+                          : (district.name && typeof district.name === 'object' && !Array.isArray(district.name) && 'en' in district.name)
+                            ? district.name.en
+                            : String(district.name || 'Unknown');
+                        return displayName;
                       })()
                     }
                   </TableCell>
@@ -484,7 +496,13 @@ const GeolocationsManagement: React.FC = () => {
                   <TableCell>
                     {(() => {
                       const province = provinces.find(p => p._id === item.provinceId);
-                      return province ? (typeof province.name === 'object' ? province.name.en : province.name) : 'Unknown';
+                      if (!province) return 'Unknown';
+                      const displayName = typeof province.name === 'string' 
+                        ? province.name 
+                        : (province.name && typeof province.name === 'object' && !Array.isArray(province.name) && 'en' in province.name)
+                          ? province.name.en
+                          : String(province.name || 'Unknown');
+                      return displayName;
                     })()}
                   </TableCell>
                 )}
@@ -649,7 +667,11 @@ const GeolocationsManagement: React.FC = () => {
                         <MenuItem value="">All Provinces</MenuItem>
                         {provinces.map((province) => (
                           <MenuItem key={province._id} value={province._id}>
-                            {typeof province.name === 'object' ? province.name.en : province.name}
+                            {typeof province.name === 'string' 
+                              ? province.name 
+                              : (province.name && typeof province.name === 'object' && !Array.isArray(province.name) && 'en' in province.name)
+                                ? province.name.en
+                                : String(province.name || '')}
                           </MenuItem>
                         ))}
                       </Select>
@@ -671,7 +693,11 @@ const GeolocationsManagement: React.FC = () => {
                           .filter(d => d.provinceId === provinceFilter)
                           .map((district) => (
                             <MenuItem key={district._id} value={district._id}>
-                              {typeof district.name === 'object' ? district.name.en : district.name}
+                              {typeof district.name === 'string' 
+                                ? district.name 
+                                : (district.name && typeof district.name === 'object' && !Array.isArray(district.name) && 'en' in district.name)
+                                  ? district.name.en
+                                  : String(district.name || '')}
                             </MenuItem>
                           ))}
                       </Select>
@@ -744,7 +770,11 @@ const GeolocationsManagement: React.FC = () => {
                     >
                       {provinces.map((province) => (
                         <MenuItem key={province._id} value={province._id}>
-                          {typeof province.name === 'object' ? province.name.en : province.name}
+                          {typeof province.name === 'string' 
+                            ? province.name 
+                            : (province.name && typeof province.name === 'object' && !Array.isArray(province.name) && 'en' in province.name)
+                              ? province.name.en
+                              : String(province.name || '')}
                         </MenuItem>
                       ))}
                     </Select>
@@ -764,7 +794,11 @@ const GeolocationsManagement: React.FC = () => {
                         .filter(d => d.provinceId === formData.provinceId)
                         .map((district) => (
                           <MenuItem key={district._id} value={district._id}>
-                            {typeof district.name === 'object' ? district.name.en : district.name}
+                            {typeof district.name === 'string' 
+                              ? district.name 
+                              : (district.name && typeof district.name === 'object' && !Array.isArray(district.name) && 'en' in district.name)
+                                ? district.name.en
+                                : String(district.name || '')}
                           </MenuItem>
                         ))}
                     </Select>

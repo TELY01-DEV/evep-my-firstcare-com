@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVEP Production Deployment Guide</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            line-height: 1.6;
+            color: #333;
+        }
+        .container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 40px; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 { 
+            color: #2c3e50; 
+            border-bottom: 4px solid #9B7DCF; 
+            padding-bottom: 15px; 
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+        }
+        h2 { 
+            color: #34495e; 
+            border-left: 4px solid #9B7DCF; 
+            padding-left: 15px; 
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+        h3 { 
+            color: #7f8c8d; 
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+        .overview {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 5px solid #9B7DCF;
+        }
+        .section-card {
+            background: #ffffff;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .section-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            overflow-x: auto;
+            border-left: 4px solid #9B7DCF;
+        }
+        .requirements-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .requirement-card {
+            background: linear-gradient(135deg, #9B7DCF, #7B5FCF);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .requirement-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .requirement-desc {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        .back-to-home {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        .back-button {
+            display: inline-block;
+            background: #9B7DCF;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        .back-button:hover {
+            background: #7B5FCF;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            color: white;
+        }
+        .checklist {
+            background: #e8f5e8;
+            border: 1px solid #28a745;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .checklist-item {
+            margin: 10px 0;
+            padding: 5px 0;
+        }
+        .checklist-checkbox {
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="back-to-home">
+        <a href="index.html" class="back-button">🏠 Back to Home</a>
+    </div>
+    
+    <div class="container">
+        <h1>🚀 EVEP Platform Production Deployment Guide</h1>
+        
+        <div class="overview">
+            <h2>Overview</h2>
+            <p>This guide provides comprehensive instructions for deploying the EVEP Platform to production, including all necessary configurations, security measures, and monitoring setup.</p>
+        </div>
+
+        <section id="prerequisites">
+            <h2>📋 Prerequisites</h2>
+            
+            <div class="requirements-grid">
+                <div class="requirement-card">
+                    <div class="requirement-title">System Requirements</div>
+                    <div class="requirement-desc">
+                        <strong>OS:</strong> Ubuntu 20.04+ or CentOS 8+<br>
+                        <strong>CPU:</strong> 4+ cores<br>
+                        <strong>RAM:</strong> 8GB+ (16GB recommended)<br>
+                        <strong>Storage:</strong> 100GB+ SSD<br>
+                        <strong>Network:</strong> Stable internet connection
+                    </div>
+                </div>
+                <div class="requirement-card">
+                    <div class="requirement-title">Software Requirements</div>
+                    <div class="requirement-desc">
+                        Docker 20.10+<br>
+                        Docker Compose 2.0+<br>
+                        Nginx<br>
+                        Certbot (for SSL)<br>
+                        Git
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="quick-deployment">
+            <h2>🚀 Quick Deployment</h2>
+            
+            <div class="section-card">
+                <h3>1. Server Preparation</h3>
+                <div class="code-block">
+# Update system
+sudo apt-get update && sudo apt-get upgrade -y
+
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+
+# Install Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+
+# Install Nginx
+sudo apt-get install -y nginx
+
+# Install Certbot
+sudo apt-get install -y certbot python3-certbot-nginx
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3>2. Clone and Setup</h3>
+                <div class="code-block">
+# Clone the repository
+git clone https://github.com/your-repo/evep-platform.git
+cd evep-platform
+
+# Set up environment variables
+cp .env.example .env.production
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3>3. Configure Environment</h3>
+                <p>Edit <code>.env.production</code> with your production settings:</p>
+                <div class="code-block">
+# Domain Configuration
+DOMAIN=your-domain.com
+
+# Database Configuration
+MONGO_URI=mongodb://mongo-primary:27017,mongo-secondary-1:27017,mongo-secondary-2:27017/evep?replicaSet=rs0
+REDIS_URL=redis://redis-master-1:6379,redis-master-2:6379,redis-master-3:6379
+
+# JWT Configuration
+JWT_SECRET=your-super-secure-jwt-secret-here
+JWT_ALGORITHM=HS256
+JWT_EXPIRES_IN=24h
+
+# LINE Bot Configuration
+LINE_CHANNEL_ACCESS_TOKEN=your-line-channel-access-token
+LINE_CHANNEL_SECRET=your-line-channel-secret
+LINE_CHANNEL_ID=your-line-channel-id
+LINE_WEBHOOK_URL=https://your-domain.com/api/v1/line_integration/webhook
+
+# AI/ML Configuration
+OPENAI_API_KEY=your-openai-api-key
+AI_MODEL=gpt-4
+AI_MAX_TOKENS=2000
+
+# Security Configuration
+CORS_ORIGINS=https://your-domain.com,https://www.your-domain.com
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_WINDOW=900000
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3>4. Deploy with LINE Bot Integration</h3>
+                <div class="code-block">
+# Make deployment script executable
+chmod +x scripts/deploy-production-with-line-bot.sh
+
+# Deploy to production
+./scripts/deploy-production-with-line-bot.sh your-domain.com your-line-channel-access-token your-line-channel-secret your-line-channel-id
+                </div>
+            </div>
+        </section>
+
+        <section id="manual-deployment">
+            <h2>🔧 Manual Deployment Steps</h2>
+            
+            <div class="section-card">
+                <h3>1. Build and Start Services</h3>
+                <div class="code-block">
+# Build Docker images
+docker-compose build --no-cache
+
+# Start services
+docker-compose up -d
+
+# Check service status
+docker-compose ps
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3>2. Configure Nginx</h3>
+                <p>Create Nginx configuration with SSL, security headers, and proxy settings for all services.</p>
+                <div class="code-block">
+server {
+    listen 80;
+    server_name your-domain.com www.your-domain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name your-domain.com www.your-domain.com;
+    
+    # SSL Configuration
+    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+    
+    # Security headers
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header X-XSS-Protection "1; mode=block";
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    
+    # Frontend Application
+    location / {
+        proxy_pass http://localhost:3013;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # Backend API
+    location /api {
+        proxy_pass http://localhost:8013;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3>3. Setup SSL Certificate</h3>
+                <div class="code-block">
+# Request SSL certificate
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com --non-interactive --agree-tos --email admin@your-domain.com
+
+# Set up auto-renewal
+sudo crontab -e
+# Add: 0 12 * * * /usr/bin/certbot renew --quiet
+                </div>
+            </div>
+        </section>
+
+        <section id="security-configuration">
+            <h2>🔒 Security Configuration</h2>
+            
+            <div class="section-card">
+                <h3>1. Firewall Setup</h3>
+                <div class="code-block">
+# Configure UFW firewall
+sudo ufw allow ssh
+sudo ufw allow 80
+sudo ufw allow 443
+sudo ufw enable
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3>2. Security Headers</h3>
+                <p>Comprehensive security headers for protection against common attacks:</p>
+                <div class="code-block">
+# Security headers
+add_header X-Frame-Options DENY;
+add_header X-Content-Type-Options nosniff;
+add_header X-XSS-Protection "1; mode=block";
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';";
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3>3. Rate Limiting</h3>
+                <div class="code-block">
+# Rate limiting
+limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=login:10m rate=1r/s;
+
+location /api {
+    limit_req zone=api burst=20 nodelay;
+}
+
+location /api/v1/auth/login {
+    limit_req zone=login burst=5 nodelay;
+}
+                </div>
+            </div>
+        </section>
+
+        <section id="monitoring-setup">
+            <h2>📊 Monitoring Setup</h2>
+            
+            <div class="section-card">
+                <h3>1. Grafana Dashboard</h3>
+                <p>Access Grafana at <code>https://your-domain.com/monitoring</code></p>
+                <ul>
+                    <li><strong>Username:</strong> admin</li>
+                    <li><strong>Password:</strong> admin (change on first login)</li>
+                </ul>
+            </div>
+
+            <div class="section-card">
+                <h3>2. Kibana Logs</h3>
+                <p>Access Kibana at <code>https://your-domain.com/logs</code></p>
+            </div>
+
+            <div class="section-card">
+                <h3>3. Prometheus Metrics</h3>
+                <p>Access Prometheus at <code>http://localhost:9090</code></p>
+            </div>
+
+            <div class="section-card">
+                <h3>4. Health Monitoring</h3>
+                <div class="code-block">
+# Create health check script
+cat > /usr/local/bin/evep-health-check.sh << 'EOF'
+#!/bin/bash
+curl -f https://your-domain.com/health > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+    echo "EVEP Platform health check failed" | mail -s "EVEP Alert" admin@your-domain.com
+fi
+EOF
+
+chmod +x /usr/local/bin/evep-health-check.sh
+
+# Add to crontab
+sudo crontab -e
+# Add: */5 * * * * /usr/local/bin/evep-health-check.sh
+                </div>
+            </div>
+        </section>
+
+        <section id="backup-recovery">
+            <h2>🔄 Backup and Recovery</h2>
+            
+            <div class="section-card">
+                <h3>1. Automated Backups</h3>
+                <div class="code-block">
+# Create backup script
+cat > /usr/local/bin/evep-backup.sh << 'EOF'
+#!/bin/bash
+cd /path/to/evep-platform
+./scripts/backup-recovery.sh backup
+EOF
+
+chmod +x /usr/local/bin/evep-backup.sh
+
+# Add to crontab for daily backups
+sudo crontab -e
+# Add: 0 2 * * * /usr/local/bin/evep-backup.sh
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3>2. Backup Verification</h3>
+                <div class="code-block">
+# Check backup health
+./scripts/backup-recovery.sh health
+
+# List available backups
+./scripts/backup-recovery.sh list
+                </div>
+            </div>
+        </section>
+
+        <section id="testing-validation">
+            <h2>🧪 Testing and Validation</h2>
+            
+            <div class="section-card">
+                <h3>1. Production Readiness Check</h3>
+                <div class="code-block">
+# Run production readiness checklist
+./scripts/production-readiness-checklist.sh
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3>2. Load Testing</h3>
+                <div class="code-block">
+# Run load tests
+./scripts/load-test.sh 50 300 30
+# 50 users, 5 minutes, 30s ramp-up
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3>3. Security Testing</h3>
+                <div class="code-block">
+# Test SSL configuration
+curl -I https://your-domain.com
+
+# Test security headers
+curl -I https://your-domain.com/api/v1/auth/health
+                </div>
+            </div>
+        </section>
+
+        <section id="performance-optimization">
+            <h2>📈 Performance Optimization</h2>
+            
+            <div class="section-card">
+                <h3>1. Database Optimization</h3>
+                <div class="code-block">
+# Create database indexes
+docker exec evep-backend python -c "
+from app.core.database import get_database
+db = get_database().evep
+
+# Create indexes for better performance
+db.patients.create_index([('user_id', 1)])
+db.screenings.create_index([('patient_id', 1), ('created_at', -1)])
+db.line_messages.create_index([('user_id', 1), ('created_at', -1)])
+"
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3>2. Caching Configuration</h3>
+                <div class="code-block">
+# In your application code
+CACHE_CONFIG = {
+    'default': {
+        'CACHE_TYPE': 'redis',
+        'CACHE_REDIS_URL': 'redis://redis-master-1:6379/0',
+        'CACHE_DEFAULT_TIMEOUT': 300
+    }
+}
+                </div>
+            </div>
+        </section>
+
+        <section id="troubleshooting">
+            <h2>🚨 Troubleshooting</h2>
+            
+            <div class="section-card">
+                <h3>Common Issues</h3>
+                <div class="code-block">
+# Services not starting
+docker-compose logs
+docker stats
+
+# Database connection issues
+docker exec evep-mongo-primary mongo --eval "rs.status()"
+docker exec evep-redis-master-1 redis-cli ping
+
+# LINE Bot webhook issues
+curl -X POST https://your-domain.com/api/v1/line_integration/webhook \
+  -H "Content-Type: application/json" \
+  -d '{"test": "data"}'
+                </div>
+            </div>
+        </section>
+
+        <div class="checklist">
+            <h3>🎉 Post-Deployment Checklist</h3>
+            <div class="checklist-item">
+                <span class="checklist-checkbox">☐</span> All services are running and healthy
+            </div>
+            <div class="checklist-item">
+                <span class="checklist-checkbox">☐</span> SSL certificate is valid and auto-renewing
+            </div>
+            <div class="checklist-item">
+                <span class="checklist-checkbox">☐</span> LINE Bot is configured and tested
+            </div>
+            <div class="checklist-item">
+                <span class="checklist-checkbox">☐</span> Monitoring dashboards are accessible
+            </div>
+            <div class="checklist-item">
+                <span class="checklist-checkbox">☐</span> Backup system is working
+            </div>
+            <div class="checklist-item">
+                <span class="checklist-checkbox">☐</span> Security measures are in place
+            </div>
+            <div class="checklist-item">
+                <span class="checklist-checkbox">☐</span> Performance is acceptable
+            </div>
+            <div class="checklist-item">
+                <span class="checklist-checkbox">☐</span> Documentation is updated
+            </div>
+            <div class="checklist-item">
+                <span class="checklist-checkbox">☐</span> Team is trained on the system
+            </div>
+            <div class="checklist-item">
+                <span class="checklist-checkbox">☐</span> Support procedures are established
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>Congratulations! Your EVEP Platform is now deployed and ready for production use.</strong> 🚀</p>
+            <p>For ongoing support and updates, refer to the platform documentation and monitoring dashboards.</p>
+        </div>
+    </div>
+</body>
+</html>

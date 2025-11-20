@@ -40,6 +40,8 @@ class PatientCreate(BaseModel):
     family_vision_history: Optional[dict] = None
     insurance_info: Optional[dict] = None
     consent_forms: Optional[dict] = None
+    registration_type: Optional[str] = "direct"  # direct, from_student, walk_in
+    source_student_id: Optional[str] = None  # Original student ID if from_student
 
 class PatientUpdate(BaseModel):
     first_name: Optional[str] = None
@@ -83,6 +85,8 @@ class PatientResponse(BaseModel):
     updated_at: str
     created_by: str
     audit_hash: str
+    registration_type: Optional[str] = "direct"  # direct, from_student, walk_in
+    source_student_id: Optional[str] = None  # Original student ID if from_student
 
 class PatientSearch(BaseModel):
     query: Optional[str] = None
@@ -145,6 +149,8 @@ async def create_patient(
         "family_vision_history": patient_data.family_vision_history or {},
         "insurance_info": patient_data.insurance_info or {},
         "consent_forms": patient_data.consent_forms or {},
+        "registration_type": patient_data.registration_type or "direct",
+        "source_student_id": patient_data.source_student_id,
         "is_active": True,
         "created_at": datetime.utcnow().isoformat(),
         "updated_at": datetime.utcnow().isoformat(),
@@ -642,7 +648,7 @@ async def register_student_as_patient(
     
     # Get student data from EVEP system
     db = get_database()
-    student = await db.evep.students.find_one({"_id": ObjectId(student_id)})
+    student = await db.evep["evep.students"].find_one({"_id": ObjectId(student_id)})
     
     if not student:
         raise HTTPException(
@@ -653,7 +659,7 @@ async def register_student_as_patient(
     # Get parent data
     parent = None
     if student.get("parent_id"):
-        parent = await db.evep.parents.find_one({"_id": ObjectId(student["parent_id"])})
+        parent = await db.evep["evep.parents"].find_one({"_id": ObjectId(student["parent_id"])})
     
     # Check if patient already exists for this student
     existing_patient = await patients_collection.find_one({
@@ -675,6 +681,7 @@ async def register_student_as_patient(
     patient_doc = {
         "first_name": student["first_name"],
         "last_name": student["last_name"],
+        "cid": student.get("cid", ""),  # Get CID from student if available
         "date_of_birth": student["birth_date"].isoformat() if isinstance(student["birth_date"], datetime) else student["birth_date"],
         "gender": student["gender"],
         "parent_email": parent["email"] if parent else patient_data.parent_email,
@@ -688,6 +695,8 @@ async def register_student_as_patient(
         "family_vision_history": patient_data.family_vision_history or {},
         "insurance_info": patient_data.insurance_info or {},
         "consent_forms": patient_data.consent_forms or {},
+        "registration_type": "from_student",  # Mark as created from student
+        "source_student_id": student_id,  # Link to original student record
         "is_active": True,
         "created_at": datetime.utcnow().isoformat(),
         "updated_at": datetime.utcnow().isoformat(),
@@ -695,8 +704,8 @@ async def register_student_as_patient(
         "audit_hash": audit_hash,
         "screening_history": [],
         "documents": [],
-        "student_id": student_id,  # Link to original student record
-        "source": "student_registration"
+        "student_id": student_id,  # Legacy field for backward compatibility
+        "source": "student_registration"  # Legacy field for backward compatibility
     }
     
     # Insert patient into database

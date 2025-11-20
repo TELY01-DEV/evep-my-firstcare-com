@@ -736,11 +736,18 @@ const HospitalsManagement: React.FC = () => {
               >
                 {districts
                   .filter(d => d.provinceId === formData.provinceId)
-                  .map((district) => (
-                    <MenuItem key={district._id} value={district._id}>
-                      {typeof district.name === 'object' ? district.name.en : district.name}
-                    </MenuItem>
-                  ))}
+                  .map((district) => {
+                    const displayName = typeof district.name === 'string' 
+                      ? district.name 
+                      : (district.name && typeof district.name === 'object' && !Array.isArray(district.name) && 'en' in district.name)
+                        ? district.name.en
+                        : String(district.name || '');
+                    return (
+                      <MenuItem key={district._id} value={district._id}>
+                        {displayName}
+                      </MenuItem>
+                    );
+                  })}
               </Select>
             </FormControl>
           </Grid>
@@ -898,11 +905,18 @@ const HospitalsManagement: React.FC = () => {
                             }}
                           >
                             <MenuItem value="">All Provinces</MenuItem>
-                            {provinces.map((province) => (
-                              <MenuItem key={province._id} value={province._id}>
-                                {typeof province.name === 'object' ? province.name.en : province.name}
-                              </MenuItem>
-                            ))}
+                            {provinces.map((province) => {
+                              const displayName = typeof province.name === 'string' 
+                                ? province.name 
+                                : (province.name && typeof province.name === 'object' && !Array.isArray(province.name) && 'en' in province.name)
+                                  ? province.name.en
+                                  : String(province.name || '');
+                              return (
+                                <MenuItem key={province._id} value={province._id}>
+                                  {displayName}
+                                </MenuItem>
+                              );
+                            })}
                           </Select>
                         </FormControl>
                       </Grid>

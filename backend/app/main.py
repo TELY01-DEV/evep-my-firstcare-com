@@ -39,7 +39,7 @@ from app.api.insights import router as insights_router
 from app.api.mobile_screening import router as mobile_screening_router
 from app.api.medical_staff import router as medical_staff_router
 from app.api.panel_settings import router as panel_settings_router
-from app.api.rbac import router as rbac_router
+# from app.api.rbac import router as rbac_router  # OLD file-based RBAC - DEPRECATED
 from app.api.rbac_mongodb import router as rbac_mongodb_router
 from app.api.user_management import router as user_management_router
 from app.api.medical_staff_management import router as medical_staff_management_router
@@ -416,13 +416,13 @@ async def startup_event():
     app.include_router(panel_settings_router, prefix="/api/v1/panel-settings", tags=["panel_settings"])
     logger.info("Panel Settings API router included successfully!")
     
-    # Include RBAC management API router (file-based)
-    app.include_router(rbac_router, prefix="/api/v1/rbac", tags=["rbac"])
-    logger.info("RBAC Management API router included successfully!")
+    # Include RBAC management API router (MongoDB-based) - UPDATED to use MongoDB instead of file-based
+    app.include_router(rbac_mongodb_router, prefix="/api/v1/rbac", tags=["rbac"])
+    logger.info("RBAC Management API router (MongoDB) included successfully!")
     
-    # Include MongoDB RBAC management API router
-    app.include_router(rbac_mongodb_router, prefix="/api/v1/rbac-mongodb", tags=["rbac_mongodb"])
-    logger.info("MongoDB RBAC Management API router included successfully!")
+    # Legacy file-based RBAC kept for backward compatibility at different endpoint
+    # app.include_router(rbac_router, prefix="/api/v1/rbac-legacy", tags=["rbac_legacy"])
+    # logger.info("Legacy RBAC Management API router included successfully!")
     
     # Include User Management API router
     app.include_router(user_management_router, prefix="/api/v1/user-management", tags=["user_management"])

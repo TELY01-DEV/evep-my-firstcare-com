@@ -147,7 +147,10 @@ export const UnifiedAuthProvider: React.FC<UnifiedAuthProviderProps> = ({ childr
 
   // Legacy compatibility methods for existing components
   const hasPermission = (permission: string): boolean => {
-    if (!user || !user.permissions) return false;
+    if (!user) return false;
+    // Super admin bypasses all permission checks
+    if (user.role === 'super_admin') return true;
+    if (!user.permissions) return false;
     return user.permissions.includes(permission) || user.permissions.includes('full_access');
   };
 

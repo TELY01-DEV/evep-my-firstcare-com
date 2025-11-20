@@ -48,6 +48,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Autocomplete,
 } from '@mui/material';
 import {
   Visibility,
@@ -81,6 +82,7 @@ import {
 } from '@mui/icons-material';
 
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import DoctorDiagnosisForm from './DoctorDiagnosisForm';
 import { API_ENDPOINTS } from '../config/api';
 
@@ -92,13 +94,16 @@ interface MobileVisionScreeningFormProps {
 
 interface Patient {
   _id: string;
+  original_student_id?: string; // Original ID from EVEP Students API
   first_name: string;
   last_name: string;
   date_of_birth: string;
+  gender?: string;
   school?: string;
   grade?: string;
   student_id?: string;
   citizen_id?: string;
+  cid?: string; // Citizen ID field
   parent_consent?: boolean;
   registration_status?: 'pending' | 'registered' | 'screened';
   photos?: string[]; // Array of photo URLs/base64 strings
@@ -107,6 +112,9 @@ interface Patient {
   registration_date?: string;
   parent_phone?: string;
   parent_email?: string;
+  parent_name?: string;
+  registration_type?: 'direct' | 'from_student' | 'walk_in';
+  source_student_id?: string;
 }
 
 interface VisionResults {
@@ -167,6 +175,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
   onCancel,
 }) => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   
   // State management
   const [activeStep, setActiveStep] = useState(0);
@@ -174,13 +183,16 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   
   // Patient selection
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [schools, setSchools] = useState<Array<{id: string, name: string}>>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'school' | 'appointment' | 'manual'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'school' | 'appointment' | 'manual' | 'prescreened' | 'notscreened'>('all');
+  const [filterSchool, setFilterSchool] = useState<string>('all');
   
   // Citizen card reader
   const [citizenCardDialogOpen, setCitizenCardDialogOpen] = useState(false);
@@ -193,6 +205,8 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
   
   // Manual patient registration
   const [manualPatientDialogOpen, setManualPatientDialogOpen] = useState(false);
+  const [showStudentLookup, setShowStudentLookup] = useState(false);
+  const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [newPatient, setNewPatient] = useState({
     first_name: '',
     last_name: '',
@@ -203,6 +217,10 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
     parent_phone: '',
     parent_email: '',
   });
+  
+  // Patient editing
+  const [isEditingPatient, setIsEditingPatient] = useState(false);
+  const [editedPatient, setEditedPatient] = useState<Patient | null>(null);
   
   // Screening workflow
   const [parentConsent, setParentConsent] = useState(false);
@@ -244,6 +262,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
   useEffect(() => {
     fetchPatients();
     fetchAppointments();
+    fetchSchools();
   }, []);
 
   // Refetch patients when tab changes
@@ -256,38 +275,57 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-      // For School Screening Students tab, fetch students who completed school screening and need medical screening
-      if (selectedTab === 0) {
-        const response = await fetch(API_ENDPOINTS.EVEP_STUDENTS_READY_FOR_PATIENT_REGISTRATION, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
+      // Fetch all students for both tabs (to show all available students)
+      const response = await fetch(API_ENDPOINTS.EVEP_STUDENTS, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-        if (response.ok) {
-          const data = await response.json();
-          setPatients(data.students || []);
+      if (response.ok) {
+        const data = await response.json();
+        const studentList = data.students || data.patients || [];
+        
+        // Transform EVEP students API response to match Patient interface
+        const transformedStudents = studentList.map((student: any) => ({
+          _id: student.id || student._id,
+          original_student_id: student.id || student._id, // Preserve original ID for backend
+          first_name: student.first_name || '',
+          last_name: student.last_name || '',
+          date_of_birth: student.birth_date || student.date_of_birth || '',
+          school: student.school_name || student.school || '',
+          grade: student.grade_level || student.grade || '',
+          student_id: student.student_code || student.student_id || '',
+          citizen_id: student.cid || student.citizen_id || '',
+          parent_consent: student.consent_document || student.parent_consent || false,
+          registration_status: student.registration_status || student.status || 'pending',
+          photos: student.profile_photo ? [student.profile_photo, ...(student.extra_photos || [])] : (student.photos || []),
+          screening_status: student.screening_status || 'pending',
+          follow_up_needed: student.follow_up_needed || false,
+          registration_date: student.registration_date || '',
+          parent_phone: student.parent_phone || '',
+          parent_email: student.parent_email || '',
+          gender: student.gender || ''
+        }));
+        
+        // For School Screening Students tab, prioritize students with screening status
+        if (selectedTab === 0) {
+          // Sort students: screened/completed first, then others
+          const sortedStudents = [...transformedStudents].sort((a, b) => {
+            const aHasScreening = a.screening_status === 'completed' || a.registration_status === 'screened';
+            const bHasScreening = b.screening_status === 'completed' || b.registration_status === 'screened';
+            if (aHasScreening && !bHasScreening) return -1;
+            if (!aHasScreening && bHasScreening) return 1;
+            return 0;
+          });
+          setPatients(sortedStudents);
         } else {
-          console.error('Failed to fetch students ready for medical screening from API');
-          setPatients([]);
+          setPatients(transformedStudents);
         }
       } else {
-        // For other tabs, fetch regular students
-        const response = await fetch(API_ENDPOINTS.EVEP_STUDENTS, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setPatients(data.patients || []);
-        } else {
-          console.error('Failed to fetch patients from API');
-          setPatients([]);
-        }
+        console.error('Failed to fetch students from API');
+        setPatients([]);
       }
     } catch (err) {
       console.error('Failed to fetch patients:', err);
@@ -338,14 +376,122 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
     setManualPatientDialogOpen(true);
   };
 
-  const handlePatientSelect = (patient: Patient) => {
+  const handlePatientSelect = async (patient: Patient) => {
+    // Just select the patient/student, don't register yet
+    // Registration will happen in step 3 when user clicks "Register as Patient" button
     setSelectedPatient(patient);
+    
     setActiveStep(1); // Move to Parent Consent step
   };
 
-  const handleNext = () => {
+  // Function to register student as patient
+  const registerStudentAsPatient = async () => {
+    if (!selectedPatient) return false;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      const token = localStorage.getItem('evep_token');
+      
+      const studentIdForBackend = selectedPatient.original_student_id || selectedPatient._id;
+      
+      console.log('Checking if patient exists for student ID:', studentIdForBackend);
+      
+      // First, check if a patient already exists
+      const checkResponse = await fetch(`${API_ENDPOINTS.PATIENTS}?student_id=${studentIdForBackend}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (checkResponse.ok) {
+        const existingPatients = await checkResponse.json();
+        
+        if (existingPatients && existingPatients.length > 0) {
+          console.log('Found existing patient for student, using it');
+          const existingPatient = existingPatients[0];
+          setSelectedPatient({
+            ...existingPatient,
+            registration_type: 'from_student',
+            original_student_id: studentIdForBackend
+          });
+          setSuccess('Patient already registered, loaded existing record');
+          return true;
+        }
+      }
+      
+      console.log('Registering new patient for student ID:', studentIdForBackend);
+      
+      const patientData = {
+        first_name: selectedPatient.first_name || '',
+        last_name: selectedPatient.last_name || '',
+        cid: selectedPatient.cid || selectedPatient.citizen_id || '',
+        date_of_birth: selectedPatient.date_of_birth || '',
+        gender: selectedPatient.gender || 'male',
+        parent_email: selectedPatient.parent_email || 'noemail@example.com',
+        parent_phone: selectedPatient.parent_phone || '0000000000',
+        emergency_contact: selectedPatient.parent_name || 'ไม่ระบุ',
+        emergency_phone: selectedPatient.parent_phone || '0000000000',
+        address: '',
+        school: selectedPatient.school || '',
+        grade: selectedPatient.grade || '',
+        medical_history: {},
+        family_vision_history: {},
+        insurance_info: {},
+        consent_forms: {},
+        registration_type: 'from_student',
+        source_student_id: studentIdForBackend
+      };
+      
+      const response = await fetch(`${API_ENDPOINTS.PATIENTS}/from-student/${studentIdForBackend}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(patientData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API Error Response:', errorData);
+        throw new Error(errorData.detail || 'Failed to register student as patient');
+      }
+
+      const registeredPatient = await response.json();
+      setSelectedPatient(registeredPatient);
+      setSuccess('Student successfully registered as patient!');
+      return true;
+    } catch (err) {
+      console.error('Error registering student as patient:', err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      setError(errorMessage);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNext = async () => {
+    // If on step 2 (Student Registration) and student not yet registered, register first
+    if (activeStep === 2 && selectedPatient && !selectedPatient.registration_status) {
+      const registered = await registerStudentAsPatient();
+      if (!registered) return; // Don't proceed if registration failed
+    }
+    
     if (activeStep < steps.length - 1) {
       setActiveStep(activeStep + 1);
+    }
+  };
+
+  const handleRegisterAndClose = async () => {
+    const registered = await registerStudentAsPatient();
+    if (registered) {
+      // Reset form and go back to patient selection
+      setSelectedPatient(null);
+      setActiveStep(0);
+      setSuccess('Patient registered successfully! Ready for screening when needed.');
     }
   };
 
@@ -353,6 +499,85 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
     if (activeStep > 0) {
       setActiveStep(activeStep - 1);
     }
+  };
+
+  const handleSaveProgress = async () => {
+    if (!selectedPatient) {
+      setError('Please select a patient first');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const token = localStorage.getItem('evep_token');
+      
+      const sessionData = {
+        patient_id: selectedPatient._id,
+        examiner_id: user?.user_id,
+        screening_type: 'mobile_vision_screening',
+        screening_category: 'mobile_screening',
+        status: 'in_progress',
+        current_step: activeStep,
+        current_step_name: steps[activeStep],
+        workflow_data: {
+          parent_consent: parentConsent,
+          consent_date: consentDate,
+          screening_results: screeningResults,
+          inventory_checked: inventoryChecked,
+          glasses_selected: glassesSelected,
+          delivery_scheduled: deliveryScheduled,
+        },
+        notes: `Saved at step ${activeStep + 1}: ${steps[activeStep]}`,
+      };
+
+      const url = currentSessionId 
+        ? `${API_ENDPOINTS.SCREENINGS_SESSIONS}/${currentSessionId}`
+        : API_ENDPOINTS.SCREENINGS_SESSIONS;
+      
+      const method = currentSessionId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(sessionData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (!currentSessionId && data.session_id) {
+          setCurrentSessionId(data.session_id);
+        }
+        setSuccess(`Progress saved at: ${steps[activeStep]}`);
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.detail || 'Failed to save progress');
+      }
+      
+    } catch (err) {
+      console.error('Failed to save progress:', err);
+      setError('Failed to save progress');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSavePatientEdit = () => {
+    if (editedPatient) {
+      setSelectedPatient(editedPatient);
+      setIsEditingPatient(false);
+      setSuccess('Patient information updated');
+      setTimeout(() => setSuccess(null), 3000);
+    }
+  };
+
+  const handleCancelPatientEdit = () => {
+    setEditedPatient(null);
+    setIsEditingPatient(false);
   };
 
   const handleScreeningComplete = async () => {
@@ -364,13 +589,31 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
         patient_id: selectedPatient?._id,
         examiner_id: user?.user_id,
         screening_type: 'mobile_vision_screening',
+        screening_category: 'mobile_screening',
+        status: 'completed',
+        current_step: steps.length - 1,
+        current_step_name: steps[steps.length - 1],
+        workflow_data: {
+          parent_consent: parentConsent,
+          consent_date: consentDate,
+          screening_results: screeningResults,
+          inventory_checked: inventoryChecked,
+          glasses_selected: glassesSelected,
+          delivery_scheduled: deliveryScheduled,
+        },
         results: screeningResults,
         workflow_completed: true,
         delivery_scheduled: deliveryScheduled,
       };
 
-              const response = await fetch(API_ENDPOINTS.SCREENINGS_SESSIONS, {
-        method: 'POST',
+      const url = currentSessionId 
+        ? `${API_ENDPOINTS.SCREENINGS_SESSIONS}/${currentSessionId}`
+        : API_ENDPOINTS.SCREENINGS_SESSIONS;
+      
+      const method = currentSessionId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -394,28 +637,55 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
     }
   };
 
+  const fetchSchools = async () => {
+    try {
+      const token = localStorage.getItem('evep_token');
+      const response = await fetch(API_ENDPOINTS.EVEP_SCHOOLS, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const schoolList = (data.schools || []).map((school: any) => ({
+          id: school.id,
+          name: school.name
+        }));
+        setSchools(schoolList);
+      }
+    } catch (error) {
+      console.error('Error fetching schools:', error);
+    }
+  };
+
   const filteredPatients = patients.filter(patient => {
     const matchesSearch = `${patient.first_name} ${patient.last_name} ${patient.student_id || ''} ${patient.citizen_id || ''}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
     
     const matchesFilter = filterType === 'all' || 
+      (filterType === 'prescreened' && patient.screening_status === 'completed') ||
+      (filterType === 'notscreened' && patient.screening_status !== 'completed') ||
       (filterType === 'school' && patient.school) ||
       (filterType === 'appointment' && appointments.some(apt => apt.patient_id === patient._id)) ||
       (filterType === 'manual' && !patient.school);
     
-    return matchesSearch && matchesFilter;
+    const matchesSchool = filterSchool === 'all' || patient.school === filterSchool;
+    
+    return matchesSearch && matchesFilter && matchesSchool;
   });
 
   const renderPatientSelection = () => (
     <Box>
       <Typography variant="h6" gutterBottom>
-        Select Patient for Mobile Vision Screening
+        {t('mobile_screening.select_patient')}
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
         {selectedTab === 0 
-          ? "Choose a student who completed school screening and needs medical team screening & diagnosis with glasses prescription and fitting, or start the workflow without a patient."
-          : "Choose a patient to conduct mobile vision screening with glasses prescription and fitting, or start the workflow without a patient."
+          ? t('mobile_screening.description_school')
+          : t('mobile_screening.description_walkin')
         }
       </Typography>
 
@@ -425,10 +695,10 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Box>
               <Typography variant="h6" color="primary">
-                Start Workflow Without Patient
+                {t('mobile_screening.start_without_patient')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Begin the mobile vision screening workflow and add patient information later
+                {t('mobile_screening.start_without_patient_desc')}
               </Typography>
             </Box>
             <Button
@@ -440,18 +710,91 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
                 setActiveStep(1); // Move to Parent Consent step
               }}
             >
-              Start Workflow
+              {t('mobile_screening.start_workflow')}
             </Button>
           </Box>
         </CardContent>
       </Card>
 
       {/* Patient Selection Tabs */}
-      <Tabs value={selectedTab} onChange={(e, newValue) => setSelectedTab(newValue)} sx={{ mb: 3 }}>
-        <Tab label="School Screening Students" icon={<School />} />
-        <Tab label="Manual Registration" icon={<Person />} />
-        <Tab label="Citizen Card Reader" icon={<CreditCard />} />
+      <Tabs value={selectedTab} onChange={(e, newValue) => {
+        setSelectedTab(newValue);
+        setShowStudentLookup(false);
+        setStudentSearchTerm('');
+      }} sx={{ mb: 3 }}>
+        <Tab 
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <School />
+              <Box sx={{ textAlign: 'left' }}>
+                <Typography variant="body2" fontWeight="bold">{t('mobile_screening.school_students')}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {t('mobile_screening.school_students_desc')}
+                </Typography>
+              </Box>
+            </Box>
+          } 
+        />
+        <Tab 
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Person />
+              <Box sx={{ textAlign: 'left' }}>
+                <Typography variant="body2" fontWeight="bold">{t('mobile_screening.walkin_patient')}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {t('mobile_screening.walkin_patient_desc')}
+                </Typography>
+              </Box>
+            </Box>
+          } 
+        />
+        <Tab 
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <CreditCard />
+              <Box sx={{ textAlign: 'left' }}>
+                <Typography variant="body2" fontWeight="bold">{t('mobile_screening.citizen_card')}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {t('mobile_screening.citizen_card_desc')}
+                </Typography>
+              </Box>
+            </Box>
+          } 
+        />
       </Tabs>
+
+      {/* Manual Registration: Toggle between Student Lookup and New Patient Form */}
+      {selectedTab === 1 && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            <strong>{t('mobile_screening.two_ways_title')}</strong>
+          </Typography>
+          <Typography variant="body2" component="div">
+            1. {t('mobile_screening.two_ways_new')}
+            <br />
+            2. {t('mobile_screening.two_ways_existing')}
+          </Typography>
+        </Alert>
+      )}
+      
+      {selectedTab === 1 && (
+        <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
+          <Button
+            variant={!showStudentLookup ? 'contained' : 'outlined'}
+            startIcon={<Person />}
+            onClick={() => setShowStudentLookup(false)}
+          >
+            {t('mobile_screening.create_new_patient')}
+          </Button>
+          <Button
+            variant={showStudentLookup ? 'contained' : 'outlined'}
+            startIcon={<School />}
+            onClick={() => setShowStudentLookup(true)}
+          >
+            {t('mobile_screening.use_existing_student')}
+          </Button>
+        </Box>
+      )}
 
       {/* Search and Filter */}
       <Box sx={{ mb: 3 }}>
@@ -459,38 +802,214 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Search patients"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              label={selectedTab === 1 && showStudentLookup ? t('mobile_screening.search_students') : t('mobile_screening.search_patients')}
+              value={selectedTab === 1 && showStudentLookup ? studentSearchTerm : searchTerm}
+              onChange={(e) => {
+                if (selectedTab === 1 && showStudentLookup) {
+                  setStudentSearchTerm(e.target.value);
+                } else {
+                  setSearchTerm(e.target.value);
+                }
+              }}
               InputProps={{
                 startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
               }}
             />
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={4}>
             <FormControl fullWidth>
-              <InputLabel>Filter by type</InputLabel>
+              <InputLabel>{t('mobile_screening.filter_by_type')}</InputLabel>
               <Select
                 value={filterType}
-                label="Filter by type"
+                label={t('mobile_screening.filter_by_type')}
                 onChange={(e) => setFilterType(e.target.value as any)}
                 startAdornment={<FilterList sx={{ mr: 1, color: 'text.secondary' }} />}
               >
-                <MenuItem value="all">All Patients</MenuItem>
-                <MenuItem value="school">School Screening Students</MenuItem>
-                <MenuItem value="appointment">Appointment Patients</MenuItem>
-                <MenuItem value="manual">Manual Registration</MenuItem>
+                <MenuItem value="all">{t('mobile_screening.all_students')}</MenuItem>
+                <MenuItem value="prescreened">{t('mobile_screening.path2_prescreened')}</MenuItem>
+                <MenuItem value="notscreened">{t('mobile_screening.path1_notscreened')}</MenuItem>
+                <MenuItem value="school">{t('mobile_screening.school_students_filter')}</MenuItem>
+                <MenuItem value="manual">{t('mobile_screening.walkin_patients_filter')}</MenuItem>
               </Select>
             </FormControl>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <Autocomplete
+              fullWidth
+              options={[{ id: 'all', name: t('mobile_screening.all_schools') }, ...schools]}
+              getOptionLabel={(option) => option.name}
+              value={schools.find(s => s.name === filterSchool) || { id: 'all', name: t('mobile_screening.all_schools') }}
+              onChange={(event, newValue) => {
+                const allSchoolsText = t('mobile_screening.all_schools');
+                setFilterSchool(newValue ? newValue.name === allSchoolsText ? 'all' : newValue.name : 'all');
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={t('mobile_screening.filter_by_school')}
+                  placeholder={t('mobile_screening.search_or_select_school')}
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <>
+                        <SchoolIcon sx={{ ml: 1, mr: 0.5, color: 'text.secondary' }} />
+                        {params.InputProps.startAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+            />
           </Grid>
         </Grid>
       </Box>
 
-      {/* Patient List */}
+      {/* Show Manual Patient Form for Manual Registration tab when not in lookup mode */}
+      {selectedTab === 1 && !showStudentLookup && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              ➕ {t('mobile_screening.create_new_walkin')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              {t('mobile_screening.registration_path2_desc')}
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  required
+                  label={t('mobile_screening.first_name')}
+                  value={newPatient.first_name}
+                  onChange={(e) => setNewPatient({ ...newPatient, first_name: e.target.value })}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  required
+                  label={t('mobile_screening.last_name')}
+                  value={newPatient.last_name}
+                  onChange={(e) => setNewPatient({ ...newPatient, last_name: e.target.value })}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  required
+                  label={t('mobile_screening.date_of_birth')}
+                  type="date"
+                  value={newPatient.date_of_birth}
+                  onChange={(e) => setNewPatient({ ...newPatient, date_of_birth: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label={t('mobile_screening.school')}
+                  value={newPatient.school}
+                  onChange={(e) => setNewPatient({ ...newPatient, school: e.target.value })}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label={t('mobile_screening.grade')}
+                  value={newPatient.grade}
+                  onChange={(e) => setNewPatient({ ...newPatient, grade: e.target.value })}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label={t('mobile_screening.parent_name')}
+                  value={newPatient.parent_name}
+                  onChange={(e) => setNewPatient({ ...newPatient, parent_name: e.target.value })}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Parent Phone"
+                  value={newPatient.parent_phone}
+                  onChange={(e) => setNewPatient({ ...newPatient, parent_phone: e.target.value })}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Parent Email"
+                  type="email"
+                  value={newPatient.parent_email}
+                  onChange={(e) => setNewPatient({ ...newPatient, parent_email: e.target.value })}
+                />
+              </Grid>
+            </Grid>
+            <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+              <Button
+                variant="contained"
+                startIcon={<HowToReg />}
+                disabled={!newPatient.first_name || !newPatient.last_name || !newPatient.date_of_birth}
+                onClick={() => {
+                  const tempPatient: Patient = {
+                    _id: `temp_${Date.now()}`,
+                    first_name: newPatient.first_name,
+                    last_name: newPatient.last_name,
+                    date_of_birth: newPatient.date_of_birth,
+                    school: newPatient.school,
+                    grade: newPatient.grade,
+                    parent_phone: newPatient.parent_phone,
+                    parent_email: newPatient.parent_email,
+                    registration_status: 'registered'
+                  };
+                  setSelectedPatient(tempPatient);
+                  setActiveStep(1);
+                }}
+              >
+                Create Patient & Start Screening
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Patient List - Show for School Students tab or Manual Registration in lookup mode */}
+      {(selectedTab === 0 || (selectedTab === 1 && showStudentLookup)) && (
       <Card>
         <CardContent>
+          <Typography variant="subtitle1" gutterBottom>
+            {selectedTab === 0 ? '📚 Students Registered by Teachers' : '🔄 Convert Student to Patient'}
+          </Typography>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2" component="div">
+              {selectedTab === 0 ? (
+                <>
+                  <strong>How students become patients:</strong>
+                  <br />
+                  <strong>Path 1:</strong> Staff/doctor directly picks student from this list (Steps 1-3) → Student becomes patient
+                  <br />
+                  <strong>Path 2:</strong> Teacher conducts school screening first → Student marked as "screened" → Staff/doctor picks from screened students
+                </>
+              ) : (
+                <>
+                  <strong>Walk-in patient using existing student record:</strong>
+                  <br />
+                  Select a student registered by a teacher to convert them to a patient for today's screening.
+                </>
+              )}
+            </Typography>
+          </Alert>
           <List>
-            {filteredPatients.map((patient) => (
+            {(selectedTab === 1 && showStudentLookup 
+              ? patients.filter(p => 
+                  (p.first_name?.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+                   p.last_name?.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+                   p.student_id?.toLowerCase().includes(studentSearchTerm.toLowerCase()))
+                )
+              : filteredPatients
+            ).map((patient) => (
               <ListItem
                 key={patient._id}
                 button
@@ -557,6 +1076,49 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
                             color={patient.registration_status === 'screened' ? 'success' : 'warning'}
                           />
                         )}
+                        {patient.screening_status === 'completed' && (
+                          <Chip
+                            label="Pre-screened by Teacher (Path 2)"
+                            size="small"
+                            color="success"
+                            variant="outlined"
+                          />
+                        )}
+                        {patient.screening_status !== 'completed' && selectedTab === 0 && (
+                          <Chip
+                            label="Ready for Direct Screening (Path 1)"
+                            size="small"
+                            color="info"
+                            variant="outlined"
+                          />
+                        )}
+                        {patient.registration_type === 'from_student' && (
+                          <Chip
+                            icon={<SchoolIcon />}
+                            label="From Student Record"
+                            size="small"
+                            color="success"
+                            sx={{ mr: 1 }}
+                          />
+                        )}
+                        {patient.registration_type === 'direct' && (
+                          <Chip
+                            icon={<Person />}
+                            label="Direct Registration"
+                            size="small"
+                            color="info"
+                            sx={{ mr: 1 }}
+                          />
+                        )}
+                        {patient.registration_type === 'walk_in' && (
+                          <Chip
+                            icon={<Home />}
+                            label="Walk-in Patient"
+                            size="small"
+                            color="warning"
+                            sx={{ mr: 1 }}
+                          />
+                        )}
                       </Box>
                     </Box>
                   }
@@ -570,7 +1132,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
                       handlePatientSelect(patient);
                     }}
                   >
-                    Start Screening
+                    {patient.screening_status === 'completed' ? 'Medical Screening' : 'Start Screening'}
                   </Button>
                 </Box>
               </ListItem>
@@ -578,16 +1140,11 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
           </List>
         </CardContent>
       </Card>
+      )}
 
-      {/* Action Buttons */}
+      {/* Action Buttons - Only show for Citizen Card tab */}
+      {selectedTab === 2 && (
       <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
-        <Button
-          variant="outlined"
-          startIcon={<Add />}
-          onClick={handleManualPatientAdd}
-        >
-          Add New Patient
-        </Button>
         <Button
           variant="outlined"
           startIcon={<CreditCard />}
@@ -596,6 +1153,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
           Read Citizen Card
         </Button>
       </Box>
+      )}
     </Box>
   );
 
@@ -729,7 +1287,161 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
             <Typography variant="h6" gutterBottom>
               Parent Consent
             </Typography>
-            {renderPatientProfile()}
+            
+            {/* Patient Information - Editable */}
+            {selectedPatient && (
+              <Card sx={{ mb: 3 }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" color="primary">
+                      Patient Information
+                    </Typography>
+                    {!isEditingPatient ? (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => {
+                          setEditedPatient({...selectedPatient});
+                          setIsEditingPatient(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    ) : (
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={handleCancelPatientEdit}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={handleSavePatientEdit}
+                        >
+                          Save
+                        </Button>
+                      </Box>
+                    )}
+                  </Box>
+                  
+                  {(!selectedPatient.date_of_birth || !selectedPatient.school || !selectedPatient.grade) && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      <Typography variant="body2">
+                        <strong>Missing Patient Information:</strong> Please edit and add the missing data before proceeding.
+                        {!selectedPatient.date_of_birth && ' • Date of Birth'}
+                        {!selectedPatient.school && ' • School'}
+                        {!selectedPatient.grade && ' • Grade'}
+                      </Typography>
+                    </Alert>
+                  )}
+                  
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="First Name"
+                        value={isEditingPatient ? (editedPatient?.first_name || '') : (selectedPatient.first_name || '')}
+                        onChange={(e) => setEditedPatient({...editedPatient!, first_name: e.target.value})}
+                        disabled={!isEditingPatient}
+                        variant={isEditingPatient ? 'outlined' : 'filled'}
+                        error={!selectedPatient.first_name}
+                        helperText={!selectedPatient.first_name && !isEditingPatient ? 'Missing data' : ''}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Last Name"
+                        value={isEditingPatient ? (editedPatient?.last_name || '') : (selectedPatient.last_name || '')}
+                        onChange={(e) => setEditedPatient({...editedPatient!, last_name: e.target.value})}
+                        disabled={!isEditingPatient}
+                        variant={isEditingPatient ? 'outlined' : 'filled'}
+                        error={!selectedPatient.last_name}
+                        helperText={!selectedPatient.last_name && !isEditingPatient ? 'Missing data' : ''}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Date of Birth"
+                        type="date"
+                        value={isEditingPatient ? (editedPatient?.date_of_birth || '') : (selectedPatient.date_of_birth || '')}
+                        onChange={(e) => setEditedPatient({...editedPatient!, date_of_birth: e.target.value})}
+                        disabled={!isEditingPatient}
+                        variant={isEditingPatient ? 'outlined' : 'filled'}
+                        InputLabelProps={{ shrink: true }}
+                        error={!selectedPatient.date_of_birth}
+                        helperText={!selectedPatient.date_of_birth && !isEditingPatient ? 'Missing date of birth - please add' : ''}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Citizen ID (CID)"
+                        value={isEditingPatient ? (editedPatient?.cid || '') : (selectedPatient.cid || '')}
+                        onChange={(e) => setEditedPatient({...editedPatient!, cid: e.target.value})}
+                        disabled={!isEditingPatient}
+                        variant={isEditingPatient ? 'outlined' : 'filled'}
+                        inputProps={{ maxLength: 13 }}
+                        placeholder="0000000000000"
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      {isEditingPatient ? (
+                        <Autocomplete
+                          fullWidth
+                          options={schools}
+                          getOptionLabel={(option) => typeof option === 'string' ? option : option.name}
+                          value={schools.find(s => s.name === editedPatient?.school) || editedPatient?.school || null}
+                          onChange={(event, newValue) => {
+                            setEditedPatient({
+                              ...editedPatient!,
+                              school: typeof newValue === 'string' ? newValue : (newValue?.name || '')
+                            });
+                          }}
+                          freeSolo
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label="School"
+                              error={!selectedPatient.school}
+                              helperText={!selectedPatient.school ? 'Please select or enter school' : ''}
+                            />
+                          )}
+                        />
+                      ) : (
+                        <TextField
+                          fullWidth
+                          label="School"
+                          value={selectedPatient.school || ''}
+                          disabled
+                          variant="filled"
+                          error={!selectedPatient.school}
+                          helperText={!selectedPatient.school ? 'Missing data' : ''}
+                        />
+                      )}
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Grade"
+                        value={isEditingPatient ? (editedPatient?.grade || '') : (selectedPatient.grade || '')}
+                        onChange={(e) => setEditedPatient({...editedPatient!, grade: e.target.value})}
+                        disabled={!isEditingPatient}
+                        variant={isEditingPatient ? 'outlined' : 'filled'}
+                        error={!selectedPatient.grade}
+                        helperText={!selectedPatient.grade && !isEditingPatient ? 'Missing data' : ''}
+                      />
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+            )}
+            
+            {/* Consent Section */}
             <Card>
               <CardContent>
                 <FormControlLabel
@@ -763,123 +1475,283 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
             <Typography variant="h6" gutterBottom>
               Student Registration
             </Typography>
-            <Card>
-              <CardContent>
-                {selectedPatient ? (
-                  <>
-                    <Typography variant="body1" gutterBottom>
-                      Patient: {selectedPatient.first_name} {selectedPatient.last_name}
+            
+            {/* Patient Information - Editable */}
+            {selectedPatient ? (
+              <Card sx={{ mb: 3 }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" color="primary">
+                      Patient Information
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Registration status: {selectedPatient.registration_status || 'pending'}
-                    </Typography>
-                    <Button
-                      variant="contained"
-                      startIcon={<HowToReg />}
-                      sx={{ mt: 2 }}
-                    >
-                      Complete Registration
-                    </Button>
-                  </>
-                ) : (
-                  <>
+                    {!isEditingPatient ? (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => {
+                          setEditedPatient({...selectedPatient});
+                          setIsEditingPatient(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    ) : (
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={handleCancelPatientEdit}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={handleSavePatientEdit}
+                        >
+                          Save
+                        </Button>
+                      </Box>
+                    )}
+                  </Box>
+                  
+                  {(!selectedPatient.date_of_birth || !selectedPatient.school || !selectedPatient.grade) && (
                     <Alert severity="warning" sx={{ mb: 2 }}>
-                      No patient selected. Please add patient information to continue.
+                      <Typography variant="body2">
+                        <strong>Missing Patient Information:</strong> Please edit and add the missing data before proceeding.
+                        {!selectedPatient.date_of_birth && ' • Date of Birth'}
+                        {!selectedPatient.school && ' • School'}
+                        {!selectedPatient.grade && ' • Grade'}
+                      </Typography>
                     </Alert>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} md={6}>
-                        <TextField
+                  )}
+                  
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="First Name"
+                        value={isEditingPatient ? (editedPatient?.first_name || '') : (selectedPatient.first_name || '')}
+                        onChange={(e) => setEditedPatient({...editedPatient!, first_name: e.target.value})}
+                        disabled={!isEditingPatient}
+                        variant={isEditingPatient ? 'outlined' : 'filled'}
+                        error={!selectedPatient.first_name}
+                        helperText={!selectedPatient.first_name && !isEditingPatient ? 'Missing data' : ''}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Last Name"
+                        value={isEditingPatient ? (editedPatient?.last_name || '') : (selectedPatient.last_name || '')}
+                        onChange={(e) => setEditedPatient({...editedPatient!, last_name: e.target.value})}
+                        disabled={!isEditingPatient}
+                        variant={isEditingPatient ? 'outlined' : 'filled'}
+                        error={!selectedPatient.last_name}
+                        helperText={!selectedPatient.last_name && !isEditingPatient ? 'Missing data' : ''}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Date of Birth"
+                        type="date"
+                        value={isEditingPatient ? (editedPatient?.date_of_birth || '') : (selectedPatient.date_of_birth || '')}
+                        onChange={(e) => setEditedPatient({...editedPatient!, date_of_birth: e.target.value})}
+                        disabled={!isEditingPatient}
+                        variant={isEditingPatient ? 'outlined' : 'filled'}
+                        InputLabelProps={{ shrink: true }}
+                        error={!selectedPatient.date_of_birth}
+                        helperText={!selectedPatient.date_of_birth && !isEditingPatient ? 'Missing date of birth - please add' : ''}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Citizen ID (CID)"
+                        value={isEditingPatient ? (editedPatient?.cid || '') : (selectedPatient.cid || '')}
+                        onChange={(e) => setEditedPatient({...editedPatient!, cid: e.target.value})}
+                        disabled={!isEditingPatient}
+                        variant={isEditingPatient ? 'outlined' : 'filled'}
+                        inputProps={{ maxLength: 13 }}
+                        placeholder="0000000000000"
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      {isEditingPatient ? (
+                        <Autocomplete
                           fullWidth
-                          label="First Name"
-                          value={newPatient.first_name}
-                          onChange={(e) => setNewPatient({
-                            ...newPatient,
-                            first_name: e.target.value
-                          })}
+                          options={schools}
+                          getOptionLabel={(option) => typeof option === 'string' ? option : option.name}
+                          value={schools.find(s => s.name === editedPatient?.school) || editedPatient?.school || null}
+                          onChange={(event, newValue) => {
+                            setEditedPatient({
+                              ...editedPatient!,
+                              school: typeof newValue === 'string' ? newValue : (newValue?.name || '')
+                            });
+                          }}
+                          freeSolo
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label="School"
+                              error={!selectedPatient.school}
+                              helperText={!selectedPatient.school ? 'Please select or enter school' : ''}
+                            />
+                          )}
                         />
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          fullWidth
-                          label="Last Name"
-                          value={newPatient.last_name}
-                          onChange={(e) => setNewPatient({
-                            ...newPatient,
-                            last_name: e.target.value
-                          })}
-                        />
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          fullWidth
-                          label="Date of Birth"
-                          type="date"
-                          value={newPatient.date_of_birth}
-                          onChange={(e) => setNewPatient({
-                            ...newPatient,
-                            date_of_birth: e.target.value
-                          })}
-                          InputLabelProps={{ shrink: true }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} md={6}>
+                      ) : (
                         <TextField
                           fullWidth
                           label="School"
-                          value={newPatient.school}
-                          onChange={(e) => setNewPatient({
-                            ...newPatient,
-                            school: e.target.value
-                          })}
+                          value={selectedPatient.school || ''}
+                          disabled
+                          variant="filled"
+                          error={!selectedPatient.school}
+                          helperText={!selectedPatient.school ? 'Missing data' : ''}
                         />
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          fullWidth
-                          label="Grade"
-                          value={newPatient.grade}
-                          onChange={(e) => setNewPatient({
-                            ...newPatient,
-                            grade: e.target.value
-                          })}
-                        />
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          fullWidth
-                          label="Parent Name"
-                          value={newPatient.parent_name}
-                          onChange={(e) => setNewPatient({
-                            ...newPatient,
-                            parent_name: e.target.value
-                          })}
-                        />
-                      </Grid>
+                      )}
                     </Grid>
-                    <Button
-                      variant="contained"
-                      startIcon={<HowToReg />}
-                      sx={{ mt: 2 }}
-                      onClick={() => {
-                        // Create a temporary patient object
-                        const tempPatient: Patient = {
-                          _id: `temp_${Date.now()}`,
-                          first_name: newPatient.first_name,
-                          last_name: newPatient.last_name,
-                          date_of_birth: newPatient.date_of_birth,
-                          school: newPatient.school,
-                          grade: newPatient.grade,
-                          registration_status: 'registered'
-                        };
-                        setSelectedPatient(tempPatient);
-                      }}
-                    >
-                      Register Patient
-                    </Button>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Grade"
+                        value={isEditingPatient ? (editedPatient?.grade || '') : (selectedPatient.grade || '')}
+                        onChange={(e) => setEditedPatient({...editedPatient!, grade: e.target.value})}
+                        disabled={!isEditingPatient}
+                        variant={isEditingPatient ? 'outlined' : 'filled'}
+                        error={!selectedPatient.grade}
+                        helperText={!selectedPatient.grade && !isEditingPatient ? 'Missing data' : ''}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Student ID"
+                        value={isEditingPatient ? (editedPatient?.student_id || '') : (selectedPatient.student_id || '')}
+                        onChange={(e) => setEditedPatient({...editedPatient!, student_id: e.target.value})}
+                        disabled={!isEditingPatient}
+                        variant={isEditingPatient ? 'outlined' : 'filled'}
+                      />
+                    </Grid>
+                  </Grid>
+                  
+                  <Box sx={{ mt: 3 }}>
+                    {selectedPatient.registration_status ? (
+                      <Alert severity="success">
+                        <Typography variant="body2">
+                          Registration status: <strong>{selectedPatient.registration_status || 'Registered'}</strong>
+                        </Typography>
+                      </Alert>
+                    ) : (
+                      <Alert severity="info">
+                        <Typography variant="body2">
+                          <strong>Ready to register:</strong> Click "Register & Next" to continue with screening, or "Register & Close" to save for later.
+                        </Typography>
+                      </Alert>
+                    )}
+                  </Box>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent>
+                  <Alert severity="warning" sx={{ mb: 2 }}>
+                    No patient selected. Please add patient information to continue.
+                  </Alert>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="First Name"
+                        value={newPatient.first_name}
+                        onChange={(e) => setNewPatient({
+                          ...newPatient,
+                          first_name: e.target.value
+                        })}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Last Name"
+                        value={newPatient.last_name}
+                        onChange={(e) => setNewPatient({
+                          ...newPatient,
+                          last_name: e.target.value
+                        })}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Date of Birth"
+                        type="date"
+                        value={newPatient.date_of_birth}
+                        onChange={(e) => setNewPatient({
+                          ...newPatient,
+                          date_of_birth: e.target.value
+                        })}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="School"
+                        value={newPatient.school}
+                        onChange={(e) => setNewPatient({
+                          ...newPatient,
+                          school: e.target.value
+                        })}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Grade"
+                        value={newPatient.grade}
+                        onChange={(e) => setNewPatient({
+                          ...newPatient,
+                          grade: e.target.value
+                        })}
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Parent Name"
+                        value={newPatient.parent_name}
+                        onChange={(e) => setNewPatient({
+                          ...newPatient,
+                          parent_name: e.target.value
+                        })}
+                      />
+                    </Grid>
+                  </Grid>
+                  <Button
+                    variant="contained"
+                    startIcon={<HowToReg />}
+                    sx={{ mt: 2 }}
+                    onClick={() => {
+                      // Create a temporary patient object
+                      const tempPatient: Patient = {
+                        _id: `temp_${Date.now()}`,
+                        first_name: newPatient.first_name,
+                        last_name: newPatient.last_name,
+                        date_of_birth: newPatient.date_of_birth,
+                        school: newPatient.school,
+                        grade: newPatient.grade,
+                        registration_status: 'registered'
+                      };
+                      setSelectedPatient(tempPatient);
+                    }}
+                  >
+                    Register Patient
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </Box>
         );
       
@@ -1170,17 +2042,55 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
             Back
           </Button>
         </Box>
-        <Box>
-          {activeStep === steps.length - 1 ? (
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          {selectedPatient && activeStep > 0 && (
+            <Button
+              variant="outlined"
+              onClick={handleSaveProgress}
+              disabled={loading}
+              startIcon={<Save />}
+              color="secondary"
+            >
+              {loading ? 'Saving...' : 'Save Progress'}
+            </Button>
+          )}
+          {/* Show Complete button from step 5 onwards (Glasses Selection, Inventory, Delivery) */}
+          {activeStep >= 5 && selectedPatient && (
             <Button
               variant="contained"
               onClick={handleScreeningComplete}
               disabled={loading}
               startIcon={loading ? <CircularProgress size={20} /> : <CheckCircle />}
+              color="success"
             >
               Complete Screening
             </Button>
-          ) : (
+          )}
+          
+          {/* Step 2 (Student Registration) - Show special buttons */}
+          {activeStep === 2 && selectedPatient && !selectedPatient.registration_status && (
+            <>
+              <Button
+                variant="outlined"
+                onClick={handleRegisterAndClose}
+                disabled={loading}
+                startIcon={<HowToReg />}
+              >
+                Register & Close
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={loading}
+                startIcon={<HowToReg />}
+              >
+                Register & Next
+              </Button>
+            </>
+          )}
+          
+          {/* Show Next button for all steps except the last one (but not step 2 with unregistered student) */}
+          {activeStep < steps.length - 1 && !(activeStep === 2 && selectedPatient && !selectedPatient.registration_status) && (
             <Button
               variant="contained"
               onClick={handleNext}

@@ -303,13 +303,13 @@ const EvepSchools: React.FC = () => {
   // Filter logic
   const filteredSchools = schools.filter(school => {
     const matchesSearch = 
-      school.name.toLowerCase().includes(filterSearch.toLowerCase()) ||
-      school.school_code.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      school.name?.toLowerCase().includes(filterSearch.toLowerCase()) ||
+      school.school_code?.toLowerCase().includes(filterSearch.toLowerCase()) ||
       school.phone?.toLowerCase().includes(filterSearch.toLowerCase()) ||
       school.email?.toLowerCase().includes(filterSearch.toLowerCase());
     
     const matchesType = filterType === 'all' || school.type === filterType;
-    const matchesProvince = filterProvince === 'all' || school.address.province === filterProvince;
+    const matchesProvince = filterProvince === 'all' || school.address?.province === filterProvince;
     
     return matchesSearch && matchesType && matchesProvince;
   });
