@@ -5,7 +5,7 @@ Handles patient registration, search, and medical history management
 
 from datetime import datetime
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Depends, status, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, status, UploadFile, File, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr
 from bson import ObjectId
@@ -103,7 +103,7 @@ async def create_patient(
     patient_data: PatientCreate,
     current_user: dict = Depends(get_current_user)
 ):
-    """Create a new patient"""
+    """Create a new patient with comprehensive duplicate prevention"""
     
     # Check if user has permission to create patients
     if current_user["role"] not in ["doctor", "admin", "medical_staff", "super_admin"]:
@@ -115,16 +115,39 @@ async def create_patient(
     patients_collection = get_patients_collection()
     audit_logs_collection = get_audit_logs_collection()
     
-    # Check if patient already exists (by CID as primary key)
-    existing_patient = await patients_collection.find_one({
-        "cid": patient_data.cid
-    })
+    # Enhanced duplicate checking with multiple criteria
+    duplicate_filters = []
     
-    if existing_patient:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Patient with this Citizen ID (CID) already exists"
-        )
+    # Check by CID (primary check)
+    if patient_data.cid and patient_data.cid != "0000000000000":
+        duplicate_filters.append({"cid": patient_data.cid})
+    
+    # Check by name + date of birth combination (secondary check)
+    if patient_data.first_name and patient_data.last_name and patient_data.date_of_birth:
+        duplicate_filters.append({
+            "first_name": patient_data.first_name,
+            "last_name": patient_data.last_name,
+            "date_of_birth": patient_data.date_of_birth
+        })
+    
+    # Check for duplicates using any of the criteria
+    if duplicate_filters:
+        existing_patient = await patients_collection.find_one({
+            "$or": duplicate_filters
+        })
+        
+        if existing_patient:
+            # Determine which criteria matched
+            if existing_patient.get("cid") == patient_data.cid and patient_data.cid != "0000000000000":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Patient with Citizen ID '{patient_data.cid}' already exists"
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Patient with name '{patient_data.first_name} {patient_data.last_name}' and birth date '{patient_data.date_of_birth}' already exists"
+                )
     
     # Generate blockchain hash for audit
     audit_hash = generate_blockchain_hash(
@@ -186,9 +209,10 @@ async def create_patient(
 async def get_patients(
     skip: int = 0,
     limit: int = 100,
+    search: str = Query(None, description="Search patients by name, CID, email, or school"),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all patients with pagination"""
+    """Get all patients with pagination and optional search"""
     
     # Extract user ID and role
     user_id = current_user.get("user_id")
@@ -203,11 +227,31 @@ async def get_patients(
     
     patients_collection = get_patients_collection()
     
-    # Build query based on user role
+    # Build query based on user role and search
     query = {}
-    if await has_role_db(user_id, "parent") or await has_permission_db(user_id, "view_patients"):
+    
+    # Add search functionality if search term provided
+    if search:
+        query["$or"] = [
+            {"first_name": {"$regex": search, "$options": "i"}},
+            {"last_name": {"$regex": search, "$options": "i"}},
+            {"cid": {"$regex": search, "$options": "i"}},
+            {"citizen_id": {"$regex": search, "$options": "i"}},
+            {"parent_email": {"$regex": search, "$options": "i"}},
+            {"school": {"$regex": search, "$options": "i"}}
+        ]
+    
+    if user_id and (await has_role_db(user_id, "parent") or await has_permission_db(user_id, "view_patients")):
         # Parents can only see their own children
-        query["parent_email"] = current_user["email"]
+        if "parent_email" in query:
+            # If already filtering by parent_email in search, combine with user's email
+            query["$and"] = [
+                {"$or": query["$or"]},
+                {"parent_email": current_user["email"]}
+            ]
+            del query["$or"]
+        else:
+            query["parent_email"] = current_user["email"]
     
     # Get patients with pagination
     cursor = patients_collection.find(query).skip(skip).limit(limit)
@@ -454,8 +498,11 @@ async def search_patients(
     if search_data.is_active is not None:
         query["is_active"] = search_data.is_active
     
+    # Get user_id for RBAC checks
+    user_id = current_user.get("user_id")
+    
     # Filter by parent email for parent role
-    if await has_role_db(user_id, "parent") or await has_permission_db(user_id, "view_patients"):
+    if user_id and (await has_role_db(user_id, "parent") or await has_permission_db(user_id, "view_patients")):
         query["parent_email"] = current_user["email"]
     
     # Execute search

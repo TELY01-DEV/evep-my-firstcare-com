@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Card,
@@ -78,13 +78,26 @@ interface ScreeningSession {
   examiner_name: string;
   screening_type: string;
   equipment_used: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'Register waiting for screening' | 
+          'Appointment Schedule' | 'Parent Consent' | 'Student Registration' | 'VA Screening' | 
+          'Doctor Diagnosis' | 'Glasses Selection' | 'Inventory Check' | 'School Delivery' | 'Screening Complete';
   created_at: string;
   updated_at: string;
   results?: ScreeningResults;
   current_step?: number;
   current_step_name?: string;
   workflow_data?: any;
+  step_history?: Array<{
+    step_name: string;
+    step_number: number;
+    status: string;
+    completed_by?: string;
+    completed_by_name?: string;
+    completed_at?: string;
+    notes?: string;
+  }>;
+  last_updated_by?: string;
+  last_updated_by_name?: string;
 }
 
 interface ScreeningResults {
@@ -112,6 +125,11 @@ interface Patient {
 const Screenings: React.FC = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
+
+  // Helper function to check if user is admin
+  const isAdmin = () => {
+    return user?.role && ['super_admin', 'admin', 'medical_admin'].includes(user.role);
+  };
   const [sessions, setSessions] = useState<ScreeningSession[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,6 +154,7 @@ const Screenings: React.FC = () => {
   const [viewResultsDialogOpen, setViewResultsDialogOpen] = useState(false);
   const [editScreeningDialogOpen, setEditScreeningDialogOpen] = useState(false);
   const [deleteConfirmDialogOpen, setDeleteConfirmDialogOpen] = useState(false);
+  const [forceDelete, setForceDelete] = useState(false);
   const [selectedSession, setSelectedSession] = useState<ScreeningSession | null>(null);
 
   // Helper function to ensure results have all required fields
@@ -178,6 +197,15 @@ const Screenings: React.FC = () => {
     'Complete Screening'
   ];
 
+  // Memoize filtered sessions to prevent unnecessary re-renders
+  const filteredSessions = useMemo(() => {
+    return sessions.filter(session => {
+      if (activeTab === 1) return session.screening_type.toLowerCase().includes('mobile');
+      if (activeTab === 2) return !session.screening_type.toLowerCase().includes('mobile');
+      return true;
+    });
+  }, [sessions, activeTab]);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -197,7 +225,28 @@ const Screenings: React.FC = () => {
 
       if (sessionsResponse.ok) {
         const sessionsData = await sessionsResponse.json();
-        setSessions(sessionsData || []);
+        
+        console.log('📊 Raw API sessions:', sessionsData.length, 'sessions');
+        
+        // Remove duplicate sessions for the same patient (keep only the most recent)
+        const patientSessionMap = new Map();
+        
+        sessionsData.forEach((session: any) => {
+          const patientId = session.patient_id;
+          const sessionDate = new Date(session.created_at || session.updated_at || 0);
+          
+          if (!patientSessionMap.has(patientId) || 
+              sessionDate > new Date(patientSessionMap.get(patientId).created_at || patientSessionMap.get(patientId).updated_at || 0)) {
+            patientSessionMap.set(patientId, session);
+          }
+        });
+        
+        const uniqueSessions = Array.from(patientSessionMap.values());
+        
+        console.log('📊 After removing patient duplicates:', uniqueSessions.length, 'unique sessions');
+        console.log('📊 Removed', sessionsData.length - uniqueSessions.length, 'duplicate sessions');
+        
+        setSessions(uniqueSessions || []);
       } else {
         console.error('Failed to fetch sessions from API');
         setSessions([]);
@@ -254,13 +303,18 @@ const Screenings: React.FC = () => {
 
       if (response.ok) {
         const newScreening = await response.json();
-        setSessions(prev => [newScreening, ...prev]);
         setSuccess('Screening session started successfully!');
         setScreeningDialogOpen(false);
         resetScreeningForm();
+        fetchData(); // Refresh the complete list instead of manually adding
       } else {
         const errorData = await response.json();
-        setError(errorData.detail || 'Failed to start screening session');
+        if (response.status === 409) {
+          // Handle duplicate session error
+          setError(`Cannot create new session: ${errorData.detail}`);
+        } else {
+          setError(errorData.detail || 'Failed to start screening session');
+        }
       }
     } catch (error) {
       console.error('Error starting screening:', error);
@@ -271,10 +325,14 @@ const Screenings: React.FC = () => {
   };
 
   const handleStartMobileScreening = () => {
+    setSelectedSession(null); // Reset selected session for new screening
+    resetScreeningForm(); // Reset form data
     setMobileScreeningPageOpen(true);
   };
 
   const handleStartStandardScreening = () => {
+    setSelectedSession(null); // Reset selected session for new screening
+    resetScreeningForm(); // Reset form data
     setStandardScreeningPageOpen(true);
   };
 
@@ -368,12 +426,30 @@ const Screenings: React.FC = () => {
   };
 
   const getStatusColor = (status: string) => {
+    // Check if status is a step name (from Mobile Vision Screening workflow)
+    const mobileSteps = [
+      'Appointment Schedule',
+      'Parent Consent',
+      'Student Registration',
+      'VA Screening',
+      'Doctor Diagnosis',
+      'Glasses Selection',
+      'Inventory Check',
+      'School Delivery'
+    ];
+    
+    if (mobileSteps.includes(status)) {
+      return 'warning'; // Step in progress
+    }
+    
     switch (status) {
       case 'completed':
+      case 'Screening Complete':
         return 'success';
       case 'in_progress':
         return 'warning';
       case 'pending':
+      case 'Register waiting for screening':
         return 'info';
       case 'cancelled':
         return 'error';
@@ -383,12 +459,30 @@ const Screenings: React.FC = () => {
   };
 
   const getStatusIcon = (status: string) => {
+    // Check if status is a step name (from Mobile Vision Screening workflow)
+    const mobileSteps = [
+      'Appointment Schedule',
+      'Parent Consent',
+      'Student Registration',
+      'VA Screening',
+      'Doctor Diagnosis',
+      'Glasses Selection',
+      'Inventory Check',
+      'School Delivery'
+    ];
+    
+    if (mobileSteps.includes(status)) {
+      return <PlayArrow />; // Step in progress
+    }
+    
     switch (status) {
       case 'completed':
+      case 'Screening Complete':
         return <CheckCircle />;
       case 'in_progress':
         return <PlayArrow />;
       case 'pending':
+      case 'Register waiting for screening':
         return <Schedule />;
       case 'cancelled':
         return <Stop />;
@@ -429,18 +523,65 @@ const Screenings: React.FC = () => {
   };
 
   const handleEditScreening = (session: ScreeningSession) => {
-    setSelectedSession(session);
-    setEditScreeningDialogOpen(true);
+    const isCancelled = session.status === 'cancelled';
+    const isMobileScreening = session.screening_type?.toLowerCase().includes('mobile');
+    const isStandardScreening = session.screening_type?.toLowerCase().includes('standard');
+    
+    // For mobile screenings (regardless of completion status), open the full screening form unless cancelled
+    if (!isCancelled && isMobileScreening) {
+      // Open full mobile screening form for editing (works for both complete and incomplete)
+      setSelectedSession(session);
+      setMobileScreeningPageOpen(true);
+    } else if (!isCancelled && isStandardScreening) {
+      // TODO: Open standard screening form for editing once existingSession support is added
+      setSelectedSession(session);
+      setStandardScreeningPageOpen(true);
+    } else {
+      // For cancelled or unknown screening types, show simple edit dialog
+      setSelectedSession(session);
+      setEditScreeningDialogOpen(true);
+    }
+  };
+
+  const handleStepNavigation = (session: ScreeningSession, targetStep?: number) => {
+    const isCancelled = session.status === 'cancelled';
+    const isMobileScreening = session.screening_type?.toLowerCase().includes('mobile');
+    
+    // Only allow step navigation for mobile screenings that are not cancelled
+    if (!isCancelled && isMobileScreening) {
+      // Create a modified session with the target step if specified
+      const sessionForNavigation = targetStep !== undefined ? {
+        ...session,
+        current_step: targetStep,
+        navigation_target_step: targetStep // Add flag for form to know which step to navigate to
+      } : session;
+      
+      setSelectedSession(sessionForNavigation);
+      setMobileScreeningPageOpen(true);
+    } else {
+      // Fall back to regular edit for non-mobile or cancelled sessions
+      handleEditScreening(session);
+    }
   };
 
   const handleDeleteScreening = (session: ScreeningSession) => {
     setSelectedSession(session);
+    setForceDelete(false); // Reset force delete when opening dialog
     setDeleteConfirmDialogOpen(true);
   };
 
   const handleConfirmDelete = async () => {
-    if (!selectedSession || !selectedSession._id) {
-      console.error('Cannot delete screening: selectedSession or _id is missing', selectedSession);
+    if (!selectedSession) {
+      console.error('Cannot delete screening: selectedSession is missing', selectedSession);
+      setError('Cannot delete screening: Session is missing');
+      setDeleteConfirmDialogOpen(false);
+      return;
+    }
+    
+    // Use session_id instead of _id since that's what the API returns
+    const sessionId = (selectedSession as any).session_id || selectedSession._id;
+    if (!sessionId) {
+      console.error('Cannot delete screening: session ID is missing', selectedSession);
       setError('Cannot delete screening: Session ID is missing');
       setDeleteConfirmDialogOpen(false);
       return;
@@ -452,7 +593,25 @@ const Screenings: React.FC = () => {
 
       const token = localStorage.getItem('evep_token');
 
-      const response = await fetch(`${API_ENDPOINTS.SCREENINGS_SESSIONS}/${selectedSession._id}`, {
+      // Debug logging
+      console.log('🔧 Delete Debug Info:');
+      console.log('  - User role:', user?.role);
+      console.log('  - Is admin?', isAdmin());
+      console.log('  - Force delete checked?', forceDelete);
+      console.log('  - Session ID:', sessionId);
+
+      // Add force_delete query parameter for admin users when forceDelete is true
+      const queryParams = new URLSearchParams();
+      if (forceDelete) {
+        queryParams.append('force_delete', 'true');
+        console.log('  - Added force_delete=true to query params');
+      }
+      const queryString = queryParams.toString();
+      const deleteUrl = `${API_ENDPOINTS.SCREENINGS_SESSIONS}/${sessionId}${queryString ? `?${queryString}` : ''}`;
+      
+      console.log('  - Delete URL:', deleteUrl);
+
+      const response = await fetch(deleteUrl, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -461,12 +620,26 @@ const Screenings: React.FC = () => {
       });
 
       if (response.ok) {
-        setSuccess('Screening session deleted successfully');
+        const result = await response.json();
+        console.log('  - Delete response:', result);
+        
+        const deleteType = result.deletion_type;
+        console.log('  - Deletion type:', deleteType);
+        
+        const message = deleteType === 'hard_delete' 
+          ? 'Screening session permanently deleted' 
+          : 'Screening session cancelled successfully';
+        
+        console.log('  - Success message:', message);
+        
+        setSuccess(message);
         setDeleteConfirmDialogOpen(false);
         setSelectedSession(null);
+        setForceDelete(false); // Reset force delete state
         fetchData(); // Refresh the data
       } else {
         const errorData = await response.json();
+        console.log('  - Delete error response:', errorData);
         setError(errorData.detail || 'Failed to delete screening session');
       }
     } catch (err) {
@@ -560,12 +733,17 @@ const Screenings: React.FC = () => {
         showAccessInfo={true}
       >
         <MobileVisionScreeningForm
+          existingSession={selectedSession}
           onScreeningCompleted={(screening) => {
             setSuccess('Mobile vision screening completed successfully!');
             setMobileScreeningPageOpen(false);
+            setSelectedSession(null); // Clear selected session
             fetchData();
           }}
-          onCancel={() => setMobileScreeningPageOpen(false)}
+          onCancel={() => {
+            setMobileScreeningPageOpen(false);
+            setSelectedSession(null); // Clear selected session
+          }}
         />
       </RBACScreeningForm>
     );
@@ -580,12 +758,17 @@ const Screenings: React.FC = () => {
         showAccessInfo={true}
       >
         <StandardVisionScreeningForm
+          existingSession={selectedSession}
           onComplete={(screening: any) => {
             setSuccess('Standard vision screening completed successfully!');
             setStandardScreeningPageOpen(false);
+            setSelectedSession(null); // Clear selected session
             fetchData();
           }}
-          onCancel={() => setStandardScreeningPageOpen(false)}
+          onCancel={() => {
+            setStandardScreeningPageOpen(false);
+            setSelectedSession(null); // Clear selected session
+          }}
         />
       </RBACScreeningForm>
     );
@@ -651,7 +834,11 @@ const Screenings: React.FC = () => {
               variant="contained"
               color="secondary"
               startIcon={<Visibility />}
-              onClick={() => setEnhancedScreeningDialogOpen(true)}
+              onClick={() => {
+                setSelectedSession(null); // Reset selected session for new screening
+                resetScreeningForm(); // Reset form data
+                setEnhancedScreeningDialogOpen(true);
+              }}
               sx={{ borderRadius: 2 }}
             >
               Enhanced Screening
@@ -705,14 +892,12 @@ const Screenings: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {sessions
-                  .filter(session => {
-                    if (activeTab === 1) return session.screening_type.toLowerCase().includes('mobile');
-                    if (activeTab === 2) return !session.screening_type.toLowerCase().includes('mobile');
-                    return true;
-                  })
-                  .map((session) => (
-                  <TableRow key={session._id} hover>
+                {filteredSessions.map((session, index) => {
+                    // Use session_id as the primary key since API returns this field
+                    const sessionKey = (session as any).session_id || session._id || `session-${index}`;
+                    
+                    return (
+                  <TableRow key={sessionKey} hover>
                     <TableCell>
                       <Box display="flex" alignItems="center" gap={2}>
                         <Avatar sx={{ bgcolor: 'primary.main' }}>
@@ -737,21 +922,136 @@ const Screenings: React.FC = () => {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        icon={getStatusIcon(session.status)}
-                        label={session.status.replace('_', ' ')}
-                        color={getStatusColor(session.status) as any}
-                        size="small"
-                      />
+                      <Box>
+                        <Chip
+                          icon={getStatusIcon(session.status)}
+                          label={session.status.replace('_', ' ')}
+                          color={getStatusColor(session.status) as any}
+                          size="small"
+                        />
+                        {/* Show who worked on current status */}
+                        {session.last_updated_by_name && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                            by {session.last_updated_by_name}
+                          </Typography>
+                        )}
+                        {/* Show step history for current step if available */}
+                        {session.step_history && session.current_step !== undefined && (
+                          (() => {
+                            const currentStepHistory = session.step_history.find(
+                              step => step.step_number === session.current_step
+                            );
+                            return currentStepHistory?.completed_by_name ? (
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                                Step by {currentStepHistory.completed_by_name}
+                                {currentStepHistory.completed_at && (
+                                  <span> • {new Date(currentStepHistory.completed_at).toLocaleDateString()}</span>
+                                )}
+                              </Typography>
+                            ) : null;
+                          })()
+                        )}
+                      </Box>
                     </TableCell>
                     <TableCell>
-                      {session.current_step_name ? (
-                        <Chip
-                          label={session.current_step_name}
-                          color="info"
-                          size="small"
-                          variant="outlined"
-                        />
+                      {session.current_step_name || session.current_step !== undefined ? (
+                        <Box>
+                          {session.current_step !== undefined && session.screening_type?.toLowerCase().includes('mobile') ? (
+                            <>
+                              <Chip
+                                label={`Step ${(session.current_step || 0) + 1} of 8: ${session.current_step_name || 'N/A'}`}
+                                color="info"
+                                size="small"
+                                variant="outlined"
+                                sx={{ 
+                                  mb: 0.5,
+                                  cursor: session.status !== 'cancelled' ? 'pointer' : 'default',
+                                  '&:hover': session.status !== 'cancelled' ? {
+                                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                                    transform: 'scale(1.02)'
+                                  } : {}
+                                }}
+                                onClick={() => session.status !== 'cancelled' && handleStepNavigation(session, session.current_step)}
+                              />
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                Status: {session.status.replace('_', ' ')}
+                              </Typography>
+                              {/* Show step history for mobile workflow */}
+                              {session.step_history && session.step_history.length > 0 && (
+                                <Box sx={{ mt: 1, maxHeight: 100, overflowY: 'auto' }}>
+                                  {session.step_history
+                                    .filter(step => step.completed_by_name) // Only show completed steps
+                                    .slice(-3) // Show last 3 completed steps
+                                    .map((step, index) => (
+                                    <Typography 
+                                      key={index} 
+                                      variant="caption" 
+                                      color="text.secondary" 
+                                      sx={{ 
+                                        display: 'block', 
+                                        fontSize: '0.7rem',
+                                        cursor: session.status !== 'cancelled' ? 'pointer' : 'default',
+                                        padding: '2px 4px',
+                                        borderRadius: '4px',
+                                        '&:hover': session.status !== 'cancelled' ? {
+                                          backgroundColor: 'rgba(33, 150, 243, 0.08)',
+                                          transform: 'scale(1.01)'
+                                        } : {}
+                                      }}
+                                      onClick={() => session.status !== 'cancelled' && handleStepNavigation(session, step.step_number)}
+                                    >
+                                      Step {step.step_number + 1}: {step.step_name} by {step.completed_by_name}
+                                      {step.completed_at && (
+                                        <span> • {new Date(step.completed_at).toLocaleDateString()}</span>
+                                      )}
+                                    </Typography>
+                                  ))}
+                                </Box>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <Chip
+                                label={session.current_step_name || `Step ${(session.current_step || 0) + 1}`}
+                                color="info"
+                                size="small"
+                                variant="outlined"
+                                sx={{ 
+                                  mb: 0.5,
+                                  cursor: session.status !== 'cancelled' && session.screening_type?.toLowerCase().includes('mobile') ? 'pointer' : 'default',
+                                  '&:hover': session.status !== 'cancelled' && session.screening_type?.toLowerCase().includes('mobile') ? {
+                                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                                    transform: 'scale(1.02)'
+                                  } : {}
+                                }}
+                                onClick={() => {
+                                  if (session.status !== 'cancelled' && session.screening_type?.toLowerCase().includes('mobile')) {
+                                    handleStepNavigation(session, session.current_step);
+                                  }
+                                }}
+                              />
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                Status: {session.status.replace('_', ' ')}
+                              </Typography>
+                              {/* Show who worked on current step for standard workflow */}
+                              {session.step_history && session.current_step !== undefined && (
+                                (() => {
+                                  const currentStepHistory = session.step_history.find(
+                                    step => step.step_number === session.current_step
+                                  );
+                                  return currentStepHistory?.completed_by_name ? (
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, fontSize: '0.7rem' }}>
+                                      by {currentStepHistory.completed_by_name}
+                                      {currentStepHistory.completed_at && (
+                                        <span> • {new Date(currentStepHistory.completed_at).toLocaleDateString()}</span>
+                                      )}
+                                    </Typography>
+                                  ) : null;
+                                })()
+                              )}
+                            </>
+                          )}
+                        </Box>
                       ) : (
                         <Typography variant="body2" color="text.secondary">
                           -
@@ -784,7 +1084,13 @@ const Screenings: React.FC = () => {
                             </IconButton>
                           </Tooltip>
                         )}
-                        <Tooltip title="Edit">
+                        <Tooltip title={
+                          session.status !== 'cancelled' &&
+                          (session.screening_type?.toLowerCase().includes('mobile') || 
+                           session.screening_type?.toLowerCase().includes('standard'))
+                            ? "Edit in Full Screening Form" 
+                            : "Edit Session Details"
+                        }>
                           <IconButton 
                             size="small"
                             onClick={() => handleEditScreening(session)}
@@ -804,16 +1110,13 @@ const Screenings: React.FC = () => {
                       </Box>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
           
-          {sessions.filter(session => {
-            if (activeTab === 1) return session.screening_type.toLowerCase().includes('mobile');
-            if (activeTab === 2) return !session.screening_type.toLowerCase().includes('mobile');
-            return true;
-          }).length === 0 && (
+          {filteredSessions.length === 0 && (
             <Box textAlign="center" py={4}>
               <Typography color="text.secondary">
                 No screening sessions found
@@ -907,7 +1210,11 @@ const Screenings: React.FC = () => {
       {/* Enhanced Screening Interface Dialog */}
       <Dialog 
         open={enhancedScreeningDialogOpen} 
-        onClose={() => setEnhancedScreeningDialogOpen(false)} 
+        onClose={() => {
+          setEnhancedScreeningDialogOpen(false);
+          setSelectedSession(null); // Reset selected session
+          resetScreeningForm(); // Reset form data
+        }} 
         maxWidth="lg" 
         fullWidth
       >
@@ -918,9 +1225,15 @@ const Screenings: React.FC = () => {
             onScreeningCompleted={(results) => {
               setSuccess('Enhanced screening completed successfully!');
               setEnhancedScreeningDialogOpen(false);
+              setSelectedSession(null); // Reset selected session
+              resetScreeningForm(); // Reset form data
               fetchData();
             }}
-            onCancel={() => setEnhancedScreeningDialogOpen(false)}
+            onCancel={() => {
+              setEnhancedScreeningDialogOpen(false);
+              setSelectedSession(null); // Reset selected session
+              resetScreeningForm(); // Reset form data
+            }}
           />
         </DialogContent>
       </Dialog>
@@ -1204,94 +1517,14 @@ const Screenings: React.FC = () => {
       <Dialog 
         open={viewResultsDialogOpen} 
         onClose={() => setViewResultsDialogOpen(false)} 
-        maxWidth="md" 
+        maxWidth="lg" 
         fullWidth
       >
         <DialogTitle>
           Screening Results - {selectedSession?.patient_name}
         </DialogTitle>
         <DialogContent>
-          {selectedSession && (
-            <Box>
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <Typography variant="h6" gutterBottom>
-                    Patient Information
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    <strong>Name:</strong> {selectedSession.patient_name}<br/>
-                    <strong>Screening Type:</strong> {selectedSession.screening_type}<br/>
-                    <strong>Status:</strong> {selectedSession.status}<br/>
-                    <strong>Date:</strong> {new Date(selectedSession.created_at).toLocaleDateString()}
-                  </Typography>
-                </Grid>
-                
-                {selectedSession.results && (
-                  <Grid item xs={12}>
-                    <Typography variant="h6" gutterBottom>
-                      Screening Results
-                    </Typography>
-                    <Grid container spacing={2}>
-                      <Grid item xs={6}>
-                        <Typography variant="body2">
-                          <strong>Left Eye Distance:</strong> {selectedSession.results.left_eye_distance || 'Not recorded'}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body2">
-                          <strong>Right Eye Distance:</strong> {selectedSession.results.right_eye_distance || 'Not recorded'}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body2">
-                          <strong>Left Eye Near:</strong> {selectedSession.results.left_eye_near || 'Not recorded'}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body2">
-                          <strong>Right Eye Near:</strong> {selectedSession.results.right_eye_near || 'Not recorded'}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body2">
-                          <strong>Color Vision:</strong> {selectedSession.results.color_vision || 'Not recorded'}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body2">
-                          <strong>Depth Perception:</strong> {selectedSession.results.depth_perception || 'Not recorded'}
-                        </Typography>
-                      </Grid>
-                    </Grid>
-                    
-                    {selectedSession.results.notes && (
-                      <Box mt={2}>
-                        <Typography variant="body2">
-                          <strong>Notes:</strong> {selectedSession.results.notes}
-                        </Typography>
-                      </Box>
-                    )}
-                    
-                    {selectedSession.results.recommendations && (
-                      <Box mt={2}>
-                        <Typography variant="body2">
-                          <strong>Recommendations:</strong> {selectedSession.results.recommendations}
-                        </Typography>
-                      </Box>
-                    )}
-                  </Grid>
-                )}
-                
-                {!selectedSession.results && (
-                  <Grid item xs={12}>
-                    <Typography variant="body2" color="text.secondary" textAlign="center">
-                      No detailed results available for this screening session.
-                    </Typography>
-                  </Grid>
-                )}
-              </Grid>
-            </Box>
-          )}
+          {selectedSession && <ScreeningResultsTabs selectedSession={selectedSession} />}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setViewResultsDialogOpen(false)}>
@@ -1303,7 +1536,11 @@ const Screenings: React.FC = () => {
       {/* Edit Screening Dialog */}
       <Dialog 
         open={editScreeningDialogOpen} 
-        onClose={() => setEditScreeningDialogOpen(false)} 
+        onClose={() => {
+          setEditScreeningDialogOpen(false);
+          setSelectedSession(null); // Reset selected session
+          resetScreeningForm(); // Reset form data
+        }} 
         maxWidth="lg" 
         fullWidth
       >
@@ -1356,6 +1593,16 @@ const Screenings: React.FC = () => {
                           }}
                         >
                           <MenuItem value="pending">Pending</MenuItem>
+                          <MenuItem value="Register waiting for screening">Register waiting for screening</MenuItem>
+                          <MenuItem value="Appointment Schedule">Appointment Schedule</MenuItem>
+                          <MenuItem value="Parent Consent">Parent Consent</MenuItem>
+                          <MenuItem value="Student Registration">Student Registration</MenuItem>
+                          <MenuItem value="VA Screening">VA Screening</MenuItem>
+                          <MenuItem value="Doctor Diagnosis">Doctor Diagnosis</MenuItem>
+                          <MenuItem value="Glasses Selection">Glasses Selection</MenuItem>
+                          <MenuItem value="Screening Complete">Screening Complete</MenuItem>
+                          <MenuItem value="Inventory Check">Inventory Check</MenuItem>
+                          <MenuItem value="School Delivery">School Delivery</MenuItem>
                           <MenuItem value="in_progress">In Progress</MenuItem>
                           <MenuItem value="completed">Completed</MenuItem>
                           <MenuItem value="cancelled">Cancelled</MenuItem>
@@ -1570,7 +1817,11 @@ const Screenings: React.FC = () => {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditScreeningDialogOpen(false)}>
+          <Button onClick={() => {
+            setEditScreeningDialogOpen(false);
+            setSelectedSession(null); // Reset selected session
+            resetScreeningForm(); // Reset form data
+          }}>
             Cancel
           </Button>
           <Button 
@@ -1587,7 +1838,10 @@ const Screenings: React.FC = () => {
       {/* Delete Confirmation Dialog */}
       <Dialog 
         open={deleteConfirmDialogOpen} 
-        onClose={() => setDeleteConfirmDialogOpen(false)} 
+        onClose={() => {
+          setDeleteConfirmDialogOpen(false);
+          setForceDelete(false); // Reset force delete when closing dialog
+        }} 
         maxWidth="sm" 
         fullWidth
       >
@@ -1603,13 +1857,39 @@ const Screenings: React.FC = () => {
             <strong>Type:</strong> {selectedSession?.screening_type}<br/>
             <strong>Date:</strong> {selectedSession ? new Date(selectedSession.created_at).toLocaleDateString() : ''}
           </Typography>
+          
+          {isAdmin() && (
+            <Box sx={{ mt: 2, p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={forceDelete}
+                    onChange={(e) => setForceDelete(e.target.checked)}
+                    color="error"
+                  />
+                }
+                label={
+                  <Typography variant="body2" color="error">
+                    <strong>Force Delete (Permanent):</strong> Permanently remove all data from database
+                  </Typography>
+                }
+              />
+            </Box>
+          )}
+          
           <Typography variant="body2" color="error" sx={{ mt: 2 }}>
-            <strong>Warning:</strong> This action cannot be undone. All screening data will be permanently deleted.
+            <strong>Warning:</strong> {forceDelete 
+              ? 'This will permanently delete all screening data and cannot be undone!'
+              : 'This will cancel the screening session but preserve data for audit purposes.'
+            }
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button 
-            onClick={() => setDeleteConfirmDialogOpen(false)}
+            onClick={() => {
+              setDeleteConfirmDialogOpen(false);
+              setForceDelete(false); // Reset force delete when cancelling
+            }}
             disabled={saving}
           >
             Cancel
@@ -1620,11 +1900,622 @@ const Screenings: React.FC = () => {
             onClick={handleConfirmDelete}
             disabled={saving}
           >
-            {saving ? 'Deleting...' : 'Delete'}
+            {saving 
+              ? 'Processing...' 
+              : forceDelete 
+                ? 'Permanently Delete' 
+                : 'Cancel Session'
+            }
           </Button>
         </DialogActions>
       </Dialog>
 
+    </Box>
+  );
+};
+
+// Screening Results Tabs Component
+interface ScreeningResultsTabsProps {
+  selectedSession: ScreeningSession;
+}
+
+const ScreeningResultsTabs: React.FC<ScreeningResultsTabsProps> = ({ selectedSession }) => {
+  const [activeTab, setActiveTab] = useState(0);
+
+  const renderPatientInfo = () => (
+    <Card sx={{ mb: 3 }}>
+      <CardContent>
+        <Typography variant="h6" gutterBottom color="primary">
+          Patient Information
+        </Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              <strong>Full Name:</strong> {selectedSession.patient_name}
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              <strong>Screening Type:</strong> {selectedSession.screening_type}
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              <strong>Status:</strong> 
+              <Chip 
+                label={selectedSession.status.replace('_', ' ')} 
+                size="small" 
+                color={selectedSession.status === 'completed' ? 'success' : selectedSession.status === 'in_progress' ? 'warning' : 'default'}
+                sx={{ ml: 1 }}
+              />
+            </Typography>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              <strong>Date:</strong> {new Date(selectedSession.created_at).toLocaleDateString()}
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              <strong>Examiner:</strong> {selectedSession.examiner_name || 'Not specified'}
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              <strong>Equipment:</strong> {selectedSession.equipment_used || 'Not specified'}
+            </Typography>
+          </Grid>
+        </Grid>
+      </CardContent>
+    </Card>
+  );
+
+  const renderWorkflowProgress = () => {
+    const isMobileScreening = selectedSession.screening_type?.toLowerCase().includes('mobile');
+    const workflowSteps = isMobileScreening 
+      ? [
+          'Appointment Schedule',
+          'Parent Consent', 
+          'Student Registration',
+          'VA Screening',
+          'Doctor Diagnosis',
+          'Glasses Selection',
+          'Inventory Check',
+          'School Delivery'
+        ]
+      : [
+          'Patient Selection',
+          'Screening Setup',
+          'Vision Assessment', 
+          'Results & Recommendations',
+          'Complete Screening'
+        ];
+
+    return (
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom color="primary">
+            Workflow Progress
+          </Typography>
+          {selectedSession.current_step !== undefined ? (
+            <Stepper activeStep={selectedSession.current_step || 0} orientation="vertical">
+              {workflowSteps.map((step, index) => (
+                <Step key={index}>
+                  <StepLabel
+                    StepIconComponent={({ active, completed }) => (
+                      <Box
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          backgroundColor: completed ? 'success.main' : active ? 'primary.main' : 'grey.300',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'white',
+                          fontWeight: 'bold',
+                          fontSize: '0.875rem'
+                        }}
+                      >
+                        {completed ? '✓' : index + 1}
+                      </Box>
+                    )}
+                  >
+                    <Typography variant="body1" sx={{ fontWeight: index === selectedSession.current_step ? 'bold' : 'normal' }}>
+                      {step}
+                    </Typography>
+                    {index === selectedSession.current_step && (
+                      <Typography variant="caption" color="primary" sx={{ ml: 1 }}>
+                        (Current Step)
+                      </Typography>
+                    )}
+                    {selectedSession.current_step_name && index === selectedSession.current_step && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        {selectedSession.current_step_name}
+                      </Typography>
+                    )}
+                  </StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              No workflow progress information available.
+            </Typography>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const renderVisionResults = () => (
+    <Card sx={{ mb: 3 }}>
+      <CardContent>
+        <Typography variant="h6" gutterBottom color="primary">
+          Vision Assessment Results
+        </Typography>
+        {selectedSession.results ? (
+          <Grid container spacing={3}>
+            {/* Distance Vision */}
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+                Distance Vision
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Left Eye:</strong>
+                    </Typography>
+                    <Typography variant="h6" color="primary">
+                      {selectedSession.results.left_eye_distance || 'Not tested'}
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Right Eye:</strong>
+                    </Typography>
+                    <Typography variant="h6" color="primary">
+                      {selectedSession.results.right_eye_distance || 'Not tested'}
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Grid>
+
+            {/* Near Vision */}
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+                Near Vision
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Left Eye:</strong>
+                    </Typography>
+                    <Typography variant="h6" color="primary">
+                      {selectedSession.results.left_eye_near || 'Not tested'}
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Right Eye:</strong>
+                    </Typography>
+                    <Typography variant="h6" color="primary">
+                      {selectedSession.results.right_eye_near || 'Not tested'}
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Grid>
+
+            {/* Specialized Tests */}
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+                Specialized Tests
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Color Vision:</strong>
+                    </Typography>
+                    <Chip 
+                      label={selectedSession.results.color_vision || 'Not tested'}
+                      color={selectedSession.results.color_vision === 'normal' ? 'success' : selectedSession.results.color_vision === 'failed' ? 'error' : 'warning'}
+                      variant="outlined"
+                    />
+                  </Box>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      <strong>Depth Perception:</strong>
+                    </Typography>
+                    <Chip 
+                      label={selectedSession.results.depth_perception || 'Not tested'}
+                      color={selectedSession.results.depth_perception === 'normal' ? 'success' : selectedSession.results.depth_perception === 'failed' ? 'error' : 'warning'}
+                      variant="outlined"
+                    />
+                  </Box>
+                </Grid>
+              </Grid>
+            </Grid>
+
+            {/* Notes and Recommendations */}
+            {(selectedSession.results.notes || selectedSession.results.recommendations) && (
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2 }} />
+                {selectedSession.results.notes && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Clinical Notes:
+                    </Typography>
+                    <Typography variant="body2" sx={{ p: 2, bgcolor: 'info.light', borderRadius: 1, color: 'info.contrastText' }}>
+                      {selectedSession.results.notes}
+                    </Typography>
+                  </Box>
+                )}
+                {selectedSession.results.recommendations && (
+                  <Box>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Recommendations:
+                    </Typography>
+                    <Typography variant="body2" sx={{ p: 2, bgcolor: 'warning.light', borderRadius: 1, color: 'warning.contrastText' }}>
+                      {selectedSession.results.recommendations}
+                    </Typography>
+                  </Box>
+                )}
+              </Grid>
+            )}
+          </Grid>
+        ) : (
+          <Box>
+            {/* Show session status and workflow data even when no formal results */}
+            <Alert severity="info" sx={{ mb: 3 }}>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                <strong>No formal vision assessment results recorded for this screening session.</strong>
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Session Status: <Chip label={selectedSession.status} size="small" color="warning" />
+              </Typography>
+              <Typography variant="body2">
+                This may be a test session or the vision assessment has not been completed yet.
+              </Typography>
+            </Alert>
+
+            {/* Check for workflow data that might contain screening information */}
+            {selectedSession.workflow_data?.screening_results && (
+              <Card sx={{ mb: 2, bgcolor: 'warning.light' }}>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom color="primary">
+                    📋 Workflow Screening Data Found
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <Typography variant="body2">
+                        <strong>Glasses Needed:</strong> {selectedSession.workflow_data.screening_results.glasses_needed ? 'Yes' : 'No'}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Glasses Fitted:</strong> {selectedSession.workflow_data.screening_results.glasses_fitted ? 'Yes' : 'No'}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <Typography variant="body2">
+                        <strong>Overall Assessment:</strong> {selectedSession.workflow_data.screening_results.overall_assessment || 'Not specified'}
+                      </Typography>
+                      <Typography variant="body2">
+                        <strong>Follow-up Required:</strong> {selectedSession.workflow_data.screening_results.follow_up_required ? 'Yes' : 'No'}
+                      </Typography>
+                    </Grid>
+                    {selectedSession.workflow_data.screening_results.screening_notes && (
+                      <Grid item xs={12}>
+                        <Typography variant="body2" sx={{ mt: 1 }}>
+                          <strong>Notes:</strong> {selectedSession.workflow_data.screening_results.screening_notes}
+                        </Typography>
+                      </Grid>
+                    )}
+                  </Grid>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Show debug information to help understand the data structure */}
+            <Card sx={{ mt: 2, bgcolor: 'grey.50', border: '1px dashed grey' }}>
+              <CardContent>
+                <Typography variant="subtitle2" gutterBottom color="text.secondary">
+                  🔧 Session Data Summary (for troubleshooting)
+                </Typography>
+                <Box sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Session ID:</strong> {selectedSession._id}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Patient:</strong> {selectedSession.patient_name}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Type:</strong> {selectedSession.screening_type}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Status:</strong> {selectedSession.status}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Current Step:</strong> {selectedSession.current_step !== undefined ? selectedSession.current_step : 'undefined'}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Results Object:</strong> {selectedSession.results ? 'exists but empty/null fields' : 'null/undefined'}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Workflow Data:</strong> {selectedSession.workflow_data ? 'exists' : 'null/undefined'}
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Box>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  const renderWorkflowData = () => {
+    const workflowData = selectedSession.workflow_data;
+    const stepHistory = selectedSession.step_history;
+    const isMobileScreening = selectedSession.screening_type?.toLowerCase().includes('mobile');
+
+    return (
+      <Box>
+        {/* Step-by-Step Progress Details */}
+        {stepHistory && stepHistory.length > 0 && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom color="primary">
+                📋 Step History & Progress
+              </Typography>
+              {stepHistory.map((step, index) => (
+                <Box key={index} sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1, borderLeft: '4px solid', borderLeftColor: 'primary.main' }}>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <Typography variant="subtitle2" color="primary">
+                        Step {step.step_number + 1}: {step.step_name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Status: {step.status}
+                      </Typography>
+                      {step.completed_at && (
+                        <Typography variant="body2" color="text.secondary">
+                          Completed: {new Date(step.completed_at).toLocaleString()}
+                        </Typography>
+                      )}
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      {step.completed_by_name && (
+                        <Typography variant="body2">
+                          <strong>Completed by:</strong> {step.completed_by_name}
+                        </Typography>
+                      )}
+                      {step.notes && (
+                        <Typography variant="body2" sx={{ mt: 1, p: 1, bgcolor: 'info.light', borderRadius: 0.5, fontSize: '0.875rem' }}>
+                          <strong>Notes:</strong> {step.notes}
+                        </Typography>
+                      )}
+                    </Grid>
+                  </Grid>
+                </Box>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Workflow Data Details */}
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom color="primary">
+              🔍 Detailed Workflow Information
+            </Typography>
+            
+            {workflowData ? (
+              <Box>
+                {/* Parent Consent Information */}
+                {workflowData.parent_consent !== undefined && (
+                  <Box sx={{ mb: 3, p: 2, bgcolor: workflowData.parent_consent ? 'success.light' : 'error.light', borderRadius: 1 }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      👨‍👩‍👧‍👦 Parent Consent
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Status:</strong> {workflowData.parent_consent ? '✅ Granted' : '❌ Not Granted'}
+                    </Typography>
+                    {workflowData.consent_date && (
+                      <Typography variant="body2">
+                        <strong>Date:</strong> {new Date(workflowData.consent_date).toLocaleDateString()}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+
+                {/* Screening Results Details */}
+                {workflowData.screening_results && (
+                  <Box sx={{ mb: 3, p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
+                    <Typography variant="subtitle2" gutterBottom color="info.contrastText">
+                      🔬 Detailed Screening Results
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="info.contrastText">
+                          <strong>Glasses Needed:</strong> {workflowData.screening_results.glasses_needed ? 'Yes' : 'No'}
+                        </Typography>
+                        <Typography variant="body2" color="info.contrastText">
+                          <strong>Glasses Fitted:</strong> {workflowData.screening_results.glasses_fitted ? 'Yes' : 'No'}
+                        </Typography>
+                        <Typography variant="body2" color="info.contrastText">
+                          <strong>Glasses Delivered:</strong> {workflowData.screening_results.glasses_delivered ? 'Yes' : 'No'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Typography variant="body2" color="info.contrastText">
+                          <strong>Overall Assessment:</strong> {workflowData.screening_results.overall_assessment || 'Not specified'}
+                        </Typography>
+                        <Typography variant="body2" color="info.contrastText">
+                          <strong>Academic Impact:</strong> {workflowData.screening_results.academic_impact || 'Not specified'}
+                        </Typography>
+                        <Typography variant="body2" color="info.contrastText">
+                          <strong>Follow-up Required:</strong> {workflowData.screening_results.follow_up_required ? 'Yes' : 'No'}
+                        </Typography>
+                      </Grid>
+                      {workflowData.screening_results.screening_notes && (
+                        <Grid item xs={12}>
+                          <Typography variant="body2" color="info.contrastText" sx={{ mt: 1 }}>
+                            <strong>Clinical Notes:</strong> {workflowData.screening_results.screening_notes}
+                          </Typography>
+                        </Grid>
+                      )}
+                      {workflowData.screening_results.recommendations && (
+                        <Grid item xs={12}>
+                          <Typography variant="body2" color="info.contrastText" sx={{ mt: 1 }}>
+                            <strong>Recommendations:</strong> {workflowData.screening_results.recommendations}
+                          </Typography>
+                        </Grid>
+                      )}
+                    </Grid>
+                  </Box>
+                )}
+
+                {/* Inventory & Delivery Status */}
+                {isMobileScreening && (
+                  <Box sx={{ mb: 3, p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
+                    <Typography variant="subtitle2" gutterBottom color="warning.contrastText">
+                      📦 Inventory & Delivery Status
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={4}>
+                        <Typography variant="body2" color="warning.contrastText">
+                          <strong>Inventory Checked:</strong> {workflowData.inventory_checked ? '✅ Yes' : '❌ No'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Typography variant="body2" color="warning.contrastText">
+                          <strong>Glasses Selected:</strong> {workflowData.glasses_selected ? '✅ Yes' : '❌ No'}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Typography variant="body2" color="warning.contrastText">
+                          <strong>Delivery Scheduled:</strong> {workflowData.delivery_scheduled ? '✅ Yes' : '❌ No'}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                )}
+
+                {/* Raw Technical Data (Collapsible) */}
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="subtitle2" gutterBottom color="text.secondary">
+                    🔧 Technical Data (For Debugging)
+                  </Typography>
+                  <Box sx={{ p: 2, bgcolor: 'grey.100', borderRadius: 1, border: '1px solid', borderColor: 'grey.300' }}>
+                    <details>
+                      <summary style={{ cursor: 'pointer', fontWeight: 'bold', marginBottom: '8px' }}>
+                        Click to expand raw workflow data
+                      </summary>
+                      <Box sx={{ fontFamily: 'monospace', fontSize: '0.75rem', whiteSpace: 'pre-wrap', mt: 1 }}>
+                        {JSON.stringify(workflowData, null, 2)}
+                      </Box>
+                    </details>
+                  </Box>
+                </Box>
+              </Box>
+            ) : (
+              <Typography variant="body2" color="text.secondary" textAlign="center">
+                No detailed workflow data available for this screening session.
+              </Typography>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Session Metadata */}
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom color="primary">
+              📊 Session Metadata
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Session ID:</strong> {selectedSession._id}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Created:</strong> {new Date(selectedSession.created_at).toLocaleString()}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Last Updated:</strong> {new Date(selectedSession.updated_at).toLocaleString()}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                {selectedSession.last_updated_by_name && (
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    <strong>Last Updated By:</strong> {selectedSession.last_updated_by_name}
+                  </Typography>
+                )}
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Current Step:</strong> {selectedSession.current_step !== undefined ? `${selectedSession.current_step + 1}` : 'Unknown'}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Current Step Name:</strong> {selectedSession.current_step_name || 'Unknown'}
+                </Typography>
+              </Grid>
+            </Grid>
+          </CardContent>
+        </Card>
+
+        {/* Follow-up Information */}
+        {selectedSession.results?.follow_up_required && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Box sx={{ p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
+                <Typography variant="h6" gutterBottom color="warning.contrastText">
+                  ⏰ Follow-up Required
+                </Typography>
+                {selectedSession.results.follow_up_date && (
+                  <Typography variant="body2" color="warning.contrastText">
+                    <strong>Scheduled Date:</strong> {new Date(selectedSession.results.follow_up_date).toLocaleDateString()}
+                  </Typography>
+                )}
+                <Typography variant="body2" color="warning.contrastText" sx={{ mt: 1 }}>
+                  Patient requires additional follow-up based on screening results.
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        )}
+      </Box>
+    );
+  };
+
+  return (
+    <Box>
+      {/* Always show patient info */}
+      {renderPatientInfo()}
+      
+      {/* Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)}>
+          <Tab 
+            label="Workflow Progress" 
+            icon={<Schedule />}
+            iconPosition="start"
+          />
+          <Tab 
+            label="Vision Results" 
+            icon={<VisibilityIcon />}
+            iconPosition="start"
+          />
+          <Tab 
+            label="Additional Data" 
+            icon={<Assessment />}
+            iconPosition="start"
+          />
+        </Tabs>
+      </Box>
+
+      {/* Tab Content */}
+      {activeTab === 0 && renderWorkflowProgress()}
+      {activeTab === 1 && renderVisionResults()}
+      {activeTab === 2 && renderWorkflowData()}
     </Box>
   );
 };

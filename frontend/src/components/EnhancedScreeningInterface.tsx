@@ -567,7 +567,7 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
         Choose a patient to conduct enhanced vision screening with comprehensive tests, or start without a patient.
       </Typography>
 
-      {/* Quick Start Option */}
+      {/* Quick Start Option - Hidden 
       <Card sx={{ mb: 3, border: '2px dashed', borderColor: 'primary.main' }}>
         <CardContent>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -592,7 +592,7 @@ const EnhancedScreeningInterface: React.FC<EnhancedScreeningInterfaceProps> = ({
             </Button>
           </Box>
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Patient Selection Tabs */}
       <Tabs value={selectedTab} onChange={(e, newValue) => setSelectedTab(newValue)} sx={{ mb: 3 }}>

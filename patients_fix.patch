@@ -1,0 +1,12 @@
+--- backend/app/api/patients.py.orig
++++ backend/app/api/patients.py
+@@ -282,6 +282,9 @@
+     )
+     
+     patients_collection = get_patients_collection()
++    
++    # Get user_id for RBAC checks
++    user_id = current_user.get("user_id")
+     
+     # Validate ObjectId
+     if not ObjectId.is_valid(patient_id):

@@ -48,12 +48,14 @@ import {
 
 interface DoctorDiagnosisFormProps {
   patient: any;
+  screeningResults?: any; // VA screening results to pre-populate fields
   onComplete: (diagnosis: any) => void;
   onBack: () => void;
 }
 
 const DoctorDiagnosisForm: React.FC<DoctorDiagnosisFormProps> = ({
   patient,
+  screeningResults,
   onComplete,
   onBack,
 }) => {
@@ -79,9 +81,9 @@ const DoctorDiagnosisForm: React.FC<DoctorDiagnosisFormProps> = ({
     examinerName: '',
     examinerTitle: '',
     
-    // Visual Acuity Results
-    rightEyeVA: '',
-    leftEyeVA: '',
+    // Visual Acuity Results (pre-populated from VA screening)
+    rightEyeVA: screeningResults?.right_eye_distance || '',
+    leftEyeVA: screeningResults?.left_eye_distance || '',
     binocularVA: '',
     
     // Tonometry Results
@@ -257,6 +259,17 @@ const DoctorDiagnosisForm: React.FC<DoctorDiagnosisFormProps> = ({
     contextRef.current = context;
   }, [drawingColor, lineWidth]);
 
+  // Load existing diagnosis data if available
+  useEffect(() => {
+    if (screeningResults?.doctor_diagnosis) {
+      console.log('Loading existing diagnosis data:', screeningResults.doctor_diagnosis);
+      setDiagnosis(prev => ({
+        ...prev,
+        ...screeningResults.doctor_diagnosis
+      }));
+    }
+  }, [screeningResults?.doctor_diagnosis]);
+
   const startDrawing = (event: React.MouseEvent<HTMLCanvasElement>) => {
     setIsDrawing(true);
     const canvas = canvasRef.current;
@@ -425,7 +438,7 @@ const DoctorDiagnosisForm: React.FC<DoctorDiagnosisFormProps> = ({
     }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Save current drawing data before submitting
     const canvas = canvasRef.current;
     if (canvas) {
@@ -435,6 +448,9 @@ const DoctorDiagnosisForm: React.FC<DoctorDiagnosisFormProps> = ({
         eyeDiagramDrawing: imageData
       }));
     }
+    
+    // Add a small delay to ensure diagnosis state is updated
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     onComplete(diagnosis);
   };

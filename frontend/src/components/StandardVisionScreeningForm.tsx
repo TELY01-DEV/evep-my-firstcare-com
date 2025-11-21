@@ -151,11 +151,13 @@ interface VisionResults {
 }
 
 interface StandardVisionScreeningFormProps {
+  existingSession?: any;
   onComplete?: (results: any) => void;
   onCancel?: () => void;
 }
 
 const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = ({
+  existingSession,
   onComplete,
   onCancel
 }) => {
@@ -193,6 +195,29 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
 
   // Screening states
   const [screeningType, setScreeningType] = useState('comprehensive_ophthalmic');
+  const [isEditingSession, setIsEditingSession] = useState(false);
+  const [isDoctorApproved, setIsDoctorApproved] = useState(false);
+
+  // Helper function to check if screening is doctor approved and completed
+  const checkDoctorApproval = (session: any) => {
+    if (!session) return false;
+    
+    // Check if session has completed status and doctor approval
+    const isCompleted = session.status === 'completed' || session.status === 'Screening Complete';
+    const hasDoctorDiagnosis = session.workflow_data?.screening_results?.doctor_diagnosis;
+    const isDoctorStep = session.current_step_name === 'Doctor Diagnosis' || 
+                         (session.step_history && session.step_history.some((step: any) => 
+                           step.step_name === 'Doctor Diagnosis' && step.status === 'completed'
+                         ));
+    
+    return isCompleted && (hasDoctorDiagnosis || isDoctorStep);
+  };
+
+  // Helper function to check if user is a doctor
+  const isDoctorRole = () => {
+    if (!user) return false;
+    return user.role === 'doctor' || user.role === 'medical_admin' || user.role === 'super_admin';
+  };
   const [equipmentUsed, setEquipmentUsed] = useState('');
   const [screeningResults, setScreeningResults] = useState<VisionResults>({
     left_eye_distance: '',
@@ -253,6 +278,60 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
     fetchPatients();
   }, []);
 
+  // Load existing session data when existingSession is provided
+  useEffect(() => {
+    if (existingSession) {
+      console.log('Loading existing session for editing:', existingSession);
+      
+      setIsEditingSession(true);
+      
+      // Check if doctor has approved and completed the screening
+      const doctorApproved = checkDoctorApproval(existingSession);
+      setIsDoctorApproved(doctorApproved);
+      
+      if (doctorApproved) {
+        setSnackbar({
+          open: true,
+          message: 'This screening has been completed and approved by a doctor. It cannot be edited.',
+          severity: 'warning'
+        });
+      }
+      
+      // Set active step based on current_step
+      if (existingSession.current_step !== undefined) {
+        setActiveStep(existingSession.current_step);
+      }
+      
+      // Load patient data if available
+      if (existingSession.patient_id) {
+        // Find patient in patients list or create from session data
+        const patient = {
+          _id: existingSession.patient_id,
+          first_name: existingSession.patient_name?.split(' ')[0] || '',
+          last_name: existingSession.patient_name?.split(' ').slice(1).join(' ') || '',
+          date_of_birth: '',
+          gender: '',
+        };
+        setSelectedPatient(patient);
+      }
+      
+      // Load screening configuration
+      if (existingSession.screening_type) {
+        setScreeningType(existingSession.screening_type);
+      }
+      if (existingSession.equipment_used) {
+        setEquipmentUsed(existingSession.equipment_used);
+      }
+      
+      // Load screening results if available
+      if (existingSession.results) {
+        setScreeningResults(prev => ({ ...prev, ...existingSession.results }));
+      } else if (existingSession.workflow_data?.screening_results) {
+        setScreeningResults(prev => ({ ...prev, ...existingSession.workflow_data.screening_results }));
+      }
+    }
+  }, [existingSession]);
+
   const fetchPatients = async () => {
     try {
       const response = await api.get('/api/v1/evep/students');
@@ -274,6 +353,40 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
 
   const handleBack = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
+  };
+
+  const handleStepClick = (stepIndex: number) => {
+    // Prevent step navigation if doctor approved
+    if (isDoctorApproved) {
+      setSnackbar({
+        open: true,
+        message: 'Cannot navigate steps - this screening has been approved by a doctor and is read-only',
+        severity: 'error'
+      });
+      return;
+    }
+
+    // Allow navigation to any step if:
+    // 1. Going backwards (always allowed)
+    // 2. Going forward but not beyond validation requirements
+    if (stepIndex < activeStep || stepIndex <= activeStep + 1) {
+      // Additional validation for specific steps
+      if (stepIndex === 3 && !selectedPatient) {
+        setSnackbar({
+          open: true,
+          message: 'Please select or add a patient before proceeding to Results & Recommendations',
+          severity: 'warning'
+        });
+        return;
+      }
+      setActiveStep(stepIndex);
+    } else {
+      setSnackbar({
+        open: true,
+        message: 'Please complete the current step before proceeding',
+        severity: 'warning'
+      });
+    }
   };
 
   const handleAddNewPatient = () => {
@@ -1863,6 +1976,16 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
               Choose a patient to conduct standard vision screening in hospital/clinic settings or start without a patient.
             </Typography>
 
+            {/* Role-based information */}
+            {!isDoctorRole() && (
+              <Alert severity="warning" sx={{ mb: 3 }}>
+                <Typography variant="body2">
+                  <strong>Role Limitation Notice:</strong> You can conduct the screening assessment, but only doctors can complete and finalize screening sessions. A doctor will need to review and complete this screening.
+                </Typography>
+              </Alert>
+            )}
+
+            {/* Hidden Start Workflow Without Patient block 
             <Card sx={{ mb: 3, border: '2px dashed', borderColor: 'primary.main' }}>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1887,7 +2010,7 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
                   </Button>
                 </Box>
               </CardContent>
-            </Card>
+            </Card> */}
 
             <Tabs value={patientTab} onChange={(e, newValue) => setPatientTab(newValue)} sx={{ mb: 3 }}>
               <Tab label="Manual Registration" icon={<Person />} />
@@ -2073,13 +2196,23 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
             
             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
-                <RBACScreeningDropdown
-                  label="Screening Type"
-                  value={screeningType}
-                  onChange={setScreeningType}
-                  required
-                  showAccessInfo
-                />
+                {isDoctorApproved ? (
+                  <TextField
+                    fullWidth
+                    label="Screening Type"
+                    value={screeningType}
+                    disabled
+                    variant="filled"
+                  />
+                ) : (
+                  <RBACScreeningDropdown
+                    label="Screening Type"
+                    value={screeningType}
+                    onChange={setScreeningType}
+                    required
+                    showAccessInfo
+                  />
+                )}
               </Grid>
               <Grid item xs={12} md={6}>
                 <TextField
@@ -2088,6 +2221,7 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
                   value={equipmentUsed}
                   onChange={(e) => setEquipmentUsed(e.target.value)}
                   placeholder="e.g., Snellen Chart, Ishihara Test, Stereoscope"
+                  disabled={isDoctorApproved}
                 />
               </Grid>
               <Grid item xs={12}>
@@ -2387,7 +2521,10 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
 
             <Alert severity="info" sx={{ mb: 3 }}>
               <Typography variant="body2">
-                Click "Complete Screening" to save the results and finish the screening process.
+                {isDoctorRole() 
+                  ? 'Click "Complete Screening" to save the results and finish the screening process.'
+                  : '🩺 Only doctors can complete screening sessions. Please contact a medical professional to finalize this screening.'
+                }
               </Typography>
             </Alert>
           </Box>
@@ -2421,13 +2558,56 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
         )}
       </Box>
 
+      {/* Doctor Approval Warning */}
+      {isDoctorApproved && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <Typography variant="h6" component="div" gutterBottom>
+            🩺 Doctor Approved Screening - Read Only
+          </Typography>
+          <Typography variant="body2">
+            This screening has been completed and approved by a doctor. No edits can be made to maintain medical record integrity.
+            The screening results and recommendations are final.
+          </Typography>
+        </Alert>
+      )}
+
+      {/* Session Edit Mode Indicator */}
+      {isEditingSession && !isDoctorApproved && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="h6" component="div" gutterBottom>
+            ✏️ Editing Existing Screening Session
+          </Typography>
+          <Typography variant="body2">
+            You are editing an existing screening session. Changes will be saved to the current session.
+          </Typography>
+        </Alert>
+      )}
+
       {/* Workflow Stepper */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Stepper activeStep={activeStep} alternativeLabel>
-            {steps.map((label) => (
-              <Step key={label}>
-                <StepLabel>{label}</StepLabel>
+            {steps.map((label, index) => (
+              <Step key={label} completed={index < activeStep}>
+                <StepLabel 
+                  sx={{ 
+                    cursor: isDoctorApproved ? 'not-allowed' : 'pointer',
+                    opacity: isDoctorApproved ? 0.6 : 1,
+                    '& .MuiStepLabel-label': {
+                      '&:hover': {
+                        color: isDoctorApproved ? 'text.disabled' : 'primary.main',
+                        textDecoration: isDoctorApproved ? 'none' : 'underline'
+                      }
+                    },
+                    '& .MuiStepLabel-label.Mui-active': {
+                      fontWeight: 'bold'
+                    }
+                  }}
+                  onClick={() => handleStepClick(index)}
+                >
+                  {label}
+                  {isDoctorApproved && index === activeStep && ' 🔒'}
+                </StepLabel>
               </Step>
             ))}
           </Stepper>
@@ -2445,7 +2625,7 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
       <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
         <Box>
           <Button
-            disabled={activeStep === 0}
+            disabled={activeStep === 0 || isDoctorApproved}
             onClick={handleBack}
           >
             Back
@@ -2453,21 +2633,31 @@ const StandardVisionScreeningForm: React.FC<StandardVisionScreeningFormProps> = 
         </Box>
         <Box>
           {activeStep === steps.length - 1 ? (
-            <Button
-              variant="contained"
-              onClick={handleScreeningComplete}
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={20} /> : <CheckCircle />}
-            >
-              Complete Screening
-            </Button>
+            // Only show Complete Screening button for doctors
+            isDoctorRole() ? (
+              <Button
+                variant="contained"
+                onClick={handleScreeningComplete}
+                disabled={loading || isDoctorApproved}
+                startIcon={loading ? <CircularProgress size={20} /> : <CheckCircle />}
+              >
+                {isDoctorApproved ? 'Read Only - Doctor Approved' : (loading ? 'Completing...' : 'Complete Screening')}
+              </Button>
+            ) : (
+              <Alert severity="info" sx={{ p: 2 }}>
+                <Typography variant="body2">
+                  🩺 <strong>Doctor Authorization Required</strong><br/>
+                  Only doctors can complete screening sessions. Please contact a medical professional to finalize this screening.
+                </Typography>
+              </Alert>
+            )
           ) : (
             <Button
               variant="contained"
               onClick={handleNext}
-              disabled={loading || (activeStep === 3 && !selectedPatient)}
+              disabled={loading || (activeStep === 3 && !selectedPatient) || isDoctorApproved}
             >
-              Next
+              {isDoctorApproved ? 'Read Only Mode' : 'Next'}
             </Button>
           )}
         </Box>

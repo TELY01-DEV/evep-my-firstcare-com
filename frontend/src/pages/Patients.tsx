@@ -89,6 +89,11 @@ interface Patient {
   profile_photo: string | null;
   extra_photos: string[];
   photo_metadata: any;
+  // Additional screening fields for screened patients
+  last_screening_date?: string;
+  last_screening_type?: string;
+  last_screening_status?: string;
+  screening_results?: any;
 }
 
 interface PatientFormData {
@@ -184,27 +189,126 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
       setLoading(true);
       const token = localStorage.getItem('evep_token');
       
-              const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
-              const response = await fetch(`${baseUrl}/api/v1/patients/`, {
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      console.log('🔍 Fetching screened patients from screening sessions...');
+      
+      // Fetch completed screening sessions to get patients who have been screened
+      const response = await fetch(`${baseUrl}/api/v1/screenings/sessions`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
+      console.log('📊 Screening Sessions API Response Status:', response.status);
+
       if (response.ok) {
-        const data = await response.json();
-        setPatients(data || []); // Backend returns direct array, not data.patients
+        const sessions = await response.json();
+        console.log('📊 Screening Sessions Data:', sessions);
+        console.log('📊 Session Count:', sessions.length);
+        
+        // Log all unique statuses to understand what we're working with
+        const statusSet = new Set(sessions.map((s: any) => s.status));
+        const allStatuses = Array.from(statusSet);
+        console.log('📊 All Session Statuses:', allStatuses);
+        
+        // Extract unique patients from completed screening sessions
+        const patientMap = new Map();
+        const screenedPatients: Patient[] = [];
+        
+        sessions.forEach((session: any) => {
+          // Include sessions that have been screened (not just pending or cancelled)
+          // Status values that indicate screening has occurred or is in progress
+          const validScreeningStatuses = [
+            'completed',
+            'in_progress', 
+            'VA Screening',
+            'Doctor Diagnosis',
+            'Glasses Selection',
+            'Inventory Check',
+            'School Delivery',
+            'Screening Complete'
+          ];
+          
+          const hasValidStatus = validScreeningStatuses.includes(session.status);
+          
+          if (hasValidStatus && session.patient_id && session.patient_name) {
+            const patientId = session.patient_id;
+            
+            if (!patientMap.has(patientId)) {
+              const patient = {
+                _id: session.patient_id,
+                patient_id: session.patient_id,
+                first_name: session.patient_name?.split(' ')[0] || '',
+                last_name: session.patient_name?.split(' ').slice(1).join(' ') || '',
+                cid: session.patient_cid || '',
+                date_of_birth: session.patient_birth_date || '',
+                gender: session.patient_gender || 'other',
+                emergency_contact: session.patient_parent_name || '',
+                parent_phone: session.patient_parent_phone || '',
+                parent_email: session.patient_parent_email || '',
+                emergency_phone: session.patient_parent_phone || '',
+                address: session.patient_address || '',
+                school: session.patient_school || '',
+                grade: session.patient_grade || '',
+                medical_history: {},
+                family_vision_history: {},
+                insurance_info: {},
+                consent_forms: {},
+                is_active: true,
+                created_at: session.created_at || '',
+                updated_at: session.updated_at || '',
+                created_by: session.created_by || '',
+                audit_hash: '',
+                screening_history: [],
+                documents: [],
+                profile_photo: session.patient_photo || null,
+                extra_photos: [],
+                photo_metadata: {},
+                // Additional screening info
+                last_screening_date: session.created_at,
+                last_screening_type: session.screening_type,
+                last_screening_status: session.status,
+                screening_results: session.results
+              };
+              
+              patientMap.set(patientId, patient);
+              screenedPatients.push(patient);
+            }
+          }
+        });
+        
+        console.log(`📊 Found ${screenedPatients.length} patients who have been screened by staff`);
+        setPatients(screenedPatients);
+        
+        // Update the message if no screened patients found
+        if (screenedPatients.length === 0) {
+          if (sessions.length === 0) {
+            setError('No screening sessions found. Patients will appear here after completing screening sessions.');
+          } else {
+            console.log('📊 Sessions found but no valid screened patients. Statuses found:', allStatuses);
+            setError(`Found ${sessions.length} screening sessions but none match the screened patient criteria. Session statuses: ${allStatuses.join(', ')}`);
+          }
+        }
+        
       } else {
-        console.error('Failed to fetch patients from API');
+        const errorText = await response.text();
+        console.error('❌ Failed to fetch screening sessions:', response.status, errorText);
+        setError(`Failed to load screened patients: ${response.status} - ${errorText}`);
         setPatients([]);
       }
     } catch (err) {
-      console.error('Patients fetch error:', err);
-      setError('Failed to load patients');
+      console.error('❌ Screened patients fetch error:', err);
+      setError('Failed to load screened patients');
     } finally {
       setLoading(false);
     }
+  };
+
+  const checkAvailableStudents = async () => {
+    // This function is no longer needed since we're showing screened patients only
+    // Patients will appear here after they complete screening sessions
+    console.log('ℹ️ This page shows patients who have been screened by staff');
   };
 
   const handleOpenDialog = (patient?: Patient) => {
@@ -430,10 +534,10 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
-            {t('patients.title')}
+            Screened Patients
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            {t('patients.subtitle')}
+            Patients registered and screened by staff during screening sessions
           </Typography>
         </Box>
         <Box display="flex" gap={2}>
@@ -613,6 +717,12 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
                         {patient.school && ` • School: ${patient.school}`}
                         {patient.grade && ` • Grade: ${patient.grade}`}
                       </Typography>
+                      {/* Screening Information */}
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Last Screened: {patient.last_screening_date ? new Date(patient.last_screening_date).toLocaleDateString() : 'N/A'}
+                        {patient.last_screening_type && ` • Type: ${patient.last_screening_type}`}
+                        {patient.last_screening_status && ` • Status: ${patient.last_screening_status}`}
+                      </Typography>
                       <Box sx={{ mt: 1 }}>
                         {patient.school && (
                           <Chip
@@ -620,6 +730,15 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
                             label="School Student"
                             size="small"
                             color="primary"
+                            sx={{ mr: 1 }}
+                          />
+                        )}
+                        {patient.last_screening_type && (
+                          <Chip
+                            icon={<Assessment />}
+                            label={`${patient.last_screening_type} Screening`}
+                            size="small"
+                            color="success"
                             sx={{ mr: 1 }}
                           />
                         )}

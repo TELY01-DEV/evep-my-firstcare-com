@@ -235,13 +235,6 @@ const MedicalLayout: React.FC<MedicalLayoutProps> = () => {
           description: t('nav.va_screening_description'),
         },
         {
-          text: t('nav.diagnosis_treatment'),
-          icon: <AssessmentIcon />,
-          path: '/dashboard/medical-screening/diagnosis',
-          badge: null,
-          description: t('nav.diagnosis_treatment_description'),
-        },
-        {
           text: t('nav.appointment_scheduling'),
           icon: <ScheduleIcon />,
           path: '/dashboard/evep/appointments',

@@ -146,6 +146,23 @@ async def create_screening_session(
             detail="Patient not found"
         )
     
+    # Check for existing active sessions for this patient
+    existing_session = await db.evep.screenings.find_one({
+        "patient_id": ObjectId(session_data.patient_id),
+        "status": {"$in": ["in_progress", "pending", "Register waiting for screening", 
+                          "Appointment Schedule", "Parent Consent", "Student Registration", 
+                          "VA Screening", "Doctor Diagnosis", "Glasses Selection", 
+                          "Inventory Check", "School Delivery"]}
+    })
+    
+    if existing_session:
+        existing_session_id = str(existing_session["_id"])
+        existing_status = existing_session.get("status", "unknown")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Patient already has an active screening session (ID: {existing_session_id}, Status: {existing_status}). Please complete or cancel the existing session first."
+        )
+    
     # Validate screening category based on user roles from database
     user_roles = await get_user_permissions_from_db(user_id)
     user_role_names = current_user.get("role", "").split(",") if current_user.get("role") else []
@@ -557,9 +574,10 @@ async def list_screening_sessions(
 @router.delete("/sessions/{session_id}")
 async def delete_screening_session(
     session_id: str,
+    force_delete: bool = Query(False, description="Perform hard delete (admin only)"),
     current_user: dict = Depends(auth_get_current_user)
 ):
-    """Delete a screening session (soft delete)"""
+    """Delete a screening session (soft delete by default, hard delete for admins with force_delete=true)"""
     
     # Check if user has permission to delete screenings using database-based RBAC
     user_id = current_user.get("user_id")
@@ -569,8 +587,10 @@ async def delete_screening_session(
             detail="User ID not found"
         )
     
-    # Check permission from database - allow super_admin
+    # Check permission from database - allow super_admin, admin, and medical_admin for hard delete
     user_role = current_user.get("role")
+    is_admin = user_role in ["super_admin", "admin", "medical_admin"]
+    
     if user_role != "super_admin" and not await has_permission_db(user_id, "full_access") and not await has_permission_db(user_id, "screenings_delete"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -589,32 +609,61 @@ async def delete_screening_session(
     # Soft delete by marking as cancelled
     audit_hash = generate_blockchain_hash(f"screening_session_deleted:{session_id}")
     
-    await db.evep.screenings.update_one(
-        {"_id": ObjectId(session_id)},
-        {
-            "$set": {
-                "status": "cancelled",
-                "deleted_at": datetime.utcnow().isoformat(),
-                "deleted_by": current_user["user_id"],
-                "audit_hash": audit_hash
+    if force_delete and is_admin:
+        # Hard delete - permanently remove the record (only for admin roles)
+        result = await db.evep.screenings.delete_one({"_id": ObjectId(session_id)})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Screening session not found or already deleted"
+            )
+        
+        # Log audit for hard delete
+        await db.evep.audit_logs.insert_one({
+            "action": "screening_session_hard_deleted",
+            "user_id": current_user["user_id"],
+            "session_id": session_id,
+            "patient_id": str(session["patient_id"]),
+            "timestamp": datetime.utcnow().isoformat(),
+            "audit_hash": audit_hash,
+            "details": {
+                "deleted_by_role": current_user["role"],
+                "deletion_type": "hard_delete",
+                "permanent": True
             }
-        }
-    )
-    
-    # Log audit
-    await db.evep.audit_logs.insert_one({
-        "action": "screening_session_deleted",
-        "user_id": current_user["user_id"],
-        "session_id": session_id,
-        "patient_id": str(session["patient_id"]),
-        "timestamp": datetime.utcnow().isoformat(),
-        "audit_hash": audit_hash,
-        "details": {
-            "deleted_by_role": current_user["role"]
-        }
-    })
-    
-    return {"message": "Screening session deleted successfully"}
+        })
+        
+        return {"message": "Screening session permanently deleted", "deletion_type": "hard_delete"}
+    else:
+        # Soft delete by marking as cancelled (default behavior)
+        await db.evep.screenings.update_one(
+            {"_id": ObjectId(session_id)},
+            {
+                "$set": {
+                    "status": "cancelled",
+                    "deleted_at": datetime.utcnow().isoformat(),
+                    "deleted_by": current_user["user_id"],
+                    "audit_hash": audit_hash
+                }
+            }
+        )
+        
+        # Log audit for soft delete
+        await db.evep.audit_logs.insert_one({
+            "action": "screening_session_soft_deleted",
+            "user_id": current_user["user_id"],
+            "session_id": session_id,
+            "patient_id": str(session["patient_id"]),
+            "timestamp": datetime.utcnow().isoformat(),
+            "audit_hash": audit_hash,
+            "details": {
+                "deleted_by_role": current_user["role"],
+                "deletion_type": "soft_delete"
+            }
+        })
+        
+        return {"message": "Screening session cancelled (soft delete)", "deletion_type": "soft_delete"}
 
 
 

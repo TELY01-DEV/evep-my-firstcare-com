@@ -38,6 +38,12 @@ export const API_ENDPOINTS = {
   // Screenings
   SCREENINGS_SESSIONS: `${currentConfig.baseUrl}/api/v1/screenings/sessions`,
   
+  // Mobile Unit
+  MOBILE_UNIT: `${currentConfig.baseUrl}/api/v1/mobile-unit`,
+  MOBILE_UNIT_SESSIONS: `${currentConfig.baseUrl}/api/v1/mobile-unit/sessions`,
+  MOBILE_UNIT_STAFF: `${currentConfig.baseUrl}/api/v1/mobile-unit/staff`,
+  MOBILE_UNIT_ASSIGNMENTS: `${currentConfig.baseUrl}/api/v1/mobile-unit/assignments`,
+  
   // Patients
   PATIENTS: `${currentConfig.baseUrl}/api/v1/patients`,
   PATIENTS_SEARCH: `${currentConfig.baseUrl}/api/v1/patients/search`,

@@ -86,10 +86,43 @@ import { useLanguage } from '../contexts/LanguageContext';
 import DoctorDiagnosisForm from './DoctorDiagnosisForm';
 import { API_ENDPOINTS } from '../config/api';
 
+// Step Assignment Interface for Mobile Unit Coordination
+interface StepAssignment {
+  step_name: string;
+  step_number: number;
+  assigned_to: string;
+  assigned_to_name: string;
+  assigned_role: 'nurse' | 'doctor' | 'medical_staff' | 'medical_admin';
+  assignment_time: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'requires_approval';
+  estimated_duration: number; // minutes
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+}
+
+// Mobile Unit Session Interface
+interface MobileUnitSession {
+  session_id: string;
+  unit_id?: string;
+  station_assignments: StepAssignment[];
+  concurrent_access?: {
+    locked_steps: string[];
+    active_users: string[];
+  };
+  approval_workflow?: {
+    requires_approval: boolean;
+    approval_status: 'pending' | 'approved' | 'rejected';
+    approved_by?: string;
+    approved_at?: string;
+  };
+}
+
 
 interface MobileVisionScreeningFormProps {
+  existingSession?: any;
   onScreeningCompleted?: (screening: any) => void;
   onCancel?: () => void;
+  mobileUnitMode?: boolean;
+  unitId?: string;
 }
 
 interface Patient {
@@ -171,8 +204,11 @@ interface Appointment {
 }
 
 const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
+  existingSession,
   onScreeningCompleted,
   onCancel,
+  mobileUnitMode = false,
+  unitId,
 }) => {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -184,6 +220,15 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  
+  // Mobile Unit specific state
+  const [mobileUnitSession, setMobileUnitSession] = useState<MobileUnitSession | null>(null);
+  const [currentStepAssignment, setCurrentStepAssignment] = useState<StepAssignment | null>(null);
+  const [stepLocked, setStepLocked] = useState(false);
+  const [requiresApproval, setRequiresApproval] = useState(false);
+  const [approvalPending, setApprovalPending] = useState(false);
+  const [connectedUsers, setConnectedUsers] = useState<string[]>([]);
+  const [notifications, setNotifications] = useState<string[]>([]);
   
   // Patient selection
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -269,6 +314,85 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
   useEffect(() => {
     fetchPatients();
   }, [selectedTab]);
+
+  // Load existing session data when existingSession is provided
+  useEffect(() => {
+    if (existingSession) {
+      console.log('Loading existing session data:', existingSession);
+      
+      // Set current session ID
+      setCurrentSessionId(existingSession.session_id || existingSession._id);
+      
+      // Set active step based on current_step
+      if (existingSession.current_step !== undefined) {
+        setActiveStep(existingSession.current_step);
+      }
+      
+      // Restore workflow data if available
+      if (existingSession.workflow_data) {
+        const workflow = existingSession.workflow_data;
+        
+        // Restore parent consent
+        if (workflow.parent_consent !== undefined) {
+          setParentConsent(workflow.parent_consent);
+        }
+        
+        // Restore consent date
+        if (workflow.consent_date) {
+          setConsentDate(workflow.consent_date);
+        }
+        
+        // Restore screening results including doctor_diagnosis
+        if (workflow.screening_results) {
+          console.log('Restoring screening results:', workflow.screening_results);
+          setScreeningResults(workflow.screening_results);
+        }
+        
+        // Restore other workflow states
+        if (workflow.inventory_checked !== undefined) {
+          setInventoryChecked(workflow.inventory_checked);
+        }
+        
+        if (workflow.glasses_selected !== undefined) {
+          setGlassesSelected(workflow.glasses_selected);
+        }
+        
+        if (workflow.delivery_scheduled !== undefined) {
+          setDeliveryScheduled(workflow.delivery_scheduled);
+        }
+      }
+      
+      // Set selected patient based on session patient data
+      if (existingSession.patient_id) {
+        // Try to find the patient in the current patients list
+        // Note: This might need to be called after fetchPatients completes
+        const patientData: Patient = {
+          _id: existingSession.patient_id,
+          first_name: existingSession.patient_name?.split(' ')[0] || '',
+          last_name: existingSession.patient_name?.split(' ').slice(1).join(' ') || '',
+          date_of_birth: '', // Will be loaded from patient API later
+          // Add other optional fields
+          gender: '',
+          school: '',
+          grade: '',
+          student_id: '',
+          citizen_id: '',
+          cid: '',
+          parent_consent: true,
+          registration_status: 'registered',
+          photos: [],
+          screening_status: 'pending',
+          follow_up_needed: false,
+          registration_date: existingSession.created_at || new Date().toISOString(),
+          parent_phone: '',
+          parent_email: '',
+        };
+        setSelectedPatient(patientData);
+      }
+      
+      console.log('Existing session data loaded successfully');
+    }
+  }, [existingSession]);
 
   const fetchPatients = async () => {
     try {
@@ -374,6 +498,155 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
 
   const handleManualPatientAdd = () => {
     setManualPatientDialogOpen(true);
+  };
+
+  // Mobile Unit specific functions
+  const checkStepAssignment = async (stepNumber: number, stepName: string) => {
+    if (!mobileUnitMode || !currentSessionId) return true;
+
+    try {
+      const token = localStorage.getItem('evep_token');
+      const response = await fetch(`${API_ENDPOINTS.MOBILE_UNIT}/sessions/${currentSessionId}/step-assignment`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          step_number: stepNumber,
+          step_name: stepName,
+          user_id: user?.user_id,
+          user_role: user?.role
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentStepAssignment(data.assignment);
+        setStepLocked(data.locked);
+        return data.canProceed;
+      }
+      return false;
+    } catch (err) {
+      console.error('Error checking step assignment:', err);
+      return false;
+    }
+  };
+
+  const lockStep = async (stepNumber: number) => {
+    if (!mobileUnitMode || !currentSessionId) return;
+
+    try {
+      const token = localStorage.getItem('evep_token');
+      await fetch(`${API_ENDPOINTS.MOBILE_UNIT}/sessions/${currentSessionId}/lock-step`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          step_number: stepNumber,
+          locked_by: user?.user_id
+        })
+      });
+    } catch (err) {
+      console.error('Error locking step:', err);
+    }
+  };
+
+  const unlockStep = async (stepNumber: number) => {
+    if (!mobileUnitMode || !currentSessionId) return;
+
+    try {
+      const token = localStorage.getItem('evep_token');
+      await fetch(`${API_ENDPOINTS.MOBILE_UNIT}/sessions/${currentSessionId}/unlock-step`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          step_number: stepNumber,
+          unlocked_by: user?.user_id
+        })
+      });
+    } catch (err) {
+      console.error('Error unlocking step:', err);
+    }
+  };
+
+  const requestApproval = async () => {
+    if (!mobileUnitMode || !currentSessionId) return;
+
+    try {
+      setApprovalPending(true);
+      const token = localStorage.getItem('evep_token');
+      const response = await fetch(`${API_ENDPOINTS.MOBILE_UNIT}/sessions/${currentSessionId}/request-approval`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          requested_by: user?.user_id,
+          screening_data: screeningResults
+        })
+      });
+
+      if (response.ok) {
+        setNotifications(prev => [...prev, 'Approval request sent to supervising doctor']);
+      } else {
+        setError('Failed to request approval');
+      }
+    } catch (err) {
+      console.error('Error requesting approval:', err);
+      setError('Error requesting approval');
+    } finally {
+      setApprovalPending(false);
+    }
+  };
+
+  const checkApprovalStatus = async () => {
+    if (!mobileUnitMode || !currentSessionId) return;
+
+    try {
+      const token = localStorage.getItem('evep_token');
+      const response = await fetch(`${API_ENDPOINTS.MOBILE_UNIT}/sessions/${currentSessionId}/approval-status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setRequiresApproval(data.requires_approval);
+        setApprovalPending(data.approval_status === 'pending');
+      }
+    } catch (err) {
+      console.error('Error checking approval status:', err);
+    }
+  };
+
+  // Enhanced step navigation for mobile unit
+  const handleStepChange = async (newStep: number) => {
+    if (mobileUnitMode) {
+      const canProceed = await checkStepAssignment(newStep, steps[newStep]);
+      if (!canProceed) {
+        setError(`Step ${newStep + 1}: ${steps[newStep]} is not assigned to you or is locked by another user`);
+        return;
+      }
+      
+      // Lock the current step
+      await lockStep(newStep);
+    }
+
+    // Unlock previous step
+    if (mobileUnitMode && activeStep !== newStep) {
+      await unlockStep(activeStep);
+    }
+
+    setActiveStep(newStep);
+    setError(null);
   };
 
   const handlePatientSelect = async (patient: Patient) => {
@@ -501,6 +774,29 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
     }
   };
 
+  // Helper function to retry failed requests
+  const fetchWithRetry = async (url: string, options: RequestInit, retries: number = 3): Promise<Response> => {
+    for (let i = 0; i < retries; i++) {
+      try {
+        console.log(`Attempt ${i + 1}/${retries} for ${options.method} ${url}`);
+        const response = await fetch(url, options);
+        return response; // Return response regardless of status for normal handling
+      } catch (error) {
+        console.error(`Network error on attempt ${i + 1}:`, error);
+        
+        if (i === retries - 1) {
+          throw error; // Throw on last attempt
+        }
+        
+        // Wait before retrying (exponential backoff)
+        const delay = Math.min(1000 * Math.pow(2, i), 5000);
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    throw new Error('All retry attempts failed');
+  };
+
   const handleSaveProgress = async () => {
     if (!selectedPatient) {
       setError('Please select a patient first');
@@ -537,7 +833,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
       
       const method = currentSessionId ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const response = await fetchWithRetry(url, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -560,7 +856,15 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
       
     } catch (err) {
       console.error('Failed to save progress:', err);
-      setError('Failed to save progress');
+      
+      let errorMessage = 'Failed to save progress';
+      if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
+        errorMessage = 'Network connection issue. Your diagnosis data has been saved locally. Please check your internet connection and try again.';
+      } else if (err instanceof Error && err.message === 'All retry attempts failed') {
+        errorMessage = 'Unable to save after multiple attempts. Your data is backed up locally. Please try again when your connection is stable.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -1828,11 +2132,28 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
           <DoctorDiagnosisForm
             patient={selectedPatient}
             onComplete={(diagnosis) => {
+              console.log('Doctor Diagnosis completed:', diagnosis);
+              
               // Store diagnosis data
               setScreeningResults({
                 ...screeningResults,
                 doctor_diagnosis: diagnosis
               });
+              
+              // Save to local storage as backup
+              try {
+                const backupData = {
+                  patient_id: selectedPatient?._id,
+                  session_id: currentSessionId,
+                  diagnosis: diagnosis,
+                  timestamp: new Date().toISOString()
+                };
+                localStorage.setItem('evep_diagnosis_backup', JSON.stringify(backupData));
+                console.log('Diagnosis data backed up locally');
+              } catch (err) {
+                console.warn('Failed to backup diagnosis locally:', err);
+              }
+              
               handleNext();
             }}
             onBack={() => setActiveStep(activeStep - 1)}
