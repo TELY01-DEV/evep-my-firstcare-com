@@ -456,6 +456,7 @@ const MobileVisionScreeningForm: React.FC<MobileVisionScreeningFormProps> = ({
 
     const socketUrl = process.env.REACT_APP_SOCKET_URL || 'https://socketio.evep.my-firstcare.com';
     const collaborationSocket = io(socketUrl, {
+      transports: ['polling'], // Use polling only until WebSocket proxy is fixed
       query: {
         patient_id: selectedPatient._id,
         user_id: (user.id || user._id) as string,
