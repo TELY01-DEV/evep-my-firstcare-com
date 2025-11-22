@@ -31,7 +31,14 @@ class FileUploadResponse(BaseModel):
 
 # Storage configuration - use /app/storage where files are actually saved
 STORAGE_PATH = Path(getattr(settings, 'FILE_STORAGE_PATH', '/app/storage'))
-STORAGE_PATH.mkdir(parents=True, exist_ok=True)
+
+# Create storage directory if it doesn't exist (with error handling)
+try:
+    STORAGE_PATH.mkdir(parents=True, exist_ok=True)
+except PermissionError:
+    # Directory will be created by Docker or runtime
+    print(f"Warning: Could not create storage directory {STORAGE_PATH}. Ensure it exists.")
+    pass
 
 # Allowed file types for security (focusing on images for avatars)
 ALLOWED_MIME_TYPES = {
