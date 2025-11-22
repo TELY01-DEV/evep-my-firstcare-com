@@ -38,9 +38,14 @@ export const API_ENDPOINTS = {
   // Screenings
   SCREENINGS_SESSIONS: `${currentConfig.baseUrl}/api/v1/screenings/sessions`,
   
-  // Mobile Unit
+  // Mobile Screening (actual working endpoints)
+  MOBILE_SCREENING: `${currentConfig.baseUrl}/api/v1/mobile-screening`,
+  MOBILE_SCREENING_SESSIONS: `${currentConfig.baseUrl}/api/v1/mobile-screening/sessions`,
+  MOBILE_SCREENING_ASSESSMENTS: `${currentConfig.baseUrl}/api/v1/mobile-screening/assessments`,
+  
+  // Legacy mobile-unit endpoints (these don't exist in backend)
   MOBILE_UNIT: `${currentConfig.baseUrl}/api/v1/mobile-unit`,
-  MOBILE_UNIT_SESSIONS: `${currentConfig.baseUrl}/api/v1/mobile-unit/sessions`,
+  MOBILE_UNIT_SESSIONS: `${currentConfig.baseUrl}/api/v1/mobile-screening/sessions`,
   MOBILE_UNIT_STAFF: `${currentConfig.baseUrl}/api/v1/mobile-unit/staff`,
   MOBILE_UNIT_ASSIGNMENTS: `${currentConfig.baseUrl}/api/v1/mobile-unit/assignments`,
   
@@ -56,6 +61,10 @@ export const API_ENDPOINTS = {
   EVEP_PARENTS: `${currentConfig.baseUrl}/api/v1/evep/parents`,
   EVEP_SCHOOL_SCREENINGS: `${currentConfig.baseUrl}/api/v1/evep/school-screenings`,
   EVEP_SCREENINGS_LIST: `${currentConfig.baseUrl}/api/v1/evep/screenings-list`,
+  
+  // Student to Patient Registration
+  STUDENTS: `${currentConfig.baseUrl}/api/v1/evep/students`,
+  STUDENT_TO_PATIENT_REGISTRATION: `${currentConfig.baseUrl}/api/v1/patient-registration`,
   
   // Appointments
   APPOINTMENTS: `${currentConfig.baseUrl}/api/v1/appointments`,

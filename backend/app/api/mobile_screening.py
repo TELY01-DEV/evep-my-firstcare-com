@@ -13,6 +13,8 @@ from bson import ObjectId
 
 from app.api.auth import get_current_user
 from app.core.db_rbac import has_permission_db, has_any_role_db, get_user_permissions_from_db
+from app.core.database import get_database
+from app.utils.blockchain import generate_blockchain_hash
 from app.models.mobile_screening_models import (
     # Registration
     RegistrationData,
@@ -148,24 +150,36 @@ async def get_screening_sessions(
                 detail="Insufficient permissions to read screening sessions"
             )
         
-        # Filter sessions
-        filtered_sessions = mobile_screening_sessions.copy()
+        # Get database connection
+        db = get_database()
         
+        # Build MongoDB query
+        query = {}
         if patient_id:
-            filtered_sessions = [s for s in filtered_sessions if s.get("patient_id") == patient_id]
+            if ObjectId.is_valid(patient_id):
+                query["patient_id"] = ObjectId(patient_id)
+            else:
+                # If invalid ObjectId, return empty results
+                return []
         if examiner_id:
-            filtered_sessions = [s for s in filtered_sessions if s.get("examiner_id") == examiner_id]
+            if ObjectId.is_valid(examiner_id):
+                query["examiner_id"] = ObjectId(examiner_id)
         if session_status:
-            filtered_sessions = [s for s in filtered_sessions if s.get("status") == session_status]
+            query["session_status"] = session_status
         
-        # Apply pagination
-        start_idx = skip
-        end_idx = skip + limit
-        paginated_sessions = filtered_sessions[start_idx:end_idx]
+        # Get sessions from MongoDB with pagination
+        cursor = db.evep.mobile_screening_sessions.find(query).skip(skip).limit(limit)
+        sessions = await cursor.to_list(length=limit)
         
         # Convert to response format
         result = []
-        for session in paginated_sessions:
+        for session in sessions:
+            # Convert ObjectIds to strings
+            session["_id"] = str(session["_id"])
+            session["session_id"] = str(session["_id"])
+            session["patient_id"] = str(session["patient_id"])
+            session["examiner_id"] = str(session["examiner_id"])
+            
             result.append(MobileScreeningSessionResponse(
                 success=True,
                 session=MobileScreeningSession(**session),
@@ -208,19 +222,65 @@ async def create_screening_session(
                 detail="Insufficient permissions to create screening sessions"
             )
         
-        # Create session
+        # Get database connection
+        db = get_database()
+        
+        # Validate patient exists  
+        patient = await db.evep.patients.find_one({"_id": ObjectId(session_data.patient_id)})
+        if not patient:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Patient not found"
+            )
+        
+        # Generate audit hash
+        audit_hash = generate_blockchain_hash(f"mobile_screening_session_created:{session_data.patient_id}")
+        
+        # Create session document for MongoDB
+        session_doc = {
+            "patient_id": ObjectId(session_data.patient_id),
+            "examiner_id": ObjectId(session_data.examiner_id),
+            "school_name": session_data.school_name,
+            "session_date": session_data.session_date,
+            "equipment_calibration": session_data.equipment_calibration.dict(),
+            "session_status": "in_progress",
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+            "audit_hash": audit_hash
+        }
+        
+        # Save to MongoDB mobile_screening_sessions collection
+        result = await db.evep.mobile_screening_sessions.insert_one(session_doc)
+        session_doc["_id"] = result.inserted_id
+        
+        # Log audit 
+        await db.evep.audit_logs.insert_one({
+            "action": "mobile_screening_session_created",
+            "user_id": current_user["user_id"],
+            "session_id": str(result.inserted_id),
+            "patient_id": session_data.patient_id,
+            "timestamp": datetime.utcnow().isoformat(),
+            "audit_hash": audit_hash,
+            "details": {
+                "school_name": session_data.school_name,
+                "equipment_model": session_data.equipment_calibration.auto_refractor_model,
+                "examiner_role": current_user.get("role", "unknown")
+            }
+        })
+        
+        # Get patient name for response
+        patient_name = f"{patient.get('first_name', '')} {patient.get('last_name', '')}".strip() or "Unknown Patient"
+        
+        # Create response session object
         session = MobileScreeningSession(
-            session_id=generate_id("MSS"),
+            session_id=str(result.inserted_id),
             **session_data.dict()
         )
-        
-        # Store in mock database
-        mobile_screening_sessions.append(session.dict())
         
         return MobileScreeningSessionResponse(
             success=True,
             session=session,
-            message="Screening session created successfully"
+            message=f"Mobile screening session created successfully for {patient_name}"
         )
         
     except HTTPException:
@@ -254,27 +314,42 @@ async def update_screening_session(
                 detail="Insufficient permissions to update screening sessions"
             )
         
-        # Find the session
-        session_index = None
-        for i, session in enumerate(mobile_screening_sessions):
-            if session.get("session_id") == session_id:
-                session_index = i
-                break
+        # Get database connection
+        db = get_database()
         
-        if session_index is None:
+        # Validate ObjectId format
+        if not ObjectId.is_valid(session_id):
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Screening session not found"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid session ID format"
             )
         
-        # Update the session
-        mobile_screening_sessions[session_index].update(update_data)
-        mobile_screening_sessions[session_index]["updated_at"] = datetime.utcnow()
+        # Find and update the session in MongoDB
+        update_data["updated_at"] = datetime.utcnow().isoformat()
+        
+        result = await db.evep.mobile_screening_sessions.update_one(
+            {"_id": ObjectId(session_id)},
+            {"$set": update_data}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Mobile screening session not found"
+            )
+        
+        # Get updated session
+        updated_session = await db.evep.mobile_screening_sessions.find_one({"_id": ObjectId(session_id)})
+        
+        # Convert ObjectId to string for response
+        if updated_session:
+            updated_session["_id"] = str(updated_session["_id"])
+            updated_session["session_id"] = str(updated_session["_id"])
         
         return MobileScreeningSessionResponse(
             success=True,
-            session=MobileScreeningSession(**mobile_screening_sessions[session_index]),
-            message="Screening session updated successfully"
+            session=MobileScreeningSession(**updated_session) if updated_session else None,
+            message="Mobile screening session updated successfully"
         )
         
     except HTTPException:

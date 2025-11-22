@@ -23,6 +23,10 @@ export const API_ENDPOINTS = {
   // Screenings
   SCREENINGS_SESSIONS: `${API_BASE_URL}/api/v1/screenings/sessions`,
   
+  // Mobile Screening (actual working endpoints)
+  MOBILE_SCREENING_SESSIONS: `${API_BASE_URL}/api/v1/mobile-screening/sessions`,
+  MOBILE_SCREENING: `${API_BASE_URL}/api/v1/mobile-screening`,
+  
   // Patients
   PATIENTS: `${API_BASE_URL}/api/v1/patients`,
   PATIENTS_SEARCH: `${API_BASE_URL}/api/v1/patients/search`,

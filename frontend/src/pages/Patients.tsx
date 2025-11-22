@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Card,
@@ -37,6 +37,10 @@ import {
   ListItem,
   ListItemText,
   ListItemAvatar,
+  TablePagination,
+  Pagination,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import {
   Add,
@@ -141,6 +145,18 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
   // Patient selection states
   const [selectedTab, setSelectedTab] = useState(0);
   const [filterType, setFilterType] = useState<'all' | 'school' | 'appointment' | 'manual'>('all');
+  
+  // Pagination and view state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [totalCount, setTotalCount] = useState(0);
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  
+  // CRUD dialog states for consistency with Recent Screening Sessions
+  const [viewPatientDialogOpen, setViewPatientDialogOpen] = useState(false);
+  const [deleteConfirmDialogOpen, setDeleteConfirmDialogOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [forceDelete, setForceDelete] = useState(false);
   
   // Citizen card reader
   const [citizenCardDialogOpen, setCitizenCardDialogOpen] = useState(false);
@@ -467,6 +483,84 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
     }));
   };
 
+  // CRUD action handlers for consistency with Recent Screening Sessions
+  const handleViewPatient = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setViewPatientDialogOpen(true);
+  };
+
+  const handleEditPatient = (patient: Patient) => {
+    handleOpenDialog(patient);
+  };
+
+  const handleDeletePatient = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setForceDelete(false);
+    setDeleteConfirmDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedPatient) {
+      setError('Cannot delete patient: Patient is missing');
+      setDeleteConfirmDialogOpen(false);
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      const token = localStorage.getItem('evep_token');
+      const queryParams = new URLSearchParams();
+      
+      if (forceDelete) {
+        queryParams.append('force_delete', 'true');
+      }
+      
+      const baseUrl = process.env.REACT_APP_API_URL || 'https://stardust.evep.my-firstcare.com';
+      const deleteUrl = `${baseUrl}/api/v1/evep/patients/${selectedPatient._id}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+
+      const response = await fetch(deleteUrl, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const message = forceDelete 
+          ? 'Patient permanently deleted' 
+          : 'Patient soft deleted successfully';
+        
+        setSuccess(message);
+        setDeleteConfirmDialogOpen(false);
+        setSelectedPatient(null);
+        setForceDelete(false);
+        fetchPatients(); // Refresh the data
+      } else {
+        const errorData = await response.json();
+        setError(errorData.detail || 'Failed to delete patient');
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+      setError('Failed to delete patient');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Pagination handlers
+  const handlePageChange = (event: React.ChangeEvent<unknown>, page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setItemsPerPage(parseInt(event.target.value, 10));
+    setCurrentPage(1); // Reset to first page
+  };
+
   const getAge = (dateOfBirth: string) => {
     const today = new Date();
     const birthDate = new Date(dateOfBirth);
@@ -480,23 +574,42 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
     return age;
   };
 
-  const filteredPatients = patients.filter(patient => {
-    const matchesSearch = 
-      patient.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.cid?.toLowerCase().includes(searchTerm.toLowerCase()) ||  // Search by CID
-      patient.emergency_contact?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.school?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || patient.is_active === (statusFilter === 'active');
-    const matchesGender = genderFilter === 'all' || patient.gender === genderFilter;
-    const matchesFilter = filterType === 'all' || 
-      (filterType === 'school' && patient.school) ||
-      (filterType === 'appointment' && patient.is_active) ||
-      (filterType === 'manual' && !patient.school);
-    
-    return matchesSearch && matchesStatus && matchesGender && matchesFilter;
-  });
+  // Memoized filtered patients for performance with large datasets
+  const filteredPatients = useMemo(() => {
+    return patients.filter(patient => {
+      const matchesSearch = 
+        patient.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.cid?.toLowerCase().includes(searchTerm.toLowerCase()) ||  // Search by CID
+        patient.emergency_contact?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.school?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || patient.is_active === (statusFilter === 'active');
+      const matchesGender = genderFilter === 'all' || patient.gender === genderFilter;
+      const matchesFilter = filterType === 'all' || 
+        (filterType === 'school' && patient.school) ||
+        (filterType === 'appointment' && patient.is_active) ||
+        (filterType === 'manual' && !patient.school);
+      
+      return matchesSearch && matchesStatus && matchesGender && matchesFilter;
+    });
+  }, [patients, searchTerm, statusFilter, genderFilter, filterType]);
+
+  // Paginated patients for current page
+  const paginatedPatients = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredPatients.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredPatients, currentPage, itemsPerPage]);
+
+  // Update total count when filtered patients change
+  useEffect(() => {
+    setTotalCount(filteredPatients.length);
+    // Reset to first page if current page is out of bounds
+    const maxPage = Math.ceil(filteredPatients.length / itemsPerPage);
+    if (currentPage > maxPage && maxPage > 0) {
+      setCurrentPage(1);
+    }
+  }, [filteredPatients.length, itemsPerPage, currentPage]);
 
   if (loading) {
     return (
@@ -683,21 +796,305 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
         </Grid>
       </Box>
 
-      {/* Patient List */}
+      {/* View Mode Toggle */}
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6">
+          Patient Management ({filteredPatients.length} patients)
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Button
+            variant={viewMode === 'table' ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => setViewMode('table')}
+          >
+            Table View
+          </Button>
+          <Button
+            variant={viewMode === 'cards' ? 'contained' : 'outlined'}
+            size="small"
+            onClick={() => setViewMode('cards')}
+          >
+            Card View
+          </Button>
+        </Box>
+      </Box>
+
+      {/* Patient Table/Cards */}
       <Card sx={{ borderRadius: 3 }}>
         <CardContent>
-          <List>
-            {filteredPatients.map((patient) => (
-              <ListItem
-                key={patient._id}
-                button
-                onClick={() => handlePatientSelect(patient)}
-                sx={{
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  mb: 1,
-                  '&:hover': {
+          {viewMode === 'table' ? (
+            <>
+              {/* Table View */}
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Patient</TableCell>
+                      <TableCell>CID</TableCell>
+                      <TableCell>School & Grade</TableCell>
+                      <TableCell>Contact</TableCell>
+                      <TableCell>Last Screening</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {paginatedPatients.map((patient) => {
+                      const patientKey = patient._id || `patient-${patient.cid}`;
+                      
+                      return (
+                        <TableRow key={patientKey} hover>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              {patient.profile_photo ? (
+                                <Avatar src={patient.profile_photo} sx={{ width: 40, height: 40 }} />
+                              ) : (
+                                <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main' }}>
+                                  <Person />
+                                </Avatar>
+                              )}
+                              <Box>
+                                <Typography variant="subtitle2">
+                                  {patient.first_name} {patient.last_name}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  Born: {patient.date_of_birth}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {patient.cid || 'No CID'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {patient.school || 'No School'}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Grade: {patient.grade || 'N/A'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {patient.parent_phone || 'No Phone'}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {patient.parent_email || 'No Email'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            {patient.last_screening_date ? (
+                              <Box>
+                                <Typography variant="body2">
+                                  {new Date(patient.last_screening_date).toLocaleDateString()}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {patient.last_screening_type || 'Unknown Type'}
+                                </Typography>
+                              </Box>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">
+                                No screening history
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={patient.last_screening_status || 'Not Screened'}
+                              size="small"
+                              color={patient.last_screening_status === 'completed' ? 'success' : 'warning'}
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Box display="flex" gap={1}>
+                              <Tooltip title="View Details">
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => handleViewPatient(patient)}
+                                >
+                                  <Visibility />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Edit Patient">
+                                <IconButton 
+                                  size="small"
+                                  onClick={() => handleEditPatient(patient)}
+                                >
+                                  <Edit />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Delete">
+                                <IconButton 
+                                  size="small" 
+                                  color="error"
+                                  onClick={() => handleDeletePatient(patient)}
+                                >
+                                  <Delete />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
+          ) : (
+            <>
+              {/* Card View */}
+              <Grid container spacing={2}>
+                {paginatedPatients.map((patient) => {
+                  const patientKey = patient._id || `patient-${patient.cid}`;
+                  
+                  return (
+                    <Grid item xs={12} md={6} lg={4} key={patientKey}>
+                      <Card 
+                        sx={{ 
+                          cursor: 'pointer', 
+                          '&:hover': { 
+                            bgcolor: 'grey.50',
+                            transform: 'translateY(-2px)',
+                            boxShadow: 2
+                          },
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          transition: 'all 0.2s ease-in-out'
+                        }}
+                      >
+                        <CardContent>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                            {patient.profile_photo ? (
+                              <Avatar src={patient.profile_photo} sx={{ width: 50, height: 50 }} />
+                            ) : (
+                              <Avatar sx={{ width: 50, height: 50, bgcolor: 'primary.main' }}>
+                                <Person />
+                              </Avatar>
+                            )}
+                            <Box sx={{ flexGrow: 1 }}>
+                              <Typography variant="h6" sx={{ fontSize: '1rem' }}>
+                                {patient.first_name} {patient.last_name}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                CID: {patient.cid || 'No CID'}
+                              </Typography>
+                            </Box>
+                            <Chip
+                              label={patient.last_screening_status || 'Not Screened'}
+                              size="small"
+                              color={patient.last_screening_status === 'completed' ? 'success' : 'warning'}
+                              variant="outlined"
+                            />
+                          </Box>
+                          
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              <School sx={{ fontSize: 16, mr: 1, verticalAlign: 'text-bottom' }} />
+                              {patient.school || 'No School'} - Grade {patient.grade || 'N/A'}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              <Phone sx={{ fontSize: 16, mr: 1, verticalAlign: 'text-bottom' }} />
+                              {patient.parent_phone || 'No Phone'}
+                            </Typography>
+                            {patient.last_screening_date && (
+                              <Typography variant="body2" color="text.secondary">
+                                <Assessment sx={{ fontSize: 16, mr: 1, verticalAlign: 'text-bottom' }} />
+                                Last: {new Date(patient.last_screening_date).toLocaleDateString()}
+                              </Typography>
+                            )}
+                          </Box>
+                          
+                          <Box display="flex" justifyContent="space-between">
+                            <Box display="flex" gap={1}>
+                              <Tooltip title="View Details">
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => handleViewPatient(patient)}
+                                >
+                                  <Visibility />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Edit Patient">
+                                <IconButton 
+                                  size="small"
+                                  onClick={() => handleEditPatient(patient)}
+                                >
+                                  <Edit />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Delete">
+                                <IconButton 
+                                  size="small" 
+                                  color="error"
+                                  onClick={() => handleDeletePatient(patient)}
+                                >
+                                  <Delete />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            </>
+          )}
+          
+          {/* No Data Message */}
+          {filteredPatients.length === 0 && (
+            <Box textAlign="center" py={4}>
+              <Typography color="text.secondary">
+                No patients found matching your criteria
+              </Typography>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Pagination */}
+      {filteredPatients.length > itemsPerPage && (
+        <Card sx={{ mt: 2 }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <TablePagination
+                component="div"
+                count={filteredPatients.length}
+                page={currentPage - 1} // MUI uses 0-based indexing
+                onPageChange={(_, newPage) => setCurrentPage(newPage + 1)}
+                rowsPerPage={itemsPerPage}
+                onRowsPerPageChange={handleItemsPerPageChange}
+                rowsPerPageOptions={[10, 20, 50, 100]}
+                labelRowsPerPage="Patients per page:"
+                showFirstButton
+                showLastButton
+              />
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Legacy List View - Hidden but preserved for migration */}
+      <Box sx={{ display: 'none' }}>
+        <Card sx={{ borderRadius: 3 }}>
+          <CardContent>
+            <List>
+              {filteredPatients.map((patient) => (
+                <ListItem
+                  key={patient._id}
+                  button
+                  onClick={() => handlePatientSelect(patient)}
+                  sx={{
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    mb: 1,
+                    '&:hover': {
                     borderColor: 'primary.main',
                     backgroundColor: 'action.hover',
                   },
@@ -801,6 +1198,7 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
           )}
         </CardContent>
       </Card>
+      </Box>
 
       {/* Action Buttons */}
       <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
@@ -1357,6 +1755,197 @@ const Patients: React.FC<PatientsProps> = ({ autoOpenAddDialog = false }) => {
             }}
           >
             Continue to Review
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* View Patient Details Dialog */}
+      <Dialog open={viewPatientDialogOpen} onClose={() => setViewPatientDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>
+          Patient Details
+        </DialogTitle>
+        <DialogContent>
+          {selectedPatient && (
+            <Grid container spacing={3} sx={{ mt: 1 }}>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Full Name
+                </Typography>
+                <Typography variant="body1">
+                  {selectedPatient.first_name} {selectedPatient.last_name}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Citizen ID (CID)
+                </Typography>
+                <Typography variant="body1">
+                  {selectedPatient.cid || 'Not provided'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Date of Birth
+                </Typography>
+                <Typography variant="body1">
+                  {selectedPatient.date_of_birth}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Gender
+                </Typography>
+                <Typography variant="body1">
+                  {selectedPatient.gender}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  School & Grade
+                </Typography>
+                <Typography variant="body1">
+                  {selectedPatient.school || 'No school'} - Grade {selectedPatient.grade || 'N/A'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Emergency Contact
+                </Typography>
+                <Typography variant="body1">
+                  {selectedPatient.emergency_contact || 'Not provided'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Parent Phone
+                </Typography>
+                <Typography variant="body1">
+                  {selectedPatient.parent_phone || 'Not provided'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Parent Email
+                </Typography>
+                <Typography variant="body1">
+                  {selectedPatient.parent_email || 'Not provided'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Address
+                </Typography>
+                <Typography variant="body1">
+                  {selectedPatient.address || 'Not provided'}
+                </Typography>
+              </Grid>
+              {selectedPatient.last_screening_date && (
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Last Screening
+                  </Typography>
+                  <Typography variant="body1">
+                    {new Date(selectedPatient.last_screening_date).toLocaleDateString()} - {selectedPatient.last_screening_type}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Status: {selectedPatient.last_screening_status}
+                  </Typography>
+                </Grid>
+              )}
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setViewPatientDialogOpen(false)}>
+            Close
+          </Button>
+          {selectedPatient && (
+            <Button 
+              variant="contained" 
+              onClick={() => {
+                setViewPatientDialogOpen(false);
+                handleEditPatient(selectedPatient);
+              }}
+            >
+              Edit Patient
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog 
+        open={deleteConfirmDialogOpen} 
+        onClose={() => {
+          setDeleteConfirmDialogOpen(false);
+          setForceDelete(false);
+        }} 
+        maxWidth="sm" 
+        fullWidth
+      >
+        <DialogTitle>
+          Confirm Deletion
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Are you sure you want to delete this patient?
+          </Typography>
+          {selectedPatient && (
+            <Typography variant="body2" color="text.secondary">
+              <strong>Patient:</strong> {selectedPatient.first_name} {selectedPatient.last_name}<br/>
+              <strong>CID:</strong> {selectedPatient.cid || 'No CID'}<br/>
+              <strong>School:</strong> {selectedPatient.school || 'No School'}
+            </Typography>
+          )}
+          
+          {user?.role && ['super_admin', 'admin', 'medical_admin'].includes(user.role) && (
+            <Box sx={{ mt: 2, p: 2, bgcolor: 'warning.light', borderRadius: 1 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={forceDelete}
+                    onChange={(e) => setForceDelete(e.target.checked)}
+                    color="error"
+                  />
+                }
+                label={
+                  <Typography variant="body2" color="error">
+                    <strong>Force Delete (Permanent):</strong> Permanently remove all data from database
+                  </Typography>
+                }
+              />
+            </Box>
+          )}
+          
+          <Typography variant="body2" color="error" sx={{ mt: 2 }}>
+            <strong>Warning:</strong> {forceDelete 
+              ? 'This will permanently delete all patient data and cannot be undone!'
+              : 'This will soft delete the patient but preserve data for audit purposes.'
+            }
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => {
+              setDeleteConfirmDialogOpen(false);
+              setForceDelete(false);
+            }}
+            disabled={saving}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="contained" 
+            color="error"
+            onClick={handleConfirmDelete}
+            disabled={saving}
+          >
+            {saving 
+              ? 'Processing...' 
+              : forceDelete 
+                ? 'Permanently Delete' 
+                : 'Soft Delete'
+            }
           </Button>
         </DialogActions>
       </Dialog>

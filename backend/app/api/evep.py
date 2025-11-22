@@ -311,13 +311,23 @@ async def get_student(
     student_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    """Get a specific student by ID"""
+    """Get a specific student by ID (supports both ObjectId and student_code)"""
     db = get_database()
     if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "teacher", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to view student details")
-    student = await db.evep["evep.students"].find_one({"_id": ObjectId(student_id)})
+    
+    # Try to find student by ObjectId first, then by student_code
+    student = None
+    if ObjectId.is_valid(student_id):
+        student = await db.evep["evep.students"].find_one({"_id": ObjectId(student_id)})
+    
+    if not student:
+        # Try searching by student_code
+        student = await db.evep["evep.students"].find_one({"student_code": student_id})
+    
     if not student:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
+    
     return {
         "id": str(student["_id"]),
         "title": student.get("title", ""),
@@ -379,13 +389,25 @@ async def update_student(
     student_data: Student,
     current_user: dict = Depends(get_current_user)
 ):
-    """Update a specific student by ID"""
+    """Update a specific student by ID (supports both ObjectId and student_code)"""
     db = get_database()
     if current_user["role"] not in ["admin", "super_admin", "system_admin", "medical_admin", "medical_staff", "doctor"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to update student")
     
-    # Check if student exists
-    existing_student = await db.evep["evep.students"].find_one({"_id": ObjectId(student_id)})
+    # Try to find student by ObjectId first, then by student_code
+    existing_student = None
+    update_query = None
+    
+    if ObjectId.is_valid(student_id):
+        existing_student = await db.evep["evep.students"].find_one({"_id": ObjectId(student_id)})
+        update_query = {"_id": ObjectId(student_id)}
+    
+    if not existing_student:
+        # Try searching by student_code
+        existing_student = await db.evep["evep.students"].find_one({"student_code": student_id})
+        if existing_student:
+            update_query = {"_id": existing_student["_id"]}
+    
     if not existing_student:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
     
@@ -394,7 +416,7 @@ async def update_student(
     update_data["updated_at"] = get_current_thailand_time()
     
     result = await db.evep["evep.students"].update_one(
-        {"_id": ObjectId(student_id)},
+        update_query,
         {"$set": update_data}
     )
     

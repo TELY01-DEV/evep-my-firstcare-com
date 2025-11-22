@@ -122,7 +122,7 @@ async def register_user(user_data: UserRegister):
         )
     
     # Validate role
-    valid_roles = ["user", "doctor", "teacher", "parent", "admin"]
+    valid_roles = ["user", "doctor", "teacher", "parent", "admin", "super_admin", "medical_admin", "system_admin"]
     if user_data.role not in valid_roles:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -3,6 +3,8 @@ import { API_ENDPOINTS } from '../config/api';
 
 interface User {
   user_id: string;
+  id?: string;  // Alternative ID field
+  _id?: string; // MongoDB style ID field
   email: string;
   first_name: string;
   last_name: string;

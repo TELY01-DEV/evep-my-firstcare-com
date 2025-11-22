@@ -42,8 +42,20 @@ cd frontend
 # Check if node_modules exists
 if [ ! -d "node_modules" ]; then
     warning "node_modules not found. Installing dependencies..."
-    npm install
+    log "Installing npm dependencies (this may take a while)..."
+    if npm ci; then
+        success "Dependencies installed successfully"
+    else
+        warning "npm ci failed, trying npm install..."
+        npm install
+    fi
 fi
+
+# Check package versions
+log "Checking environment..."
+echo "Node version: $(node --version)"
+echo "NPM version: $(npm --version)"
+echo "Free memory: $(vm_stat | grep 'Pages free' | awk '{print $3}' | tr -d '.')"
 
 # Build React app locally
 log "Building React app locally..."
@@ -52,11 +64,24 @@ echo "This may take a few minutes..."
 # Clean previous build
 rm -rf build
 
-# Build for production
+# Set Node.js memory limit for build
+export NODE_OPTIONS="--max_old_space_size=4096"
+
+# Check for TypeScript errors first
+log "Checking TypeScript compilation..."
+if npm run type-check; then
+    success "TypeScript check passed"
+else
+    warning "TypeScript errors found, but continuing with build..."
+fi
+
+# Build for production with better error handling
+log "Starting production build..."
 if npm run build; then
     success "Build completed successfully"
 else
-    error "Build failed"
+    error_code=$?
+    error "Build failed with exit code $error_code"
 fi
 
 # Check if build directory exists

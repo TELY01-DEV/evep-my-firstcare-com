@@ -60,6 +60,8 @@ import {
   DeliveryDining,
   Home,
   Visibility as VisibilityIcon,
+  History,
+  Timeline,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -69,6 +71,10 @@ import EnhancedScreeningInterface from '../components/EnhancedScreeningInterface
 import RBACScreeningForm from '../components/RBAC/RBACScreeningForm';
 import { hasMenuAccess } from '../utils/rbacMenuConfig';
 import { API_ENDPOINTS } from '../config/api';
+import StaffBadge from '../components/StaffBadge';
+import ActivityLog from '../components/ActivityLog';
+import ScreeningTimeline from '../components/ScreeningTimeline';
+import PatientScreeningHistory from '../components/PatientScreeningHistory';
 
 interface ScreeningSession {
   _id: string;
@@ -93,11 +99,20 @@ interface ScreeningSession {
     status: string;
     completed_by?: string;
     completed_by_name?: string;
+    completed_by_role?: string;
     completed_at?: string;
+    started_at?: string;
+    quality_score?: number;
     notes?: string;
   }>;
   last_updated_by?: string;
   last_updated_by_name?: string;
+  last_updated_by_role?: string;
+  examiner_role?: string;
+  session_id?: string;
+  isFirstSessionForPatient?: boolean;
+  patientSessionCount?: number;
+  sessionNumberForPatient?: number;
 }
 
 interface ScreeningResults {
@@ -154,6 +169,8 @@ const Screenings: React.FC = () => {
   const [viewResultsDialogOpen, setViewResultsDialogOpen] = useState(false);
   const [editScreeningDialogOpen, setEditScreeningDialogOpen] = useState(false);
   const [deleteConfirmDialogOpen, setDeleteConfirmDialogOpen] = useState(false);
+  const [patientHistoryDialogOpen, setPatientHistoryDialogOpen] = useState(false);
+  const [selectedPatientSessions, setSelectedPatientSessions] = useState<ScreeningSession[]>([]);
   const [forceDelete, setForceDelete] = useState(false);
   const [selectedSession, setSelectedSession] = useState<ScreeningSession | null>(null);
 
@@ -228,25 +245,47 @@ const Screenings: React.FC = () => {
         
         console.log('📊 Raw API sessions:', sessionsData.length, 'sessions');
         
-        // Remove duplicate sessions for the same patient (keep only the most recent)
-        const patientSessionMap = new Map();
+        // Group sessions by patient to show multiple sessions per patient
+        const patientSessionGroups = new Map();
         
         sessionsData.forEach((session: any) => {
           const patientId = session.patient_id;
           const sessionDate = new Date(session.created_at || session.updated_at || 0);
           
-          if (!patientSessionMap.has(patientId) || 
-              sessionDate > new Date(patientSessionMap.get(patientId).created_at || patientSessionMap.get(patientId).updated_at || 0)) {
-            patientSessionMap.set(patientId, session);
+          if (!patientSessionGroups.has(patientId)) {
+            patientSessionGroups.set(patientId, []);
           }
+          
+          patientSessionGroups.get(patientId).push({
+            ...session,
+            sessionDate: sessionDate
+          });
         });
         
-        const uniqueSessions = Array.from(patientSessionMap.values());
+        // Sort sessions within each patient group by date (newest first)
+        const allSessions: any[] = [];
+        patientSessionGroups.forEach((sessions, patientId) => {
+          sessions.sort((a: any, b: any) => b.sessionDate.getTime() - a.sessionDate.getTime());
+          
+          // Add session count and patient group info
+          sessions.forEach((session: any, index: number) => {
+            allSessions.push({
+              ...session,
+              patientSessionCount: sessions.length,
+              isFirstSessionForPatient: index === 0,
+              sessionNumberForPatient: index + 1
+            });
+          });
+        });
         
-        console.log('📊 After removing patient duplicates:', uniqueSessions.length, 'unique sessions');
-        console.log('📊 Removed', sessionsData.length - uniqueSessions.length, 'duplicate sessions');
+        // Sort all sessions by date (newest first)
+        allSessions.sort((a, b) => b.sessionDate.getTime() - a.sessionDate.getTime());
         
-        setSessions(uniqueSessions || []);
+        console.log('📊 Processed sessions with patient grouping:', allSessions.length, 'sessions');
+        console.log('📊 Patients with multiple sessions:', 
+          Array.from(patientSessionGroups.entries()).filter(([_, sessions]) => sessions.length > 1).length);
+        
+        setSessions(allSessions || []);
       } else {
         console.error('Failed to fetch sessions from API');
         setSessions([]);
@@ -506,6 +545,14 @@ const Screenings: React.FC = () => {
   const handleViewResults = (session: ScreeningSession) => {
     setSelectedSession(session);
     setViewResultsDialogOpen(true);
+  };
+
+  const handleViewPatientHistory = (session: ScreeningSession) => {
+    // Get all sessions for this patient
+    const patientSessions = sessions.filter(s => s.patient_id === session.patient_id);
+    setSelectedPatientSessions(patientSessions);
+    setSelectedSession(session); // Set the primary session for context
+    setPatientHistoryDialogOpen(true);
   };
 
   const handleContinueScreening = (session: ScreeningSession) => {
@@ -776,6 +823,73 @@ const Screenings: React.FC = () => {
 
   return (
     <Box p={3}>
+      {/* Medical Report Print Styles */}
+      <style>{`
+        @media print {
+          @page {
+            margin: 2cm;
+            size: A4;
+          }
+          
+          body {
+            font-family: 'Times New Roman', serif !important;
+            font-size: 12pt !important;
+            line-height: 1.6 !important;
+            color: black !important;
+            background: white !important;
+          }
+          
+          .medical-report-container {
+            background: white !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+          
+          .medical-section {
+            margin-bottom: 15pt !important;
+            page-break-inside: avoid !important;
+          }
+          
+          .vision-acuity {
+            font-size: 14pt !important;
+            font-weight: bold !important;
+            font-family: 'Courier New', monospace !important;
+          }
+          
+          .clinical-notes {
+            border-left: 3px solid black !important;
+            padding-left: 10pt !important;
+            font-style: italic !important;
+          }
+          
+          .no-print {
+            display: none !important;
+          }
+          
+          .page-break {
+            page-break-before: always !important;
+          }
+        }
+        
+        @media screen {
+          .high-contrast-text {
+            color: #1a1a1a !important;
+            font-weight: 500 !important;
+          }
+          
+          .medical-data-value {
+            font-size: 1.125rem !important;
+            line-height: 1.5 !important;
+            font-weight: 600 !important;
+          }
+          
+          .accessibility-focus:focus {
+            outline: 3px solid #2196f3 !important;
+            outline-offset: 2px !important;
+          }
+        }
+      `}</style>
+      
       {/* Breadcrumbs */}
       <Box sx={{ mb: 3 }}>
         <Breadcrumbs aria-label="breadcrumb">
@@ -884,9 +998,9 @@ const Screenings: React.FC = () => {
                 <TableRow>
                   <TableCell>Patient</TableCell>
                   <TableCell>Type</TableCell>
-                  <TableCell>Examiner</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Current Step</TableCell>
+                  <TableCell>Staff & Assignments</TableCell>
+                  <TableCell>Status & Activity</TableCell>
+                  <TableCell>Current Step & History</TableCell>
                   <TableCell>Date</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
@@ -897,15 +1011,37 @@ const Screenings: React.FC = () => {
                     const sessionKey = (session as any).session_id || session._id || `session-${index}`;
                     
                     return (
-                  <TableRow key={sessionKey} hover>
+                  <TableRow key={sessionKey} hover sx={{
+                    backgroundColor: session.isFirstSessionForPatient
+                      ? session.patientSessionCount && session.patientSessionCount > 1
+                        ? 'rgba(33, 150, 243, 0.05)' 
+                        : 'inherit'
+                      : 'rgba(33, 150, 243, 0.02)'
+                  }}>
                     <TableCell>
                       <Box display="flex" alignItems="center" gap={2}>
                         <Avatar sx={{ bgcolor: 'primary.main' }}>
                           <Person />
                         </Avatar>
-                        <Typography variant="subtitle2">
-                          {session.patient_name}
-                        </Typography>
+                        <Box>
+                          <Typography variant="subtitle2">
+                            {session.patient_name}
+                          </Typography>
+                          {session.patientSessionCount && session.patientSessionCount > 1 && (
+                            <Box display="flex" alignItems="center" gap={1} mt={0.5}>
+                              <Chip 
+                                label={`${session.patientSessionCount} sessions`}
+                                size="small"
+                                color={session.isFirstSessionForPatient ? 'primary' : 'default'}
+                                variant="outlined"
+                                sx={{ fontSize: '0.7rem', height: 20 }}
+                              />
+                              <Typography variant="caption" color="text.secondary">
+                                Session #{session.sessionNumberForPatient}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
                       </Box>
                     </TableCell>
                     <TableCell>
@@ -917,24 +1053,86 @@ const Screenings: React.FC = () => {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2">
-                        {session.examiner_name}
-                      </Typography>
+                      <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+                        {/* Primary Examiner */}
+                        <StaffBadge
+                          staffName={session.examiner_name || 'Unknown'}
+                          role={session.examiner_role || 'medical_staff'}
+                          status="completed"
+                          stepName="Primary Examiner"
+                          timestamp={session.created_at}
+                          size="small"
+                          variant="inline"
+                          showTimestamp={false}
+                        />
+                        
+                        {/* Current Step Staff */}
+                        {session.step_history && session.current_step !== undefined && (
+                          (() => {
+                            const currentStepHistory = session.step_history.find(
+                              step => step.step_number === session.current_step
+                            );
+                            return currentStepHistory?.completed_by_name ? (
+                              <StaffBadge
+                                staffName={currentStepHistory.completed_by_name}
+                                role={currentStepHistory.completed_by_role || 'medical_staff'}
+                                status="active"
+                                stepName={currentStepHistory.step_name}
+                                timestamp={currentStepHistory.completed_at}
+                                size="small"
+                                variant="badge"
+                                showTimestamp={false}
+                              />
+                            ) : null;
+                          })()
+                        )}
+                        
+                        {/* Last Updated By (if different from current step) */}
+                        {session.last_updated_by_name && 
+                         session.last_updated_by_name !== session.examiner_name &&
+                         session.last_updated_by_name !== session.step_history?.find(s => s.step_number === session.current_step)?.completed_by_name && (
+                          <StaffBadge
+                            staffName={session.last_updated_by_name}
+                            role={session.last_updated_by_role || 'medical_staff'}
+                            status="working"
+                            stepName="Last Updated"
+                            timestamp={session.updated_at}
+                            size="small"
+                            variant="badge"
+                            showTimestamp={false}
+                          />
+                        )}
+                      </Box>
                     </TableCell>
                     <TableCell>
                       <Box>
-                        <Chip
-                          icon={getStatusIcon(session.status)}
-                          label={session.status.replace('_', ' ')}
-                          color={getStatusColor(session.status) as any}
-                          size="small"
-                        />
-                        {/* Show who worked on current status */}
+                        <Box display="flex" alignItems="center" gap={1} mb={1}>
+                          <Chip
+                            icon={getStatusIcon(session.status)}
+                            label={session.status.replace('_', ' ')}
+                            color={getStatusColor(session.status) as any}
+                            size="small"
+                          />
+                        </Box>
+                        
+                        {/* Show who worked on current status with badge */}
                         {session.last_updated_by_name && (
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                            by {session.last_updated_by_name}
-                          </Typography>
+                          <Box display="flex" alignItems="center" gap={1} mt={0.5}>
+                            <StaffBadge
+                              staffName={session.last_updated_by_name}
+                              role={session.last_updated_by_role || 'medical_staff'}
+                              status="completed"
+                              size="small"
+                              variant="badge"
+                              showRole={false}
+                              showTimestamp={false}
+                            />
+                            <Typography variant="caption" color="text.secondary">
+                              Updated by
+                            </Typography>
+                          </Box>
                         )}
+                        
                         {/* Show step history for current step if available */}
                         {session.step_history && session.current_step !== undefined && (
                           (() => {
@@ -942,12 +1140,24 @@ const Screenings: React.FC = () => {
                               step => step.step_number === session.current_step
                             );
                             return currentStepHistory?.completed_by_name ? (
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                                Step by {currentStepHistory.completed_by_name}
-                                {currentStepHistory.completed_at && (
-                                  <span> • {new Date(currentStepHistory.completed_at).toLocaleDateString()}</span>
-                                )}
-                              </Typography>
+                              <Box display="flex" alignItems="center" gap={1} mt={0.5}>
+                                <StaffBadge
+                                  staffName={currentStepHistory.completed_by_name}
+                                  role={currentStepHistory.completed_by_role || 'medical_staff'}
+                                  status="active"
+                                  stepName={currentStepHistory.step_name}
+                                  size="small"
+                                  variant="badge"
+                                  showRole={false}
+                                  showTimestamp={false}
+                                />
+                                <Typography variant="caption" color="text.secondary">
+                                  Step by
+                                  {currentStepHistory.completed_at && (
+                                    <span> • {new Date(currentStepHistory.completed_at).toLocaleDateString()}</span>
+                                  )}
+                                </Typography>
+                              </Box>
                             ) : null;
                           })()
                         )}
@@ -976,23 +1186,23 @@ const Screenings: React.FC = () => {
                               <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                                 Status: {session.status.replace('_', ' ')}
                               </Typography>
-                              {/* Show step history for mobile workflow */}
+                              {/* Show step history for mobile workflow with staff badges */}
                               {session.step_history && session.step_history.length > 0 && (
-                                <Box sx={{ mt: 1, maxHeight: 100, overflowY: 'auto' }}>
+                                <Box sx={{ mt: 1, maxHeight: 120, overflowY: 'auto' }}>
                                   {session.step_history
                                     .filter(step => step.completed_by_name) // Only show completed steps
                                     .slice(-3) // Show last 3 completed steps
                                     .map((step, index) => (
-                                    <Typography 
-                                      key={index} 
-                                      variant="caption" 
-                                      color="text.secondary" 
+                                    <Box 
+                                      key={index}
                                       sx={{ 
-                                        display: 'block', 
-                                        fontSize: '0.7rem',
-                                        cursor: session.status !== 'cancelled' ? 'pointer' : 'default',
-                                        padding: '2px 4px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                        mb: 1,
+                                        p: 1,
                                         borderRadius: '4px',
+                                        cursor: session.status !== 'cancelled' ? 'pointer' : 'default',
                                         '&:hover': session.status !== 'cancelled' ? {
                                           backgroundColor: 'rgba(33, 150, 243, 0.08)',
                                           transform: 'scale(1.01)'
@@ -1000,11 +1210,31 @@ const Screenings: React.FC = () => {
                                       }}
                                       onClick={() => session.status !== 'cancelled' && handleStepNavigation(session, step.step_number)}
                                     >
-                                      Step {step.step_number + 1}: {step.step_name} by {step.completed_by_name}
-                                      {step.completed_at && (
-                                        <span> • {new Date(step.completed_at).toLocaleDateString()}</span>
-                                      )}
-                                    </Typography>
+                                      <StaffBadge
+                                        staffName={step.completed_by_name}
+                                        role={step.completed_by_role || 'medical_staff'}
+                                        status="completed"
+                                        stepName={step.step_name}
+                                        timestamp={step.completed_at}
+                                        size="small"
+                                        variant="badge"
+                                        showRole={false}
+                                        showTimestamp={false}
+                                      />
+                                      <Typography 
+                                        variant="caption" 
+                                        color="text.secondary" 
+                                        sx={{ 
+                                          fontSize: '0.7rem',
+                                          flex: 1
+                                        }}
+                                      >
+                                        Step {step.step_number + 1}: {step.step_name}
+                                        {step.completed_at && (
+                                          <span> • {new Date(step.completed_at).toLocaleDateString()}</span>
+                                        )}
+                                      </Typography>
+                                    </Box>
                                   ))}
                                 </Box>
                               )}
@@ -1073,6 +1303,17 @@ const Screenings: React.FC = () => {
                             <Visibility />
                           </IconButton>
                         </Tooltip>
+                        {session.patientSessionCount && session.patientSessionCount > 1 && (
+                          <Tooltip title={`View All ${session.patientSessionCount} Sessions for Patient`}>
+                            <IconButton 
+                              size="small" 
+                              color="secondary"
+                              onClick={() => handleViewPatientHistory(session)}
+                            >
+                              <History />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                         {session.status === 'in_progress' && (
                           <Tooltip title="Continue Screening">
                             <IconButton 
@@ -1206,6 +1447,38 @@ const Screenings: React.FC = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Patient Screening History Dialog */}
+      <Dialog 
+        open={patientHistoryDialogOpen} 
+        onClose={() => setPatientHistoryDialogOpen(false)} 
+        maxWidth="lg" 
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={2}>
+            <History color="primary" />
+            Complete Screening History - {selectedSession?.patient_name}
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {selectedSession && selectedPatientSessions.length > 0 && (
+            <PatientScreeningHistory
+              patientId={selectedSession.patient_id}
+              patientName={selectedSession.patient_name}
+              sessions={selectedPatientSessions}
+              showComparison={true}
+              showStaffContinuity={true}
+              defaultTab={0}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPatientHistoryDialogOpen(false)}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Enhanced Screening Interface Dialog */}
       <Dialog 
@@ -1923,39 +2196,166 @@ const ScreeningResultsTabs: React.FC<ScreeningResultsTabsProps> = ({ selectedSes
   const [activeTab, setActiveTab] = useState(0);
 
   const renderPatientInfo = () => (
-    <Card sx={{ mb: 3 }}>
-      <CardContent>
-        <Typography variant="h6" gutterBottom color="primary">
-          Patient Information
-        </Typography>
-        <Grid container spacing={2}>
+    <Card sx={{ mb: 4, boxShadow: 4, border: '2px solid #e2e8f0' }}>
+      <CardContent sx={{ p: 4 }}>
+        <Box sx={{ 
+          borderBottom: '3px solid', 
+          borderColor: 'success.main', 
+          pb: 3, 
+          mb: 4,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <Typography variant="h5" sx={{ 
+            fontWeight: 600, 
+            color: 'success.main',
+            fontSize: '1.5rem',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            👤 PATIENT IDENTIFICATION & SESSION DETAILS
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Typography variant="caption" sx={{ 
+              bgcolor: 'success.main', 
+              color: 'white', 
+              px: 2, 
+              py: 0.5, 
+              borderRadius: 1,
+              fontWeight: 500
+            }}>
+              Session ID: {selectedSession._id?.substring(0, 8) || 'N/A'}
+            </Typography>
+            <Chip 
+              label={selectedSession.status.replace('_', ' ').toUpperCase()} 
+              size="medium"
+              sx={{ 
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                height: 32
+              }}
+              color={selectedSession.status === 'completed' ? 'success' : selectedSession.status === 'in_progress' ? 'warning' : 'default'}
+            />
+          </Box>
+        </Box>
+        
+        <Grid container spacing={4}>
           <Grid item xs={12} md={6}>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              <strong>Full Name:</strong> {selectedSession.patient_name}
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              <strong>Screening Type:</strong> {selectedSession.screening_type}
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              <strong>Status:</strong> 
-              <Chip 
-                label={selectedSession.status.replace('_', ' ')} 
-                size="small" 
-                color={selectedSession.status === 'completed' ? 'success' : selectedSession.status === 'in_progress' ? 'warning' : 'default'}
-                sx={{ ml: 1 }}
-              />
-            </Typography>
+            <Paper sx={{ p: 3, bgcolor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 2 }}>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600, 
+                mb: 3,
+                color: '#1e293b',
+                fontSize: '1.2rem',
+                display: 'flex',
+                alignItems: 'center'
+              }}>
+                📋 PATIENT DEMOGRAPHICS
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ 
+                    fontWeight: 600, 
+                    color: '#475569',
+                    fontSize: '0.875rem'
+                  }}>
+                    PATIENT NAME
+                  </Typography>
+                  <Typography variant="h6" sx={{ 
+                    color: '#1e293b', 
+                    fontWeight: 500,
+                    fontSize: '1.1rem'
+                  }}>
+                    {selectedSession.patient_name}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ 
+                    fontWeight: 600, 
+                    color: '#475569',
+                    fontSize: '0.875rem'
+                  }}>
+                    SCREENING PROTOCOL
+                  </Typography>
+                  <Typography variant="body1" sx={{ 
+                    color: '#1e293b', 
+                    fontWeight: 500,
+                    fontSize: '1rem'
+                  }}>
+                    {selectedSession.screening_type}
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
           </Grid>
           <Grid item xs={12} md={6}>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              <strong>Date:</strong> {new Date(selectedSession.created_at).toLocaleDateString()}
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              <strong>Examiner:</strong> {selectedSession.examiner_name || 'Not specified'}
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              <strong>Equipment:</strong> {selectedSession.equipment_used || 'Not specified'}
-            </Typography>
+            <Paper sx={{ p: 3, bgcolor: '#f0f9ff', border: '1px solid #0ea5e9', borderRadius: 2 }}>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600, 
+                mb: 3,
+                color: '#1e293b',
+                fontSize: '1.2rem',
+                display: 'flex',
+                alignItems: 'center'
+              }}>
+                🕐 SESSION INFORMATION
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ 
+                    fontWeight: 600, 
+                    color: '#475569',
+                    fontSize: '0.875rem'
+                  }}>
+                    EXAMINATION DATE
+                  </Typography>
+                  <Typography variant="body1" sx={{ 
+                    color: '#1e293b', 
+                    fontWeight: 500,
+                    fontSize: '1rem'
+                  }}>
+                    {new Date(selectedSession.created_at).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </Typography>
+                </Box>\n                <Box>
+                  <Typography variant="subtitle2" sx={{ 
+                    fontWeight: 600, 
+                    color: '#475569',
+                    fontSize: '0.875rem'
+                  }}>
+                    EXAMINING CLINICIAN
+                  </Typography>
+                  <Typography variant="body1" sx={{ 
+                    color: '#1e293b', 
+                    fontWeight: 500,
+                    fontSize: '1rem'
+                  }}>
+                    {selectedSession.examiner_name || 'Not Specified'}
+                  </Typography>
+                </Box>\n                <Box>
+                  <Typography variant="subtitle2" sx={{ 
+                    fontWeight: 600, 
+                    color: '#475569',
+                    fontSize: '0.875rem'
+                  }}>
+                    EQUIPMENT UTILIZED
+                  </Typography>
+                  <Typography variant="body1" sx={{ 
+                    color: '#1e293b', 
+                    fontWeight: 500,
+                    fontSize: '1rem'
+                  }}>
+                    {selectedSession.equipment_used || 'Standard Vision Screening Equipment'}
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
           </Grid>
         </Grid>
       </CardContent>
@@ -1984,56 +2384,183 @@ const ScreeningResultsTabs: React.FC<ScreeningResultsTabsProps> = ({ selectedSes
         ];
 
     return (
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Typography variant="h6" gutterBottom color="primary">
-            Workflow Progress
-          </Typography>
-          {selectedSession.current_step !== undefined ? (
-            <Stepper activeStep={selectedSession.current_step || 0} orientation="vertical">
-              {workflowSteps.map((step, index) => (
-                <Step key={index}>
-                  <StepLabel
-                    StepIconComponent={({ active, completed }) => (
-                      <Box
-                        sx={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: '50%',
-                          backgroundColor: completed ? 'success.main' : active ? 'primary.main' : 'grey.300',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'white',
-                          fontWeight: 'bold',
-                          fontSize: '0.875rem'
-                        }}
-                      >
-                        {completed ? '✓' : index + 1}
-                      </Box>
-                    )}
-                  >
-                    <Typography variant="body1" sx={{ fontWeight: index === selectedSession.current_step ? 'bold' : 'normal' }}>
-                      {step}
-                    </Typography>
-                    {index === selectedSession.current_step && (
-                      <Typography variant="caption" color="primary" sx={{ ml: 1 }}>
-                        (Current Step)
-                      </Typography>
-                    )}
-                    {selectedSession.current_step_name && index === selectedSession.current_step && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        {selectedSession.current_step_name}
-                      </Typography>
-                    )}
-                  </StepLabel>
-                </Step>
-              ))}
-            </Stepper>
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              No workflow progress information available.
+      <Card sx={{ mb: 3, boxShadow: 3 }}>
+        <CardContent sx={{ p: 4 }}>
+          <Box sx={{ 
+            borderBottom: '3px solid', 
+            borderColor: 'secondary.main', 
+            pb: 3, 
+            mb: 4,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <Typography variant="h5" sx={{ 
+              fontWeight: 600, 
+              color: 'secondary.main',
+              fontSize: '1.5rem',
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              🔄 CLINICAL WORKFLOW PROGRESSION
             </Typography>
+            <Typography variant="caption" sx={{ 
+              bgcolor: 'secondary.main', 
+              color: 'white', 
+              px: 2, 
+              py: 0.5, 
+              borderRadius: 1,
+              fontWeight: 500
+            }}>
+              {isMobileScreening ? 'Mobile Unit Protocol' : 'Standard Protocol'}
+            </Typography>
+          </Box>
+          
+          {selectedSession.current_step !== undefined ? (
+            <Paper sx={{ p: 3, bgcolor: '#fafafa', border: '1px solid #e0e0e0' }}>
+              <Stepper 
+                activeStep={selectedSession.current_step || 0} 
+                orientation="vertical"
+                sx={{
+                  '& .MuiStepLabel-root': {
+                    py: 1
+                  },
+                  '& .MuiStepContent-root': {
+                    borderLeft: '3px solid #e0e0e0',
+                    ml: 2,
+                    pl: 3
+                  }
+                }}
+              >
+                {workflowSteps.map((step, index) => (
+                  <Step key={index}>
+                    <StepLabel
+                      StepIconComponent={({ active, completed }) => (
+                        <Box
+                          sx={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            backgroundColor: completed ? 'success.main' : active ? 'warning.main' : 'grey.300',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            fontSize: '1rem',
+                            border: completed ? '3px solid #2e7d32' : active ? '3px solid #ed6c02' : '3px solid #bdbdbd',
+                            boxShadow: completed || active ? '0 4px 8px rgba(0,0,0,0.2)' : 'none'
+                          }}
+                        >
+                          {completed ? '✓' : index + 1}
+                        </Box>
+                      )}
+                    >
+                      <Box sx={{ ml: 2 }}>
+                        <Typography 
+                          variant="h6" 
+                          sx={{ 
+                            fontWeight: index === (selectedSession.current_step ?? -1) ? 700 : 500,
+                            color: index === (selectedSession.current_step ?? -1) ? 'warning.main' : 
+                                   index < (selectedSession.current_step ?? -1) ? 'success.main' : '#666',
+                            fontSize: '1.1rem'
+                          }}
+                        >
+                          {step}
+                        </Typography>
+                        {index === (selectedSession.current_step ?? -1) && (
+                          <Chip
+                            label="CURRENT STEP"
+                            size="small"
+                            color="warning"
+                            variant="filled"
+                            sx={{ 
+                              mt: 0.5,
+                              fontWeight: 600,
+                              fontSize: '0.75rem'
+                            }}
+                          />
+                        )}
+                        {selectedSession.current_step_name && index === (selectedSession.current_step ?? -1) && (
+                          <Typography variant="caption" sx={{ 
+                            display: 'block',
+                            color: 'text.secondary',
+                            mt: 0.5,
+                            fontStyle: 'italic'
+                          }}>
+                            Status: {selectedSession.current_step_name}
+                          </Typography>
+                        )}
+                        {index < (selectedSession.current_step ?? 0) && (
+                          <Typography variant="caption" sx={{ 
+                            display: 'block',
+                            color: 'success.main',
+                            mt: 0.5,
+                            fontWeight: 500
+                          }}>
+                            ✅ Completed
+                          </Typography>
+                        )}
+                      </Box>
+                    </StepLabel>
+                  </Step>
+                ))}
+              </Stepper>
+              
+              {/* Progress Summary */}
+              <Box sx={{ mt: 4, p: 3, bgcolor: 'white', border: '1px solid #e0e0e0', borderRadius: 2 }}>
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 600, 
+                  mb: 2,
+                  color: '#1e293b',
+                  fontSize: '1.1rem'
+                }}>
+                  📊 PROGRESS SUMMARY
+                </Typography>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={4}>
+                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'success.light', borderRadius: 2 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: 'success.contrastText' }}>
+                        {selectedSession.current_step || 0}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'success.contrastText', fontWeight: 500 }}>
+                        Steps Completed
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'info.light', borderRadius: 2 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: 'info.contrastText' }}>
+                        {workflowSteps.length}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'info.contrastText', fontWeight: 500 }}>
+                        Total Steps
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'warning.light', borderRadius: 2 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: 'warning.contrastText' }}>
+                        {Math.round(((selectedSession.current_step || 0) / workflowSteps.length) * 100)}%
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: 'warning.contrastText', fontWeight: 500 }}>
+                        Progress
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Box>
+            </Paper>
+          ) : (
+            <Alert severity="info" sx={{ fontSize: '1rem', p: 3 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                No Workflow Information Available
+              </Typography>
+              <Typography variant="body2">
+                This screening session does not contain detailed workflow progression data.
+                This may indicate a legacy session or manual data entry.
+              </Typography>
+            </Alert>
           )}
         </CardContent>
       </Card>
@@ -2041,128 +2568,442 @@ const ScreeningResultsTabs: React.FC<ScreeningResultsTabsProps> = ({ selectedSes
   };
 
   const renderVisionResults = () => (
-    <Card sx={{ mb: 3 }}>
-      <CardContent>
-        <Typography variant="h6" gutterBottom color="primary">
-          Vision Assessment Results
-        </Typography>
+    <Card sx={{ mb: 3, boxShadow: 3 }}>
+      <CardContent sx={{ p: 4 }}>
+        <Box sx={{ 
+          borderBottom: '3px solid', 
+          borderColor: 'primary.main', 
+          pb: 2, 
+          mb: 4,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <Typography variant="h5" sx={{ 
+            fontWeight: 600, 
+            color: 'primary.main',
+            fontSize: '1.5rem'
+          }}>
+            📋 CLINICAL VISION ASSESSMENT REPORT
+          </Typography>
+          <Typography variant="caption" sx={{ 
+            bgcolor: 'primary.main', 
+            color: 'white', 
+            px: 2, 
+            py: 0.5, 
+            borderRadius: 1,
+            fontWeight: 500
+          }}>
+            Medical Report
+          </Typography>
+        </Box>
+        
         {selectedSession.results ? (
-          <Grid container spacing={3}>
-            {/* Distance Vision */}
+          <Grid container spacing={4}>
+            {/* Distance Vision Assessment */}
             <Grid item xs={12}>
-              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', color: 'text.primary' }}>
-                Distance Vision
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Left Eye:</strong>
-                    </Typography>
-                    <Typography variant="h6" color="primary">
-                      {selectedSession.results.left_eye_distance || 'Not tested'}
-                    </Typography>
-                  </Box>
+              <Paper sx={{ p: 3, bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                  <Box sx={{ 
+                    width: 8, 
+                    height: 40, 
+                    bgcolor: 'primary.main', 
+                    mr: 2,
+                    borderRadius: 1
+                  }} />
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 600, 
+                    color: '#1e293b',
+                    fontSize: '1.25rem'
+                  }}>
+                    DISTANCE VISION ACUITY (6m/20ft)
+                  </Typography>
+                </Box>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ 
+                      p: 3, 
+                      bgcolor: 'white', 
+                      borderRadius: 2,
+                      border: '2px solid #e2e8f0',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                    }}>
+                      <Typography variant="subtitle1" sx={{ 
+                        fontWeight: 600, 
+                        mb: 2,
+                        color: '#374151',
+                        fontSize: '1.1rem'
+                      }}>
+                        👁️ LEFT EYE (OS)
+                      </Typography>
+                      <Typography variant="h4" sx={{ 
+                        color: selectedSession.results.left_eye_distance && selectedSession.results.left_eye_distance !== 'Not tested' ? 'primary.main' : 'text.disabled',
+                        fontWeight: 700,
+                        fontFamily: 'monospace',
+                        letterSpacing: '0.05em'
+                      }}>
+                        {selectedSession.results.left_eye_distance || 'NOT TESTED'}
+                      </Typography>
+                      <Typography variant="caption" sx={{ 
+                        display: 'block', 
+                        mt: 1, 
+                        color: 'text.secondary',
+                        fontStyle: 'italic'
+                      }}>
+                        Oculus Sinister
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ 
+                      p: 3, 
+                      bgcolor: 'white', 
+                      borderRadius: 2,
+                      border: '2px solid #e2e8f0',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                    }}>
+                      <Typography variant="subtitle1" sx={{ 
+                        fontWeight: 600, 
+                        mb: 2,
+                        color: '#374151',
+                        fontSize: '1.1rem'
+                      }}>
+                        👁️ RIGHT EYE (OD)
+                      </Typography>
+                      <Typography variant="h4" sx={{ 
+                        color: selectedSession.results.right_eye_distance && selectedSession.results.right_eye_distance !== 'Not tested' ? 'primary.main' : 'text.disabled',
+                        fontWeight: 700,
+                        fontFamily: 'monospace',
+                        letterSpacing: '0.05em'
+                      }}>
+                        {selectedSession.results.right_eye_distance || 'NOT TESTED'}
+                      </Typography>
+                      <Typography variant="caption" sx={{ 
+                        display: 'block', 
+                        mt: 1, 
+                        color: 'text.secondary',
+                        fontStyle: 'italic'
+                      }}>
+                        Oculus Dexter
+                      </Typography>
+                    </Box>
+                  </Grid>
                 </Grid>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Right Eye:</strong>
-                    </Typography>
-                    <Typography variant="h6" color="primary">
-                      {selectedSession.results.right_eye_distance || 'Not tested'}
-                    </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
+              </Paper>
             </Grid>
 
-            {/* Near Vision */}
+            {/* Near Vision Assessment */}
             <Grid item xs={12}>
-              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', color: 'text.primary' }}>
-                Near Vision
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Left Eye:</strong>
-                    </Typography>
-                    <Typography variant="h6" color="primary">
-                      {selectedSession.results.left_eye_near || 'Not tested'}
-                    </Typography>
-                  </Box>
+              <Paper sx={{ p: 3, bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                  <Box sx={{ 
+                    width: 8, 
+                    height: 40, 
+                    bgcolor: 'secondary.main', 
+                    mr: 2,
+                    borderRadius: 1
+                  }} />
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 600, 
+                    color: '#1e293b',
+                    fontSize: '1.25rem'
+                  }}>
+                    NEAR VISION ACUITY (33cm/14in)
+                  </Typography>
+                </Box>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ 
+                      p: 3, 
+                      bgcolor: 'white', 
+                      borderRadius: 2,
+                      border: '2px solid #e2e8f0',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                    }}>
+                      <Typography variant="subtitle1" sx={{ 
+                        fontWeight: 600, 
+                        mb: 2,
+                        color: '#374151',
+                        fontSize: '1.1rem'
+                      }}>
+                        👁️ LEFT EYE (OS)
+                      </Typography>
+                      <Typography variant="h4" sx={{ 
+                        color: selectedSession.results.left_eye_near && selectedSession.results.left_eye_near !== 'Not tested' ? 'secondary.main' : 'text.disabled',
+                        fontWeight: 700,
+                        fontFamily: 'monospace',
+                        letterSpacing: '0.05em'
+                      }}>
+                        {selectedSession.results.left_eye_near || 'NOT TESTED'}
+                      </Typography>
+                      <Typography variant="caption" sx={{ 
+                        display: 'block', 
+                        mt: 1, 
+                        color: 'text.secondary',
+                        fontStyle: 'italic'
+                      }}>
+                        Near Reading Distance
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ 
+                      p: 3, 
+                      bgcolor: 'white', 
+                      borderRadius: 2,
+                      border: '2px solid #e2e8f0',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                    }}>
+                      <Typography variant="subtitle1" sx={{ 
+                        fontWeight: 600, 
+                        mb: 2,
+                        color: '#374151',
+                        fontSize: '1.1rem'
+                      }}>
+                        👁️ RIGHT EYE (OD)
+                      </Typography>
+                      <Typography variant="h4" sx={{ 
+                        color: selectedSession.results.right_eye_near && selectedSession.results.right_eye_near !== 'Not tested' ? 'secondary.main' : 'text.disabled',
+                        fontWeight: 700,
+                        fontFamily: 'monospace',
+                        letterSpacing: '0.05em'
+                      }}>
+                        {selectedSession.results.right_eye_near || 'NOT TESTED'}
+                      </Typography>
+                      <Typography variant="caption" sx={{ 
+                        display: 'block', 
+                        mt: 1, 
+                        color: 'text.secondary',
+                        fontStyle: 'italic'
+                      }}>
+                        Near Reading Distance
+                      </Typography>
+                    </Box>
+                  </Grid>
                 </Grid>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Right Eye:</strong>
-                    </Typography>
-                    <Typography variant="h6" color="primary">
-                      {selectedSession.results.right_eye_near || 'Not tested'}
-                    </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
+              </Paper>
             </Grid>
 
-            {/* Specialized Tests */}
+            {/* Specialized Clinical Tests */}
             <Grid item xs={12}>
-              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold', color: 'text.primary' }}>
-                Specialized Tests
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Color Vision:</strong>
-                    </Typography>
-                    <Chip 
-                      label={selectedSession.results.color_vision || 'Not tested'}
-                      color={selectedSession.results.color_vision === 'normal' ? 'success' : selectedSession.results.color_vision === 'failed' ? 'error' : 'warning'}
-                      variant="outlined"
-                    />
-                  </Box>
+              <Paper sx={{ p: 3, bgcolor: '#fefce8', border: '1px solid #fbbf24' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                  <Box sx={{ 
+                    width: 8, 
+                    height: 40, 
+                    bgcolor: 'warning.main', 
+                    mr: 2,
+                    borderRadius: 1
+                  }} />
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 600, 
+                    color: '#1e293b',
+                    fontSize: '1.25rem'
+                  }}>
+                    SPECIALIZED VISION ASSESSMENTS
+                  </Typography>
+                </Box>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ 
+                      p: 3, 
+                      bgcolor: 'white', 
+                      borderRadius: 2,
+                      border: '2px solid #fbbf24',
+                      minHeight: 120,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center'
+                    }}>
+                      <Typography variant="subtitle1" sx={{ 
+                        fontWeight: 600, 
+                        mb: 2,
+                        color: '#374151',
+                        fontSize: '1.1rem'
+                      }}>
+                        🎨 COLOR VISION SCREENING
+                      </Typography>
+                      <Chip 
+                        label={(
+                          selectedSession.results.color_vision === 'normal' ? 'NORMAL' :
+                          selectedSession.results.color_vision === 'deficient' ? 'DEFICIENT' :
+                          selectedSession.results.color_vision === 'failed' ? 'FAILED' :
+                          'NOT TESTED'
+                        )}
+                        sx={{
+                          fontSize: '1rem',
+                          fontWeight: 700,
+                          height: 40,
+                          '& .MuiChip-label': { px: 3 }
+                        }}
+                        color={
+                          selectedSession.results.color_vision === 'normal' ? 'success' : 
+                          selectedSession.results.color_vision === 'deficient' ? 'warning' :
+                          selectedSession.results.color_vision === 'failed' ? 'error' : 'default'
+                        }
+                        variant="filled"
+                      />
+                      <Typography variant="caption" sx={{ 
+                        mt: 2, 
+                        color: 'text.secondary',
+                        fontStyle: 'italic'
+                      }}>
+                        Ishihara/D-15 Test Protocol
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ 
+                      p: 3, 
+                      bgcolor: 'white', 
+                      borderRadius: 2,
+                      border: '2px solid #fbbf24',
+                      minHeight: 120,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center'
+                    }}>
+                      <Typography variant="subtitle1" sx={{ 
+                        fontWeight: 600, 
+                        mb: 2,
+                        color: '#374151',
+                        fontSize: '1.1rem'
+                      }}>
+                        🔍 STEREOPSIS ASSESSMENT
+                      </Typography>
+                      <Chip 
+                        label={(
+                          selectedSession.results.depth_perception === 'normal' ? 'NORMAL' :
+                          selectedSession.results.depth_perception === 'impaired' ? 'IMPAIRED' :
+                          selectedSession.results.depth_perception === 'failed' ? 'FAILED' :
+                          'NOT TESTED'
+                        )}
+                        sx={{
+                          fontSize: '1rem',
+                          fontWeight: 700,
+                          height: 40,
+                          '& .MuiChip-label': { px: 3 }
+                        }}
+                        color={
+                          selectedSession.results.depth_perception === 'normal' ? 'success' : 
+                          selectedSession.results.depth_perception === 'impaired' ? 'warning' :
+                          selectedSession.results.depth_perception === 'failed' ? 'error' : 'default'
+                        }
+                        variant="filled"
+                      />
+                      <Typography variant="caption" sx={{ 
+                        mt: 2, 
+                        color: 'text.secondary',
+                        fontStyle: 'italic'
+                      }}>
+                        Titmus/Random Dot Stereogram
+                      </Typography>
+                    </Box>
+                  </Grid>
                 </Grid>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Depth Perception:</strong>
-                    </Typography>
-                    <Chip 
-                      label={selectedSession.results.depth_perception || 'Not tested'}
-                      color={selectedSession.results.depth_perception === 'normal' ? 'success' : selectedSession.results.depth_perception === 'failed' ? 'error' : 'warning'}
-                      variant="outlined"
-                    />
-                  </Box>
-                </Grid>
-              </Grid>
+              </Paper>
             </Grid>
 
-            {/* Notes and Recommendations */}
+            {/* Clinical Documentation */}
             {(selectedSession.results.notes || selectedSession.results.recommendations) && (
               <Grid item xs={12}>
-                <Divider sx={{ my: 2 }} />
-                {selectedSession.results.notes && (
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Clinical Notes:
-                    </Typography>
-                    <Typography variant="body2" sx={{ p: 2, bgcolor: 'info.light', borderRadius: 1, color: 'info.contrastText' }}>
-                      {selectedSession.results.notes}
-                    </Typography>
-                  </Box>
-                )}
-                {selectedSession.results.recommendations && (
-                  <Box>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Recommendations:
-                    </Typography>
-                    <Typography variant="body2" sx={{ p: 2, bgcolor: 'warning.light', borderRadius: 1, color: 'warning.contrastText' }}>
-                      {selectedSession.results.recommendations}
+                <Paper sx={{ p: 4, bgcolor: '#f0f9ff', border: '1px solid #0ea5e9' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                    <Box sx={{ 
+                      width: 8, 
+                      height: 40, 
+                      bgcolor: 'info.main', 
+                      mr: 2,
+                      borderRadius: 1
+                    }} />
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 600, 
+                      color: '#1e293b',
+                      fontSize: '1.25rem'
+                    }}>
+                      CLINICAL DOCUMENTATION
                     </Typography>
                   </Box>
-                )}
+                  
+                  {selectedSession.results.notes && (
+                    <Box sx={{ mb: 3 }}>
+                      <Typography variant="subtitle1" sx={{ 
+                        fontWeight: 600, 
+                        mb: 2,
+                        color: '#374151',
+                        fontSize: '1.1rem',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}>
+                        📝 CLINICAL OBSERVATIONS
+                      </Typography>
+                      <Paper sx={{ 
+                        p: 3, 
+                        bgcolor: 'white',
+                        border: '1px solid #cbd5e1',
+                        borderLeft: '4px solid #0ea5e9'
+                      }}>
+                        <Typography variant="body1" sx={{ 
+                          lineHeight: 1.8,
+                          fontSize: '1rem',
+                          color: '#1e293b',
+                          fontFamily: 'system-ui, -apple-system, sans-serif'
+                        }}>
+                          {selectedSession.results.notes}
+                        </Typography>
+                        <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed #cbd5e1' }}>
+                          <Typography variant="caption" sx={{ 
+                            color: 'text.secondary',
+                            fontStyle: 'italic'
+                          }}>
+                            Examiner: {selectedSession.examiner_name || 'Not specified'} | 
+                            Date: {new Date(selectedSession.created_at).toLocaleDateString()}
+                          </Typography>
+                        </Box>
+                      </Paper>
+                    </Box>
+                  )}
+                  
+                  {selectedSession.results.recommendations && (
+                    <Box>
+                      <Typography variant="subtitle1" sx={{ 
+                        fontWeight: 600, 
+                        mb: 2,
+                        color: '#374151',
+                        fontSize: '1.1rem',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}>
+                        ⚕️ CLINICAL RECOMMENDATIONS
+                      </Typography>
+                      <Paper sx={{ 
+                        p: 3, 
+                        bgcolor: '#fef3c7',
+                        border: '1px solid #f59e0b',
+                        borderLeft: '4px solid #f59e0b'
+                      }}>
+                        <Typography variant="body1" sx={{ 
+                          lineHeight: 1.8,
+                          fontSize: '1rem',
+                          color: '#92400e',
+                          fontFamily: 'system-ui, -apple-system, sans-serif',
+                          fontWeight: 500
+                        }}>
+                          {selectedSession.results.recommendations}
+                        </Typography>
+                        <Box sx={{ mt: 2, pt: 2, borderTop: '1px dashed #f59e0b' }}>
+                          <Typography variant="caption" sx={{ 
+                            color: '#92400e',
+                            fontStyle: 'italic',
+                            fontWeight: 500
+                          }}>
+                            ⚠️ Follow clinical protocols for implementation
+                          </Typography>
+                        </Box>
+                      </Paper>
+                    </Box>
+                  )}
+                </Paper>
               </Grid>
             )}
           </Grid>
@@ -2491,31 +3332,217 @@ const ScreeningResultsTabs: React.FC<ScreeningResultsTabsProps> = ({ selectedSes
       {/* Always show patient info */}
       {renderPatientInfo()}
       
-      {/* Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)}>
-          <Tab 
-            label="Workflow Progress" 
-            icon={<Schedule />}
-            iconPosition="start"
-          />
-          <Tab 
-            label="Vision Results" 
-            icon={<VisibilityIcon />}
-            iconPosition="start"
-          />
-          <Tab 
-            label="Additional Data" 
-            icon={<Assessment />}
-            iconPosition="start"
-          />
-        </Tabs>
+      {/* Print/Export Actions */}
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Typography variant="h6" sx={{ 
+          color: '#1e293b',
+          fontWeight: 600,
+          fontSize: '1.25rem'
+        }}>
+          📊 COMPREHENSIVE SCREENING REPORT
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<Assessment />}
+            onClick={() => window.print()}
+            sx={{
+              borderColor: 'primary.main',
+              color: 'primary.main',
+              '&:hover': {
+                bgcolor: 'primary.main',
+                color: 'white'
+              }
+            }}
+          >
+            Print Report
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<VisibilityIcon />}
+            onClick={() => {
+              // Generate PDF-like view
+              const printWindow = window.open('', '_blank');
+              if (printWindow) {
+                printWindow.document.write(`
+                  <html>
+                    <head>
+                      <title>Vision Screening Report - ${selectedSession.patient_name}</title>
+                      <style>
+                        body { font-family: 'Times New Roman', serif; margin: 40px; line-height: 1.6; }
+                        .header { text-align: center; border-bottom: 3px solid #1976d2; padding-bottom: 20px; margin-bottom: 30px; }
+                        .section { margin-bottom: 30px; page-break-inside: avoid; }
+                        .label { font-weight: bold; color: #333; }
+                        .value { margin-left: 20px; font-size: 1.1em; }
+                        .result-box { border: 2px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }
+                        .normal { border-color: #4caf50; background-color: #f1f8e9; }
+                        .warning { border-color: #ff9800; background-color: #fff3e0; }
+                        .error { border-color: #f44336; background-color: #ffebee; }
+                      </style>
+                    </head>
+                    <body>
+                      <div class="header">
+                        <h1>VISION SCREENING MEDICAL REPORT</h1>
+                        <p><strong>Patient:</strong> ${selectedSession.patient_name}</p>
+                        <p><strong>Date:</strong> ${new Date(selectedSession.created_at).toLocaleDateString()}</p>
+                        <p><strong>Examiner:</strong> ${selectedSession.examiner_name || 'Not specified'}</p>
+                      </div>
+                      <div class="section">
+                        <h2>Vision Acuity Results</h2>
+                        <div class="result-box">
+                          <p class="label">Distance Vision:</p>
+                          <p class="value">Left Eye (OS): ${selectedSession.results?.left_eye_distance || 'Not tested'}</p>
+                          <p class="value">Right Eye (OD): ${selectedSession.results?.right_eye_distance || 'Not tested'}</p>
+                        </div>
+                        <div class="result-box">
+                          <p class="label">Near Vision:</p>
+                          <p class="value">Left Eye (OS): ${selectedSession.results?.left_eye_near || 'Not tested'}</p>
+                          <p class="value">Right Eye (OD): ${selectedSession.results?.right_eye_near || 'Not tested'}</p>
+                        </div>
+                      </div>
+                      <div class="section">
+                        <h2>Specialized Tests</h2>
+                        <div class="result-box ${selectedSession.results?.color_vision === 'normal' ? 'normal' : selectedSession.results?.color_vision === 'failed' ? 'error' : 'warning'}">
+                          <p class="label">Color Vision: ${selectedSession.results?.color_vision || 'Not tested'}</p>
+                        </div>
+                        <div class="result-box ${selectedSession.results?.depth_perception === 'normal' ? 'normal' : selectedSession.results?.depth_perception === 'failed' ? 'error' : 'warning'}">
+                          <p class="label">Depth Perception: ${selectedSession.results?.depth_perception || 'Not tested'}</p>
+                        </div>
+                      </div>
+                      ${selectedSession.results?.notes || selectedSession.results?.recommendations ? `
+                        <div class="section">
+                          <h2>Clinical Documentation</h2>
+                          ${selectedSession.results?.notes ? `<div class="result-box"><p class="label">Clinical Notes:</p><p class="value">${selectedSession.results.notes}</p></div>` : ''}
+                          ${selectedSession.results?.recommendations ? `<div class="result-box warning"><p class="label">Recommendations:</p><p class="value">${selectedSession.results.recommendations}</p></div>` : ''}
+                        </div>
+                      ` : ''}
+                      <div style="margin-top: 50px; text-align: center; border-top: 1px solid #ccc; padding-top: 20px; color: #666;">
+                        <p>This report was generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+                        <p>Medical Record System - Vision Screening Module</p>
+                      </div>
+                    </body>
+                  </html>
+                `);
+                printWindow.document.close();
+                printWindow.focus();
+              }
+            }}
+            sx={{
+              bgcolor: 'success.main',
+              '&:hover': {
+                bgcolor: 'success.dark'
+              }
+            }}
+          >
+            Medical Report View
+          </Button>
+        </Box>
       </Box>
+      
+      {/* Enhanced Tabs */}
+      <Paper sx={{ width: '100%', boxShadow: 3 }}>
+        <Box sx={{ borderBottom: 2, borderColor: 'divider', bgcolor: '#f8fafc' }}>
+          <Tabs 
+            value={activeTab} 
+            onChange={(_, newValue) => setActiveTab(newValue)}
+            sx={{
+              '& .MuiTab-root': {
+                fontSize: '1rem',
+                fontWeight: 600,
+                minHeight: 64,
+                textTransform: 'none',
+                px: 3
+              },
+              '& .MuiTab-root.Mui-selected': {
+                color: 'primary.main',
+                fontWeight: 700
+              }
+            }}
+          >
+            <Tab 
+              label="Workflow Progress" 
+              icon={<Schedule />}
+              iconPosition="start"
+              sx={{ color: '#475569' }}
+            />
+            <Tab 
+              label="Clinical Vision Results" 
+              icon={<VisibilityIcon />}
+              iconPosition="start"
+              sx={{ color: '#475569' }}
+            />
+            <Tab 
+              label="Additional Medical Data" 
+              icon={<Assessment />}
+              iconPosition="start"
+              sx={{ color: '#475569' }}
+            />
+            <Tab 
+              label="Activity Log" 
+              icon={<History />}
+              iconPosition="start"
+              sx={{ color: '#475569' }}
+            />
+            <Tab 
+              label="Timeline View" 
+              icon={<Timeline />}
+              iconPosition="start"
+              sx={{ color: '#475569' }}
+            />
+          </Tabs>
+        </Box>
 
-      {/* Tab Content */}
-      {activeTab === 0 && renderWorkflowProgress()}
-      {activeTab === 1 && renderVisionResults()}
-      {activeTab === 2 && renderWorkflowData()}
+        {/* Tab Content with Medical Styling */}
+        <Box sx={{ p: 4, minHeight: 400, bgcolor: 'white' }}>
+          {activeTab === 0 && renderWorkflowProgress()}
+          {activeTab === 1 && renderVisionResults()}
+          {activeTab === 2 && renderWorkflowData()}
+          {activeTab === 3 && (
+            <ActivityLog
+              sessionId={selectedSession._id || selectedSession.session_id || ''}
+              stepHistory={selectedSession.step_history || []}
+              examinerName={selectedSession.examiner_name}
+              examinerRole={selectedSession.examiner_role || 'medical_staff'}
+              createdAt={selectedSession.created_at}
+              updatedAt={selectedSession.updated_at}
+              lastUpdatedBy={selectedSession.last_updated_by}
+              lastUpdatedByName={selectedSession.last_updated_by_name}
+              lastUpdatedByRole={selectedSession.last_updated_by_role || 'medical_staff'}
+              showFilters={true}
+              compact={false}
+            />
+          )}
+          {activeTab === 4 && (
+            <ScreeningTimeline
+              sessionId={selectedSession._id || selectedSession.session_id || ''}
+              patientName={selectedSession.patient_name}
+              screeningType={selectedSession.screening_type}
+              currentStep={selectedSession.current_step}
+              totalSteps={selectedSession.screening_type?.toLowerCase().includes('mobile') ? 8 : 5}
+              status={selectedSession.status}
+              createdAt={selectedSession.created_at}
+              updatedAt={selectedSession.updated_at}
+              steps={(selectedSession.step_history || []).map(step => ({
+                step_number: step.step_number,
+                step_name: step.step_name,
+                status: step.status === 'completed' ? 'completed' : step.step_number === selectedSession.current_step ? 'in_progress' : 'pending',
+                staff_name: step.completed_by_name,
+                staff_id: step.completed_by,
+                staff_role: step.completed_by_role,
+                started_at: step.started_at,
+                completed_at: step.completed_at,
+                notes: step.notes,
+                data_quality_score: step.quality_score
+              }))}
+              examinerName={selectedSession.examiner_name}
+              examinerRole={selectedSession.examiner_role || 'medical_staff'}
+              showProgress={true}
+              showDuration={true}
+              showQuality={true}
+            />
+          )}
+        </Box>
+      </Paper>
     </Box>
   );
 };

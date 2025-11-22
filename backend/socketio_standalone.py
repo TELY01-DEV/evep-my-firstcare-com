@@ -25,7 +25,12 @@ from app.socketio_service import SocketIOService, RealTimeEvent
 # Initialize Socket.IO server
 sio = socketio.AsyncServer(
     async_mode='asgi',
-    cors_allowed_origins="*",
+    cors_allowed_origins=[
+        "https://portal.evep.my-firstcare.com",
+        "https://evep.my-firstcare.com",
+        "http://localhost:3000",
+        "http://localhost:3001"
+    ],
     logger=True,
     engineio_logger=True
 )
@@ -38,6 +43,77 @@ socket_app = socketio.ASGIApp(sio, app)
 
 # Initialize Socket.IO service
 socketio_service = SocketIOService()
+
+# Socket.IO Event Handlers
+@sio.event
+async def connect(sid, environ, auth):
+    """Handle client connection"""
+    try:
+        print(f"🔗 Client {sid} connected")
+        
+        # Extract connection parameters
+        query_params = environ.get('QUERY_STRING', '')
+        params = {}
+        for param in query_params.split('&'):
+            if '=' in param:
+                key, value = param.split('=', 1)
+                params[key] = value
+        
+        # Handle connection with socketio_service
+        await socketio_service.handle_connect(sid, params)
+        
+        print(f"✅ Client {sid} connected successfully")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Connection error for {sid}: {e}")
+        return False
+
+@sio.event
+async def disconnect(sid):
+    """Handle client disconnection"""
+    try:
+        print(f"🔌 Client {sid} disconnected")
+        await socketio_service.handle_disconnect(sid)
+        print(f"✅ Client {sid} disconnected successfully")
+    except Exception as e:
+        print(f"❌ Disconnection error for {sid}: {e}")
+
+@sio.event
+async def join_patient_room(sid, data):
+    """Handle joining a patient room for collaboration"""
+    try:
+        return await socketio_service.handle_join_patient_room(sid, data)
+    except Exception as e:
+        print(f"❌ Join patient room error: {e}")
+        return {"status": "error", "message": str(e)}
+
+@sio.event
+async def leave_patient_room(sid, data):
+    """Handle leaving a patient room"""
+    try:
+        return await socketio_service.handle_leave_patient_room(sid, data)
+    except Exception as e:
+        print(f"❌ Leave patient room error: {e}")
+        return {"status": "error", "message": str(e)}
+
+@sio.event
+async def field_update(sid, data):
+    """Handle field updates"""
+    try:
+        return await socketio_service.handle_field_update(sid, data)
+    except Exception as e:
+        print(f"❌ Field update error: {e}")
+        return {"status": "error", "message": str(e)}
+
+@sio.event
+async def step_update(sid, data):
+    """Handle step updates"""
+    try:
+        return await socketio_service.handle_step_update(sid, data)
+    except Exception as e:
+        print(f"❌ Step update error: {e}")
+        return {"status": "error", "message": str(e)}
 
 @app.on_event("startup")
 async def startup_event():
@@ -80,9 +156,9 @@ if __name__ == "__main__":
     # Get configuration
     config = Config()
     
-    # Run the service
+    # Run the Socket.IO service (use socket_app not app)
     uvicorn.run(
-        "socketio_standalone:app",
+        "socketio_standalone:socket_app",
         host="0.0.0.0",
         port=8000,
         reload=False,

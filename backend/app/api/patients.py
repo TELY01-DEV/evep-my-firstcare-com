@@ -393,7 +393,7 @@ async def delete_patient(
     """Soft delete patient (mark as inactive)"""
     
     # Check if user has permission to delete patients
-    if current_user["role"] not in ["admin"]:
+    if current_user["role"] not in ["admin", "super_admin", "medical_admin", "system_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions to delete patients"
